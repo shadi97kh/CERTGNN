@@ -48,6 +48,23 @@ gate2:
     n_test: 5000
     explanation_ball_fraction: 0.5
 
+gate2_model:           # experiments/gate2_model.py: 1.9 with a TRAINED model
+  # Same topology, link, delta and explanation as gate2.coverage, so the only
+  # thing that changes between the two runs is who computes the score.
+  regulator: far       # 'random' makes the regulator structurally unidentifiable,
+                       # so a trained model has nothing to learn; 'far' is learnable
+  delta: 1.0
+  n_train: 600
+  n_val: 150
+  n_cal: 600
+  n_test: 1500
+  explanation_ball_fraction: 0.5
+  target: latent       # regress on eta, not on mu: the head must emit logits
+                       # (CLAUDE.md), and the shipped y is a probability
+  arms: [baseline_hidden, baseline_observable]
+  min_val_r2: 0.05     # below this the model has not learned and the arm is
+                       # reported as uninformative rather than as evidence
+
 tier0:                 # ABLATIONS 0.6, 0.7, 0.8 (experiments/tier0_controls.py)
   substrates: [splice, connectome, synthetic]
   run_bqn_on: [connectome]        # 0.8 is a brain-substrate row

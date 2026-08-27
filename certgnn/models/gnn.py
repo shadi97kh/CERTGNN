@@ -5,6 +5,12 @@ head has no sigmoid: probabilities are for display only (Theorem 2). The
 MLP is the ABLATIONS 0.7 control: identical per-node processing and readout
 with message passing removed, so any gap between the two is attributable to
 the edges.
+
+Both accept an optional soft node ``mask``. It multiplies the node states at
+the input and after every layer, so a node held near 0 contributes almost
+nothing to its neighbours at any hop -- the smooth analogue of deleting it.
+Soft only: the mask is never thresholded here, because the Jacobian arguments
+of Theorems 3 to 5 require a differentiable path (see ``certgnn/explain/masks.py``).
 """
 
 from __future__ import annotations
@@ -16,6 +22,33 @@ from torch import nn
 from torch_geometric.nn import GCNConv, GINConv, SAGEConv, global_mean_pool
 
 Readout = Literal["target", "mean"]
+
+
+def _apply_mask(h: torch.Tensor, mask: torch.Tensor | None) -> torch.Tensor:
+    """Scale node states by a soft mask.
+
+    Parameters
+    ----------
+    h : torch.Tensor
+        Node states, shape ``(num_nodes, dim)``.
+    mask : torch.Tensor or None
+        Per-node multipliers in ``[0, 1]``, shape ``(num_nodes,)``. ``None``
+        leaves ``h`` untouched, which is the unmasked forward pass.
+
+    Returns
+    -------
+    torch.Tensor
+        ``h`` scaled row-wise, in ``h``'s dtype so the mask may be float64
+        while the model runs in float32.
+    """
+    if mask is None:
+        return h
+    if mask.dim() != 1 or mask.numel() != h.size(0):
+        raise ValueError(
+            f"mask must be one value per node: got {tuple(mask.shape)} "
+            f"for {h.size(0)} nodes"
+        )
+    return h * mask.to(h.dtype).unsqueeze(-1)
 
 
 def _readout(
@@ -88,10 +121,18 @@ class TargetReadoutGCN(nn.Module):
         batch: torch.Tensor,
         ptr: torch.Tensor,
         target_idx: torch.Tensor,
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        h = x
+        """Latent output per graph, optionally under a soft node mask.
+
+        The mask is applied to the input and after every message-passing layer.
+        Applying it once at the input would only attenuate a node's own
+        features while leaving it free to relay its neighbours' messages, which
+        is not what masking a node means.
+        """
+        h = _apply_mask(x, mask)
         for conv in self.convs:
-            h = torch.relu(conv(h, edge_index))
+            h = _apply_mask(torch.relu(conv(h, edge_index)), mask)
         return self.head(_readout(h, batch, ptr, target_idx, self.readout)).squeeze(-1)
 
 
@@ -122,6 +163,13 @@ class NodeFeatureMLP(nn.Module):
         batch: torch.Tensor,
         ptr: torch.Tensor,
         target_idx: torch.Tensor,
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        h = self.mlp(x)
+        """Latent output per graph, optionally under a soft node mask.
+
+        Accepted for interface parity with the GNN. With no message passing a
+        mask can only attenuate the readout node itself, so this control is
+        insensitive to masking anything else -- which is the point of it.
+        """
+        h = _apply_mask(self.mlp(_apply_mask(x, mask)), mask)
         return self.head(_readout(h, batch, ptr, target_idx, self.readout)).squeeze(-1)

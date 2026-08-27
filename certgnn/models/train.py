@@ -20,10 +20,19 @@ from torch_geometric.loader import DataLoader
 
 @dataclass(frozen=True)
 class FitResult:
+    """Outcome of one fit.
+
+    ``model`` carries the trained network with the selected epoch's weights
+    already loaded. It defaults to ``None`` so existing callers that only read
+    metrics are unaffected; experiments that need to *evaluate* the trained
+    model -- rather than an oracle standing in for it -- read this field.
+    """
+
     task: str
     best_epoch: int
     val_metric: float
     test_metrics: dict[str, float]
+    model: torch.nn.Module | None = None
 
 
 def infer_task(data: list) -> str:
@@ -122,4 +131,5 @@ def fit(
         best_epoch=best_epoch,
         val_metric=best_val,
         test_metrics=metrics(pt, yt, task),
+        model=model,
     )

@@ -48,6 +48,15 @@ class SyntheticConfig:
     shift_eta0_mean, shift_eta0_std : float | None
         Test-split distribution of ``eta0``; ``None`` means no shift. Requires
         ``p0 is None``. The likelihood ratio is then closed form.
+    baseline_feature : bool
+        Append the instance's latent baseline ``eta0`` as a constant node
+        column. Off by default, and off for every existing experiment. It
+        exists because ``eta0`` is otherwise drawn as unobservable per-instance
+        noise: a model trained without it *cannot* represent the baseline, so
+        any statistic stratified on ``p0`` is flat for that model whatever the
+        link does. Turning it on makes the baseline observable, as it is in a
+        real substrate where the baseline rate is a function of the input, and
+        so makes a trained model's baseline dependence testable at all.
     target_indicator : bool
         Append a one-hot ``is_target`` column. The target is known to every
         model (it is the readout node), so this leaks nothing; message
@@ -74,6 +83,7 @@ class SyntheticConfig:
     shift_eta0_std: float | None = None
     structural_features: bool = True
     target_indicator: bool = False
+    baseline_feature: bool = False
     n_train: int = 200
     n_val: int = 50
     n_cal: int = 200
@@ -271,6 +281,8 @@ class SyntheticSubstrate:
             ind = np.zeros((n, 1))
             ind[target, 0] = 1.0
             x = np.concatenate([x, ind], axis=1)
+        if self.config.baseline_feature:
+            x = np.concatenate([x, np.full((n, 1), eta0)], axis=1)
 
         edges = np.array(list(G.edges()), dtype=np.int64).T
         edge_index = torch.from_numpy(np.concatenate([edges, edges[::-1]], axis=1))
