@@ -253,3 +253,21 @@ def test_resume_relaunches_only_unfinished_runs(tmp_path, monkeypatch):
     assert (
         m["runs"][1]["resumed_at"] == ["abc1234"] and "resumed_at" not in m["runs"][0]
     )
+
+
+def test_make_run_dir_never_reuses_a_directory(tmp_path, monkeypatch):
+    """Second-resolution timestamps collide when two runs start together."""
+    from omegaconf import OmegaConf
+
+    import experiments._common as C
+
+    monkeypatch.setattr(C, "git_sha", lambda: "abc1234")
+    monkeypatch.setattr(C, "git_dirty", lambda: False)
+    monkeypatch.setattr(C, "environment_lock", lambda: "# stub\n")
+    cfg = OmegaConf.create(
+        {"output": {"runs": str(tmp_path)}, "seeds": 1, "seed": None}
+    )
+    dirs = [C.make_run_dir(cfg, "exp") for _ in range(3)]
+    assert len({d.name for d in dirs}) == 3
+    for d in dirs:
+        assert (d / "meta.json").exists() and (d / "config.yaml").exists()

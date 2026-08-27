@@ -138,8 +138,20 @@ def make_run_dir(
             "REFUSING TO RUN: git working tree is dirty, so no SHA identifies this code. "
             "Commit first, or pass --allow-dirty (the flag is recorded in meta.json)."
         )
-    run = pathlib.Path(cfg.output.runs) / f"{ts}_{sha}{'-dirty' if dirty else ''}_{h}"
-    run.mkdir(parents=True, exist_ok=False)
+    stem = f"{ts}_{sha}{'-dirty' if dirty else ''}_{h}"
+    root = pathlib.Path(cfg.output.runs)
+    # Timestamps have one-second resolution, so two runs of the same code and
+    # config started in the same second would collide; never reuse or silently
+    # share a run directory, take the next free suffix instead.
+    run = root / stem
+    for n in range(1, 100):
+        try:
+            run.mkdir(parents=True, exist_ok=False)
+            break
+        except FileExistsError:
+            run = root / f"{stem}-{n}"
+    else:
+        raise RuntimeError(f"could not create a fresh run directory for {stem}")
     (run / "config.yaml").write_text(OmegaConf.to_yaml(cfg, resolve=True))
     (run / "environment.lock").write_text(environment_lock())
     meta = {
