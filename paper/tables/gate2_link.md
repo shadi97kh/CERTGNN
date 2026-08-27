@@ -1,6 +1,6 @@
 # Gate 2 results (ABLATIONS 1.6 to 1.9), synthetic substrate
 
-git dc7b132, config 0028d6eb, 10 seeds, mean [95% bootstrap CI].
+git cdcc06a, config 5766d0a3, 10 seeds, mean [95% bootstrap CI].
 
 ## 1.6 link sweep
 

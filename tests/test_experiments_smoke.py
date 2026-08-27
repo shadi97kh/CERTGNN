@@ -85,4 +85,9 @@ def test_tier0_controls_runs_end_to_end(tmp_path):
     assert set(per_seed) == {"synthetic/gnn", "synthetic/shuffled", "synthetic/mlp"}
     budget = json.loads((d / "tuning_budget.json").read_text())
     assert {b["model"] for b in budget} == {"gnn", "shuffled", "mlp"}
-    assert len({(b["configs_tried"], b["epochs"]) for b in budget}) == 1  # equal effort
+    tried = {b["model"]: b["configs_tried"] for b in budget}
+    assert tried == {
+        "gnn": 3,
+        "shuffled": 3,
+        "mlp": 1,
+    }  # honest count: backbone chosen among 3

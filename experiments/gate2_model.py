@@ -99,7 +99,9 @@ ARMS = ("baseline_hidden", "baseline_observable")
 # ------------------------------------------------------------------ data
 
 
-def build_substrate(cfg: Any, seed: int, *, baseline_feature: bool) -> SyntheticSubstrate:
+def build_substrate(
+    cfg: Any, seed: int, *, baseline_feature: bool
+) -> SyntheticSubstrate:
     """Substrate for one arm, matching ``gate2.coverage`` except where stated."""
     gm = cfg.gate2_model
     cov = cfg.gate2.coverage
@@ -143,7 +145,9 @@ def retarget(data: list, field: str) -> list:
 # --------------------------------------------------------------- scoring
 
 
-def explanation_masks(sub: SyntheticSubstrate, data: list, frac: float) -> list[torch.Tensor]:
+def explanation_masks(
+    sub: SyntheticSubstrate, data: list, frac: float
+) -> list[torch.Tensor]:
     """The resistance-ball explanation for each instance.
 
     Identical to the one ``gate2_link`` scores with the oracle, so the two
@@ -159,7 +163,10 @@ def explanation_masks(sub: SyntheticSubstrate, data: list, frac: float) -> list[
 
 @torch.no_grad()
 def model_latents(
-    model: torch.nn.Module, data: list, masks: list[torch.Tensor] | None, batch_size: int = 128
+    model: torch.nn.Module,
+    data: list,
+    masks: list[torch.Tensor] | None,
+    batch_size: int = 128,
 ) -> np.ndarray:
     """Latent output per instance under a per-instance soft node mask.
 
@@ -176,7 +183,12 @@ def model_latents(
         mask = getattr(batch, "node_mask", None) if masks is not None else None
         outs.append(
             model(
-                batch.x, batch.edge_index, batch.batch, batch.ptr, batch.target_idx, mask
+                batch.x,
+                batch.edge_index,
+                batch.batch,
+                batch.ptr,
+                batch.target_idx,
+                mask,
             ).cpu()
         )
     return torch.cat(outs).numpy()
@@ -256,7 +268,11 @@ def coverage_profile(
 def make_model_factory(cfg: Any, in_dim: int):
     mc = cfg.model
     return lambda: TargetReadoutGCN(
-        in_dim, int(mc.hidden), int(mc.depth), str(mc.readout), str(mc.get("arch", "gcn"))
+        in_dim,
+        int(mc.hidden),
+        int(mc.depth),
+        str(mc.readout),
+        str(mc.get("arch", "gcn")),
     )
 
 
@@ -270,7 +286,7 @@ def run_arm(cfg: Any, seed: int, arm: str) -> dict[str, Any]:
     tr, va = retarget(splits["train"], tgt), retarget(splits["val"], tgt)
     te_for_fit = retarget(splits["test"], tgt)
     in_dim = int(tr[0].x.size(1))
-    kw = dict(
+    kw: dict[str, Any] = dict(
         seed=seed, epochs=int(mc.epochs), lr=float(mc.lr), batch_size=int(mc.batch_size)
     )
     r = fit(make_model_factory(cfg, in_dim), tr, va, te_for_fit, **kw)
@@ -298,8 +314,12 @@ def run_arm(cfg: Any, seed: int, arm: str) -> dict[str, Any]:
         "test_metrics": {k: float(v) for k, v in r.test_metrics.items()},
         "primary_metric": key,
         "learned": bool(float(r.val_metric) >= float(gm.min_val_r2)),
-        "model": coverage_profile(m_cal_lat, m_cal_prob, m_te_lat, m_te_prob, te_p0, cfg),
-        "oracle": coverage_profile(o_cal_lat, o_cal_prob, o_te_lat, o_te_prob, te_p0, cfg),
+        "model": coverage_profile(
+            m_cal_lat, m_cal_prob, m_te_lat, m_te_prob, te_p0, cfg
+        ),
+        "oracle": coverage_profile(
+            o_cal_lat, o_cal_prob, o_te_lat, o_te_prob, te_p0, cfg
+        ),
     }
 
     # Does the model's latent output track the baseline at all? If it does not,
@@ -309,7 +329,9 @@ def run_arm(cfg: Any, seed: int, arm: str) -> dict[str, Any]:
     out["latent_vs_baseline_pearson_r"] = float(np.corrcoef(z_full, logit_p0)[0, 1])
     out["latent_std"] = float(z_full.std())
 
-    out["sanity"] = run_sanity(cfg, seed, arm, sub, splits, cal_masks, te_masks, te_p0, model)
+    out["sanity"] = run_sanity(
+        cfg, seed, arm, sub, splits, cal_masks, te_masks, te_p0, model
+    )
     out["degenerate_explanations"] = float(
         np.mean([degenerate_explanation_check(m) for m in te_masks])
     )
@@ -360,6 +382,7 @@ def run_sanity(
         lr=float(mc.lr),
         batch_size=int(mc.batch_size),
     )
+    assert r.model is not None
     lc_lat, lc_prob = model_scores(r.model, splits["cal"], cal_masks)
     lt_lat, lt_prob = model_scores(r.model, splits["test"], te_masks)
     label_rand = coverage_profile(lc_lat, lc_prob, lt_lat, lt_prob, te_p0, cfg)
@@ -407,10 +430,16 @@ def aggregate(per_seed: list[dict[str, Any]], cfg: Any) -> dict[str, Any]:
                     [x[scorer][f"marginal_{space}"] for x in rows], n_boot=B
                 )
                 a[f"{scorer}_profile_{space}_mean"] = [
-                    float(np.mean([x[scorer][f"coverage_profile_{space}"][k] for x in rows]))
+                    float(
+                        np.mean(
+                            [x[scorer][f"coverage_profile_{space}"][k] for x in rows]
+                        )
+                    )
                     for k in range(n_strata)
                 ]
-            a[f"{scorer}_any_infinite_quantile"] = any(x[scorer]["infinite_quantile"] for x in rows)
+            a[f"{scorer}_any_infinite_quantile"] = any(
+                x[scorer]["infinite_quantile"] for x in rows
+            )
         for ctrl in ("model_randomization", "label_randomization"):
             a[ctrl] = {
                 k: mean_ci([x["sanity"][ctrl][k] for x in rows], n_boot=B)
@@ -428,7 +457,10 @@ def interpret(agg: dict[str, Any], cfg: Any) -> dict[str, Any]:
         a = agg["arms"][arm]
         o_gap, m_gap = a["oracle_gap_probability"], a["model_gap_probability"]
         m_lat = a["model_gap_latent"]
-        informative = a["learned_all_seeds"] and abs(a["latent_vs_baseline_pearson_r"]["mean"]) > 0.1
+        informative = (
+            a["learned_all_seeds"]
+            and abs(a["latent_vs_baseline_pearson_r"]["mean"]) > 0.1
+        )
         reproduces = m_gap["lo"] > m_lat["hi"]
         findings[arm] = {
             "informative": bool(informative),
@@ -508,7 +540,9 @@ def make_figure(agg: dict[str, Any], cfg: Any, stem: pathlib.Path) -> None:
     plt.close(fig)
 
 
-def make_table(agg: dict[str, Any], interp: dict[str, Any], cfg: Any, meta: dict) -> str:
+def make_table(
+    agg: dict[str, Any], interp: dict[str, Any], cfg: Any, meta: dict
+) -> str:
     L = [
         "# ABLATIONS 1.9 with a trained model (experiments/gate2_model.py)\n",
         f"git SHA `{meta['git_sha']}` (dirty: {meta['git_dirty']}), config hash "
@@ -522,14 +556,18 @@ def make_table(agg: dict[str, Any], interp: dict[str, Any], cfg: Any, meta: dict
     ]
     for arm in ARMS:
         a = agg["arms"][arm]
-        feats = "z, degree, distance" + (", eta0" if arm == "baseline_observable" else "")
+        feats = "z, degree, distance" + (
+            ", eta0" if arm == "baseline_observable" else ""
+        )
         L.append(
             f"| {arm.replace('_', ' ')} | {feats} | {fmt_ci(a['val_metric'])} | "
             f"{fmt_ci(a['test_primary'])} | {fmt_ci(a['latent_vs_baseline_pearson_r'])} | "
             f"{a['learned_all_seeds']} |"
         )
     L.append("\n## Conditional coverage, max−min across strata\n")
-    L.append("| arm | scorer | probability-space gap | latent-space gap | marginal (prob / latent) |")
+    L.append(
+        "| arm | scorer | probability-space gap | latent-space gap | marginal (prob / latent) |"
+    )
     L.append("|---|---|---|---|---|")
     for arm in ARMS:
         a = agg["arms"][arm]
@@ -541,7 +579,11 @@ def make_table(agg: dict[str, Any], interp: dict[str, Any], cfg: Any, meta: dict
                 f"{a[f'{scorer}_marginal_latent']['mean']:.3f} |"
             )
     L.append("\n## Per-stratum coverage (mean over seeds)\n")
-    L.append("| arm | scorer | space | " + " | ".join(f"s{k}" for k in range(int(cfg.n_strata))) + " |")
+    L.append(
+        "| arm | scorer | space | "
+        + " | ".join(f"s{k}" for k in range(int(cfg.n_strata)))
+        + " |"
+    )
     L.append("|---|---|---|" + "---|" * int(cfg.n_strata))
     for arm in ARMS:
         for scorer in ("oracle", "model"):
@@ -646,7 +688,9 @@ def main(argv: list[str] | None = None) -> int:
         shutil.copy(src, run / src.name)
 
     print(table)
-    print(f"\nfigure: {fig_dir / 'gate2_model.png'}\ntable: {tab_dir / 'gate2_model.md'}\nrun: {run}")
+    print(
+        f"\nfigure: {fig_dir / 'gate2_model.png'}\ntable: {tab_dir / 'gate2_model.md'}\nrun: {run}"
+    )
     return 0
 
 

@@ -1,0 +1,164 @@
+{
+ "results": {
+  "splice": {
+   "substrate": "splice",
+   "status": "unavailable",
+   "reason": "splice: certgnn/substrates/splice/ defines no SpliceSubstrate (package is an empty stub) and data/raw holds 0 files. The substrate has not been implemented; nothing was run for it."
+  },
+  "connectome": {
+   "substrate": "connectome",
+   "status": "unavailable",
+   "reason": "connectome: certgnn/substrates/connectome/ defines no ConnectomeSubstrate (package is an empty stub) and data/raw holds 0 files. The substrate has not been implemented; nothing was run for it."
+  },
+  "synthetic": {
+   "substrate": "synthetic",
+   "status": "evaluated",
+   "task": "regression",
+   "metric": "r2",
+   "n_seeds": 10,
+   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "per_seed": {
+    "gnn": [
+     0.7637556033880406,
+     0.8274023475366185,
+     0.7362514338536685,
+     0.7593594823144597,
+     0.8068266323516727,
+     0.7695835830486663,
+     0.7704954064430843,
+     0.7876760477597902,
+     0.7691693200999431,
+     0.7921572296952255
+    ],
+    "shuffled": [
+     -0.019971852785003907,
+     0.15945527447728902,
+     0.08271421616577035,
+     -0.025907162943106687,
+     0.06386039019318501,
+     0.07083635010479084,
+     0.033589600334930525,
+     0.018435473899437782,
+     0.11321651643425512,
+     -0.08591115250162495
+    ],
+    "mlp": [
+     -0.032214146451346126,
+     0.0037282406197751694,
+     -0.018730682203092375,
+     -0.02288666067329226,
+     -0.00297892637688002,
+     0.0015704651635822797,
+     -0.0021220293069619256,
+     -0.002218937052675729,
+     -0.02385198937367239,
+     -0.0011111688007829912
+    ],
+    "bqn": []
+   },
+   "summary": {
+    "gnn": {
+     "mean": 0.778267708649117,
+     "lo": 0.7632590750081857,
+     "hi": 0.7944811688208075,
+     "n": 10
+    },
+    "shuffled": {
+     "mean": 0.04103176533799231,
+     "lo": -0.0009348725262142889,
+     "hi": 0.08135586921662034,
+     "n": 10
+    },
+    "mlp": {
+     "mean": -0.010081583445534637,
+     "lo": -0.018103020292347716,
+     "hi": -0.002900074335022691,
+     "n": 10
+    }
+   },
+   "paired_gnn_minus_control": {
+    "shuffled": {
+     "mean": 0.7372359433111246,
+     "lo": 0.7008120347679536,
+     "hi": 0.779526690072647,
+     "n": 10
+    },
+    "mlp": {
+     "mean": 0.7883492920946515,
+     "lo": 0.7764158270937522,
+     "hi": 0.8001450771899287,
+     "n": 10
+    }
+   },
+   "bqn_run": false,
+   "tuning_budget": [
+    {
+     "model": "gnn",
+     "configs_tried": 1,
+     "epochs": 60,
+     "lr": 0.003,
+     "gradient_steps": 600,
+     "search_space": "backbone chosen among gcn/sage_sum/gin in results/diagnostics/ (test-split R2 was inspected; disclosed there)",
+     "selection": "epoch with best validation metric; test split touched once"
+    },
+    {
+     "model": "shuffled",
+     "configs_tried": 1,
+     "epochs": 60,
+     "lr": 0.003,
+     "gradient_steps": 600,
+     "search_space": "backbone chosen among gcn/sage_sum/gin in results/diagnostics/ (test-split R2 was inspected; disclosed there)",
+     "selection": "epoch with best validation metric; test split touched once"
+    },
+    {
+     "model": "mlp",
+     "configs_tried": 1,
+     "epochs": 60,
+     "lr": 0.003,
+     "gradient_steps": 600,
+     "search_space": "none: one pre-specified configuration (configs/model/mlp.yaml, tier0.bqn)",
+     "selection": "epoch with best validation metric; test split touched once"
+    }
+   ],
+   "notes": [],
+   "seconds": 23.561094999313354,
+   "interpretation": {
+    "flags": {
+     "mlp_matches_gnn": false,
+     "topology_decorative": false,
+     "bqn_beats_gnn": false
+    },
+    "findings": [
+     "GNN beats the edge-free MLP by +0.788 [+0.776, +0.800]: the edges carry information the model uses.",
+     "Real topology beats degree-preserving shuffle by +0.737 [+0.701, +0.780]: the specific wiring matters, not just the degree sequence."
+    ],
+    "passes_tier0": true,
+    "candidate": false
+   }
+  }
+ },
+ "recommendation": {
+  "lines": [
+   "splice: NOT EVALUATED \u2014 splice: certgnn/substrates/splice/ defines no SpliceSubstrate (package is an empty stub) and data/raw holds 0 files. The substrate has not been implemented; nothing was run for it.",
+   "connectome: NOT EVALUATED \u2014 connectome: certgnn/substrates/connectome/ defines no ConnectomeSubstrate (package is an empty stub) and data/raw holds 0 files. The substrate has not been implemented; nothing was run for it."
+  ],
+  "recommendation": "UNDECIDED: no candidate substrate could be evaluated. The SpliceCert vs ConnectomeCert question is blocked on implementing the substrates and obtaining their data, not on results.",
+  "passing": [],
+  "failing": [],
+  "unavailable": [
+   "splice",
+   "connectome"
+  ]
+ }
+}

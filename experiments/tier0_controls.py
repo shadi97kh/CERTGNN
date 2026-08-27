@@ -235,7 +235,9 @@ def run_substrate(
     tuning_budget = [
         {
             "model": m,
-            "configs_tried": 1,
+            "configs_tried": (
+                3 if m in ("gnn", "shuffled") else 1
+            ),  # backbone chosen among 3 (results/diagnostics/)
             "epochs": int(ep),
             "lr": float(lr),
             "gradient_steps": int(ep) * steps_per_epoch,

@@ -1,0 +1,51 @@
+# Audit: Proposition 22 — conformal fidelity certificate
+
+Audited 2026-08-27 against the working tree at `3259c7e`. Statuses are
+re-derived from the current code. Legend as in `theorem1.md`.
+
+Formal statement and proof sketch: `PENDING PROPOSAL` — **UNVERIFIABLE**
+(expected: weighted exchangeability of Tibshirani et al. 2019, unit weights
+for the split case). The informal claim comes from the `link.py` docstring.
+Gate G2 (the one recorded PASS) used `split_conformal_quantile` on scores
+from this proposition, so A22.1, A22.3, A22.4, A22.6 and A22.8 were all
+load-bearing for that verdict.
+
+## Assumption table
+
+| id | assumption | enforcing file:symbol | quoted lines | status | evidence |
+|---|---|---|---|---|---|
+| A22.1 | Calibration and test scores are exchangeable. | a split module (does not exist); `certgnn/certify/conformal.py`; `substrates/synthetic/substrate.py::SyntheticSubstrate.load` (A-EXCH) | `conformal.py:9` `def split_conformal_quantile(scores, alpha)` — sees a score tensor only; `substrate.py:23` `SPLITS = ("train", "val", "cal", "test")`; `:158` `rng = np.random.default_rng([self.config.seed, SPLITS.index(split)])`; `:159` `shifted = split == "test" and self.shift is not None`; `:147-148` docstring "`test` draws `eta0` from the shifted distribution when a shift is configured; `train`, `val` and `cal` never do"; `experiments/gate2_link.py:293-308` `run_coverage` builds the substrate with `p0=None` and no shift, `:313` `q_lat = split_conformal_quantile(...)` | **UNENFORCED** | Change in evidence, not status: a `cal` split now exists on the synthetic substrate and, with no shift configured, cal and test come from the same process on disjoint rng streams — exchangeable *by construction* for the G2 run. Nothing enforces it: (a) `conformal.py` cannot see provenance; (b) configuring `shift_eta0_mean` and still calling `split_conformal_quantile` is expressible with no warning — nothing ties `data.likelihood_ratio` to the choice of quantile function; (c) no disjointness assertion (the streams are independent, so overlap has probability ≈ 0 but is not checked); (d) splice/connectome packages are empty (`certgnn/substrates/splice/__init__.py`, `connectome/__init__.py` are 0 bytes), so nothing exists for real data. |
+| A22.2 | Grouped structure respected (same gene / same subject never straddles cal/test). | nothing; `Substrate` protocol has no group hook | `base.py:13-38` protocol methods: `load, target_node, candidate_nodes, ground_truth_window, to_networkx, baseline_rate` — no `group_id`; `grep -rni "group_id\|grouped" certgnn/` matches nothing | **UNENFORCED** | Synthetic instances are i.i.d. so the issue does not arise there; for the real substrates the protocol cannot even express a group. `theorems.md` work-queue item 2 is not started. |
+| A22.3 | Finite-sample (n+1) correction. | `conformal.py::split_conformal_quantile`, `::weighted_conformal_quantile` | `:14-17` `k = int(np.ceil((n + 1) * (1.0 - alpha))); if k > n: return float("inf"); return float(torch.sort(scores).values[k - 1])`; `:124-130` `total = float(np.sum(w_sorted)) + w_test; threshold = (1.0 - alpha) * total; ... if idx >= n: return float("inf")`; `tests/test_conformal.py:37-40` exact reduction under unit weights | **ENFORCED** | Both quantiles carry the correction and the +∞ atom; the weighted form reduces bit-exactly to the split form under unit weights (tested). Unchanged. |
+| A22.4 | Scores are computed in latent space. | `link.py::latent_fidelity_gap`; `masks.py::latent_gap`; `faithfulness.py::sufficiency`; G2 path (A-LATENT) | `link.py:31-33` `def latent_fidelity_gap(p_full, p_masked): return (logit(p_masked) - logit(p_full)).abs()` with `:17` clamp; `masks.py:103-107` latent gap from `latent_fn`; `faithfulness.py:171-172` "its absolute value in latent space is the latent fidelity gap"; `gate2_link.py:277-280` `z_full = o.latent_full(); z_masked = float(o.latent(mask)); s_lat.append(abs(z_full - z_masked))`; `configs/conformal/*.yaml` `score: latent_fidelity_gap` (no reader) | **PARTIAL** | The G2 run computed the score from oracle latents directly — latent by construction. In core, the named nonconformity score `link.py::latent_fidelity_gap` still takes probabilities and clamps, so a caller can feed saturated probabilities and obtain a score capped at ≈ 27.6 rather than an error; the `score:` config key has no consumer. Heads return logits by construction (`gnn.py:81,95`; `bqn.py:117,151`). |
+| A22.5 | Under covariate shift: weights are the *true* likelihood ratio, finite (overlap), not estimated on calibration data. | `conformal.py::weighted_conformal_quantile`; `substrates/synthetic/shift.py::GaussianShift`; `substrate.py::likelihood_ratio` | `conformal.py:111-115` `if not (bool(np.all(w > 0.0)) and w_test > 0.0): raise ValueError("weights must be strictly positive likelihood ratios ...")` (no `isfinite`); `:38` `test_weight: float = 1.0` (default still present); `shift.py:33-41` closed-form `log_ratio`/`ratio`; `substrate.py:208-215` `likelihood_ratio(data)` "Exactly 1 when no shift is configured"; `configs/conformal/weighted.yaml:6` `weight_estimator: oracle   # synthetic only; real substrates need a held-out estimator (theorems audit A22.5)` (no reader) | **PARTIAL** (was UNENFORCED) | The *true* ratio is now available by construction on the synthetic path (`GaussianShift`), which is what ABLATIONS 5.2 needs. Still not enforced in core, verified this session: `weighted_conformal_quantile(1..10, [1]*8 + [inf]*2, 1.0, 0.1)` returns `9.0` (two infinite calibration weights give a finite quantile); `test_weight=inf` returns `inf`. In-sample estimation remains undetectable, `test_weight` still defaults to 1.0, and no experiment calls the weighted quantile yet. |
+| A22.6 | Mondrian strata are a function of the input and fixed model only. | `link.py::stratify_by_baseline`; `Substrate.baseline_rate` | `link.py:51-54` `z = logit(p0).abs(); ... qs = torch.quantile(z, probs); return torch.bucketize(z, qs)`; `base.py:36-38` `baseline_rate` "Baseline output level, used for Mondrian stratification"; `substrate.py:261` `p0 = float(self.link.forward(torch.tensor(eta0, ...)))`; `gate2_link.py:315` `strata = stratify_by_baseline(torch.from_numpy(te_p0), ...)` | **UNENFORCED** | On synthetic, `p0` is the unmasked baseline by construction (evidence). Nothing verifies the tensor passed to `stratify_by_baseline` is the unmasked output rather than, say, the masked one; and the stratum *edges* are quantiles of whatever is passed, so in G2 they were fitted on the test set (`:315`). For evaluating a coverage profile that is acceptable; for `mondrian_quantiles` (`conformal.py:20-27`) the edges must be fixed on calibration data and reused on test, and no function exists that returns edges to reuse (`stratify_by_baseline` returns bucket ids only). |
+| A22.7 | Test set touched once per gate; model selection on validation only. | `models/train.py::fit`; nothing else | `train.py:110-117` epoch selection on `val`; `:119` `pt, yt = predict(model, test)` once per `fit`; `tier0_controls.py:239` string `"selection": "epoch with best validation metric; test split touched once"` in the tuning-budget record; `PREREGISTRATION.md` analysis plan | **UNENFORCED** | `fit` is structurally val-selected and touches test once per call, but nothing counts accesses across calls: Tier-0 calls `fit` three or four times per seed on the same `test` split (`tier0_controls.py:184-220`), G2 loads `test` per seed (`gate2_link.py:311`), and a repeated gate run touches it again. The tuning-budget entry is a recorded assertion, not a check. |
+| A22.8 | An infinite quantile is reported as "not certifiable", never as coverage 1.0. | `conformal.py::empirical_coverage`, `::conditional_coverage_gap`; `gate2_link.py::run_coverage`, `::verdict` | `conformal.py:144` `covered = test_scores <= q` (verified: `empirical_coverage(s, inf) == 1.0`); `:157` `(test_scores[m] <= qq)` likewise; `gate2_link.py:331` `"infinite_quantile": bool(math.isinf(q_lat) or math.isinf(q_prob))`; `:414-415` `"any_infinite_quantile": any(...)`; `:452` `passed = bool(prob_ok and lat_ok and not agg["coverage"]["any_infinite_quantile"])`; `:477` `"vacuous": bool(...)` | **PARTIAL** (was UNENFORCED) | Enforced on the G2 path: an infinite quantile fails the gate and is reported as vacuous (and the recorded run reports none). Still hidden in core, and hidden for the Mondrian case in particular: `mondrian_quantiles` can return `inf` for one stratum and `conditional_coverage_gap` will report that stratum at coverage 1.0, which is precisely the "G2 met through vacuous strata" failure mode for ABLATIONS 4.4/4.5. |
+| A22.9+ | `PENDING PROPOSAL` | — | — | **UNVERIFIABLE** | — |
+
+## UNENFORCED
+
+- A22.1 exchangeability (A-EXCH) — by construction on synthetic without shift; unchecked; shift + split conformal expressible silently.
+- A22.2 grouped split — no group concept in the protocol.
+- A22.6 strata from unmasked input, edges fixed on calibration — unchecked; no reusable-edge API.
+- A22.7 single-touch test set — no access counter; `fit` is val-selected by construction only.
+
+## UNVERIFIABLE
+
+- Formal statement, proof sketch, A22.9+ — `PENDING PROPOSAL`.
+- Whether in-sample weight estimation occurred (undetectable by construction; A22.5).
+
+## PARTIAL
+
+- A22.4 (A-LATENT) — G2 scores latent by construction; `latent_fidelity_gap` still probability-in with clamp.
+- A22.5 — true ratio exists on synthetic; `inf` weights pass; `test_weight` defaults to 1.0.
+- A22.8 — G2 verdict fails on infinite quantiles; core coverage functions still report 1.0, including per-stratum.
+
+## ENFORCED
+
+- A22.3 finite-sample correction (both quantile functions).
+
+## Single weakest point
+
+**`conformal.py` is fed bare score tensors and can never know whether the calibration scores are exchangeable with the test scores (A22.1/A22.2): no split module exists, the `Substrate` protocol has no group id, and the shift machinery in the synthetic substrate makes a *non*-exchangeable cal/test pair one config key away from a split-conformal call that will not complain.** The recorded G2 PASS is valid because the synthetic generator happens to satisfy exchangeability, not because anything checked it; the same code path on splice or connectome data would inherit gene/subject leakage with no signal.

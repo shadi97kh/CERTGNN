@@ -114,3 +114,21 @@ No explanation was degenerate in any arm (0.0000 [0.0000, 0.0000]).
   explainers, not this substrate. That is `experiments/benchmark_reeval.py`,
   whose datasets and explainers are proposed in ABLATIONS.md under "candidate
   additions" and are awaiting approval.
+
+---
+
+## G2 (regenerated) — Conditional coverage gap, prob-space vs latent-space
+
+- gate: G2
+- git SHA: cdcc06a (tree clean)
+- config hash: 5766d0a3 (configs/base.yaml, no overrides; the gate2 section is unchanged from 0028d6eb, the hash differs because base.yaml gained group selections, seed, torch_threads and tier0 keys)
+- run: results/runs/20260827T194159Z_cdcc06a_5766d0a3 (full provenance: config, environment.lock, seeds, per-seed values, gate_stats.json with bootstrap p-values)
+- seeds: 10, mean [95% bootstrap CI]
+- measured: probability-space max−min coverage gap = 0.1622 [0.1527, 0.1721]; latent-space max−min coverage gap = 0.0203 [0.0165, 0.0240]; infinite quantile in any seed: no — identical to the dc7b132 run to every printed digit (seed 0 was independently verified bit-for-bit by the reproducibility audit)
+- pre-registered threshold: prob-space max-min gap > 0.10 AND latent-space gap < 0.05
+- comparison: 0.1622 > 0.10 (met); 0.0203 < 0.05 (met); CI bounds also clear both
+- bootstrap p (CI-inversion, (b+1)/(B+1)): 0.0005 for each condition; Holm-adjusted across the gate family (only G2 has run): 0.0005
+- verdict: **PASS** (unchanged)
+- timestamp (UTC): 2026-08-27T19:41:59Z (run start)
+- substrate: synthetic; scorer: generator's latent function (see the G2-M entry for the trained-model follow-up, which did not reproduce the pattern)
+- artifacts: paper/figures/gate2_link.{png,pdf}, paper/tables/gate2_link.md now trace to this run

@@ -214,7 +214,7 @@ def gates_markdown(gates: dict[str, Any]) -> str:
             f"| {g} | {v['verdict']} | {v['p']:.4f} | {v['p_adjusted']:.4f} | {v['reject']} | {v['n_seeds']} | {v['run']} |"
         )
     L.append(
-        "\nVerdicts are the pre-registered threshold comparisons; p is the one-sided bootstrap probability that the seed-mean fails its threshold, floored at 1/resamples."
+        "\nVerdicts are the pre-registered threshold comparisons; p is the one-sided bootstrap probability that the seed-mean fails its threshold, (b+1)/(B+1) convention; it is a CI inversion, not a null-calibrated test, and saturates near 1/(B+1) whenever the threshold lies outside the seed range."
     )
     return "\n".join(L) + "\n"
 
@@ -243,11 +243,13 @@ def tuning_budget_markdown(runs: list[dict[str, Any]]) -> str:
         "|---|---|---|---|---|---|---|---|---|",
     ]
     agg: dict[tuple[str, str, str], dict[str, Any]] = {}
-    for r in runs:
+    for r in sorted(
+        runs, key=lambda r: r["meta"]["timestamp_utc"]
+    ):  # latest entry wins
         for e in r.get("tuning_budget") or []:
             key = (r["meta"]["experiment"], str(e.get("substrate", "-")), e["model"])
-            a = agg.setdefault(key, {**e, "runs": 0})
-            a["runs"] += 1
+            prev = agg.get(key)
+            agg[key] = {**e, "runs": (prev["runs"] if prev else 0) + 1}
     flags = []
     by_exp: dict[tuple[str, str], set[tuple[int, int]]] = defaultdict(set)
     for (exp, sub, model), e in sorted(agg.items()):
@@ -263,8 +265,19 @@ def tuning_budget_markdown(runs: list[dict[str, Any]]) -> str:
             )
     L.append("")
     L.extend(
-        flags or ["All models within each experiment received equal search effort."]
+        flags
+        or [
+            "All models within each experiment received equal search effort by the recorded counts."
+        ]
     )
+    notes = pathlib.Path("results/tuning_budget_notes.md")
+    if notes.exists():
+        L += [
+            "",
+            "## Known discrepancies (results/tuning_budget_notes.md)",
+            "",
+            notes.read_text().strip(),
+        ]
     return "\n".join(L) + "\n"
 
 
