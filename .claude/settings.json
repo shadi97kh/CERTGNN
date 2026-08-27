@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)", "Bash(git diff:*)", "Bash(git log:*)",
+      "Bash(pytest:*)", "Bash(make:*)", "Bash(python -m experiments:*)",
+      "Bash(ruff:*)", "Bash(mypy:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(rm -rf:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/hooks/protect_prereg.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "ruff format --quiet . || true", "timeout": 60 }
+        ]
+      }
+    ]
+  }
+}

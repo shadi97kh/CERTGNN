@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+data/raw/
+data/cache/
+results/runs/
+results/checkpoints/
+wandb/
+.DS_Store
+configs/generated/
+*.egg-info/
+.coverage
