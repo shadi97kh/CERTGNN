@@ -27,6 +27,7 @@ target-version = "py311"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = ["slow: Monte Carlo or otherwise long-running tests"]
 
 [tool.mypy]
 python_version = "3.11"

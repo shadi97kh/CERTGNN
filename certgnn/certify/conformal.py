@@ -27,17 +27,107 @@ def mondrian_quantiles(
     }
 
 
+def _as_f64(x: torch.Tensor) -> np.ndarray:
+    """Flatten any tensor / array-like to a 1-D float64 numpy array."""
+    return torch.as_tensor(x).detach().cpu().to(torch.float64).numpy().reshape(-1)
+
+
 def weighted_conformal_quantile(
-    scores: torch.Tensor, weights: torch.Tensor, alpha: float = 0.1
+    scores: torch.Tensor,
+    cal_weights: torch.Tensor,
+    test_weight: float = 1.0,
+    alpha: float = 0.1,
 ) -> float:
-    """Covariate-shift-corrected quantile (Tibshirani et al. 2019)."""
-    order = torch.argsort(scores)
-    s, w = scores[order], weights[order]
-    w = w / (w.sum() + 1.0)
-    cum = torch.cumsum(w, 0)
-    idx = int(torch.searchsorted(cum, torch.tensor(1.0 - alpha)).item())
-    idx = min(idx, s.numel() - 1)
-    return float(s[idx])
+    """Weighted split-conformal quantile under covariate shift.
+
+    Implements Tibshirani, Foygel Barber, Candes and Ramdas (NeurIPS 2019),
+    "Conformal Prediction Under Covariate Shift". The weights are likelihood
+    ratios ``w(x) = dP_test(x) / dP_train(x)`` of the covariate
+    distributions, evaluated at each calibration point (``cal_weights``) and
+    at the test point (``test_weight``). Only ratios between weights matter:
+    rescaling all of them by a common positive constant leaves the result
+    unchanged.
+
+    The returned value is the ``(1 - alpha)`` quantile of the discrete
+    distribution
+
+        sum_i p_i * delta_{V_i}  +  p_{n+1} * delta_{+inf},
+
+    with ``p_i = w_i / (sum_j w_j + w_test)`` and
+    ``p_{n+1} = w_test / (sum_j w_j + w_test)``. The atom at ``+inf`` carries
+    the test point's own mass and is the weighted analogue of the ``(n + 1)``
+    finite-sample correction in :func:`split_conformal_quantile`. Dropping
+    that atom, or normalising by ``sum_j w_j`` alone, inflates every
+    calibration atom's mass, selects a too-small quantile, and yields
+    systematic undercoverage that grows with ``w_test``. Under site shift
+    such an artifact is indistinguishable from a genuine degradation of
+    conformal validity, which is exactly the effect the leave-one-site-out
+    ablations are meant to measure.
+
+    All arithmetic is performed in float64. With unit weights the result is
+    bit-identical to :func:`split_conformal_quantile`.
+
+    Parameters
+    ----------
+    scores : torch.Tensor
+        Nonconformity scores ``V_1, ..., V_n`` of the calibration set.
+    cal_weights : torch.Tensor
+        Likelihood ratios ``w(X_i)`` at the calibration points, one per
+        score. Must be strictly positive.
+    test_weight : float, default 1.0
+        Likelihood ratio ``w(X_{n+1})`` at the test point. Must be strictly
+        positive. The default is only correct when there is no shift.
+    alpha : float, default 0.1
+        Miscoverage level, strictly inside ``(0, 1)``.
+
+    Returns
+    -------
+    float
+        The quantile, or ``float("inf")`` when the ``(1 - alpha)`` level falls
+        inside the ``+inf`` atom, i.e. the calibration set cannot certify at
+        this ``alpha`` (the analogue of ``k > n`` in split conformal).
+
+    Raises
+    ------
+    ValueError
+        If the calibration set is empty, ``cal_weights`` does not match
+        ``scores`` in length, any weight is non-positive or NaN, or ``alpha``
+        lies outside ``(0, 1)``.
+    """
+    v = _as_f64(scores)
+    w = _as_f64(cal_weights)
+    w_test = float(test_weight)
+    n = v.size
+    if n == 0:
+        raise ValueError("empty calibration set")
+    if w.size != n:
+        raise ValueError(
+            f"cal_weights has {w.size} entries but scores has {n}; "
+            "one likelihood ratio per calibration score is required"
+        )
+    if not (0.0 < alpha < 1.0):
+        raise ValueError(f"alpha must lie in (0, 1), got {alpha}")
+    # ``not (x > 0)`` also rejects NaN, which compares False against everything.
+    if not (bool(np.all(w > 0.0)) and w_test > 0.0):
+        raise ValueError(
+            "weights must be strictly positive likelihood ratios "
+            "dP_test / dP_train (got a non-positive or NaN weight)"
+        )
+
+    order = np.argsort(v, kind="stable")
+    v_sorted, w_sorted = v[order], w[order]
+    # Compare *unnormalised* cumulative mass against the (1 - alpha) share of
+    # the total mass, calibration atoms plus the test atom. Dividing each
+    # weight by the total first would introduce rounding that breaks the exact
+    # reduction to split conformal under unit weights (e.g. nine additions of
+    # 0.1 fall short of 0.9 in binary floating point).
+    total = float(np.sum(w_sorted)) + w_test
+    threshold = (1.0 - alpha) * total
+    cum = np.cumsum(w_sorted)
+    idx = int(np.searchsorted(cum, threshold, side="left"))
+    if idx >= n:
+        return float("inf")  # level sits inside the +inf atom
+    return float(v_sorted[idx])
 
 
 def empirical_coverage(
