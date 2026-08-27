@@ -1,0 +1,9 @@
+method: soft_mask
+mask_type: soft            # hard is a negative control only (Assumption 5)
+warm_start: resistance_ball
+epsilon: 0.1
+sparsity_weight: 0.05
+gap_weight: 10.0
+lr: 0.05
+max_iter: 500
+k: 10

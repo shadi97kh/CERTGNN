@@ -1,0 +1,3 @@
+name: connectome
+# Not implemented: certgnn/substrates/connectome/ is an empty stub and data/raw is empty.
+data_dir: data/raw/connectome

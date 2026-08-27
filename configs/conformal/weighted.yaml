@@ -1,0 +1,6 @@
+method: weighted
+alpha: 0.1
+score: latent_fidelity_gap
+n_strata: 5
+weight_estimator: oracle   # synthetic only; real substrates need a held-out estimator (theorems audit A22.5)
+weight_clip: none

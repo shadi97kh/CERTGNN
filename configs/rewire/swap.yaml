@@ -1,0 +1,3 @@
+mode: swap          # outside Theorem 5's add-only assumption; reported for context
+budget: 0.1
+strategy: global_random

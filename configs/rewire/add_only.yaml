@@ -1,0 +1,3 @@
+mode: add_only      # Rayleigh monotonicity applies (ABLATIONS 1.15)
+budget: 0.1
+strategy: targeted_resistance

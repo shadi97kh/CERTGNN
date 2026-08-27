@@ -1,7 +1,15 @@
 """Shared plumbing for experiments: config, run directories, bootstrap CIs.
 
-Every experiment writes to ``results/runs/<timestamp>_<gitsha>_<confighash>/``.
-A number without a git SHA and a config hash does not exist.
+Every experiment writes to ``results/runs/<timestamp>_<gitsha>_<confighash>/``
+holding the resolved config, git SHA and dirty flag, the seed(s), an
+environment lockfile, and the raw per-seed values. A number without a git
+SHA and a config hash does not exist.
+
+Config layout: ``configs/base.yaml`` names a selection per group under
+``groups:`` (substrate, model, explainer, rewire, conformal); each selection
+is merged from ``configs/<group>/<name>.yaml`` under the key ``<group>``.
+Overrides are Hydra-style dotlists: ``model=gin`` changes a selection,
+``model.hidden=128`` changes a value, ``gate2.coverage.n_test=2000`` any key.
 """
 
 from __future__ import annotations
@@ -10,6 +18,7 @@ import datetime as _dt
 import hashlib
 import json
 import pathlib
+import platform
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -19,13 +28,62 @@ import numpy as np
 from omegaconf import DictConfig, OmegaConf
 
 
+def configure_torch(cfg: DictConfig) -> None:
+    """Pin the CPU thread count; oversubscription makes scatter ops pathologically slow."""
+    import torch
+
+    torch.set_num_threads(int(cfg.get("torch_threads", 1)))
+
+
+GROUPS = ("substrate", "model", "explainer", "rewire", "conformal")
+
+
+def _split_overrides(overrides: Sequence[str]) -> tuple[dict[str, str], list[str]]:
+    """Separate ``group=name`` selections from dotted value overrides."""
+    selections: dict[str, str] = {}
+    dotlist: list[str] = []
+    for ov in overrides:
+        if "=" not in ov:
+            raise ValueError(f"override {ov!r} is not key=value")
+        key, val = ov.split("=", 1)
+        if key in GROUPS:
+            selections[key] = val
+        else:
+            dotlist.append(ov)
+    return selections, dotlist
+
+
 def load_config(path: str, overrides: Sequence[str] = ()) -> DictConfig:
-    """YAML config merged with Hydra-style dotlist overrides (``a.b=1``)."""
+    """Base YAML + group files + dotlist overrides, fully resolved."""
     base = OmegaConf.load(path)
-    if overrides:
-        base = OmegaConf.merge(base, OmegaConf.from_dotlist(list(overrides)))
     assert isinstance(base, DictConfig)
-    return base
+    selections, dotlist = _split_overrides(overrides)
+    groups = dict(base.get("groups", {}) or {})
+    groups.update(selections)
+    root = pathlib.Path(path).parent
+    merged: Any = base
+    if bool(base.get("_resolved", False)):
+        groups = {}  # a generated config already carries its group contents
+    for group, name in groups.items():
+        gp = root / group / f"{name}.yaml"
+        if not gp.exists():
+            raise FileNotFoundError(
+                f"config group file {gp} for {group}={name} does not exist"
+            )
+        merged = OmegaConf.merge(merged, OmegaConf.create({group: OmegaConf.load(gp)}))
+    if groups:
+        merged = OmegaConf.merge(merged, OmegaConf.create({"groups": groups}))
+    if dotlist:
+        merged = OmegaConf.merge(merged, OmegaConf.from_dotlist(dotlist))
+    assert isinstance(merged, DictConfig)
+    return merged
+
+
+def resolve_seeds(cfg: DictConfig) -> list[int]:
+    """``[cfg.seed]`` when a single seed is set (sweep launches), else ``range(cfg.seeds)``."""
+    if cfg.get("seed") is not None:
+        return [int(cfg.seed)]
+    return list(range(int(cfg.seeds)))
 
 
 def config_hash(cfg: DictConfig) -> str:
@@ -44,20 +102,47 @@ def git_dirty() -> bool:
     return bool(out.strip())
 
 
-def make_run_dir(cfg: DictConfig, name: str) -> pathlib.Path:
-    """Create the run directory and record config + provenance."""
+def environment_lock() -> str:
+    """Interpreter, platform and the frozen package list."""
+    try:
+        frozen = subprocess.check_output(
+            [sys.executable, "-m", "pip", "freeze"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as e:  # pragma: no cover - pip missing
+        frozen = f"# pip freeze failed: {e}\n"
+    return f"# python {sys.version.split()[0]} on {platform.platform()}\n{frozen}"
+
+
+def make_run_dir(
+    cfg: DictConfig, name: str, *, allow_dirty: bool | None = None
+) -> pathlib.Path:
+    """Create the run directory and record config, provenance and environment."""
     ts = _dt.datetime.now(_dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     sha, dirty, h = git_sha(), git_dirty(), config_hash(cfg)
+    if dirty and not allow_dirty:
+        raise SystemExit(
+            "REFUSING TO RUN: git working tree is dirty, so no SHA identifies this code. "
+            "Commit first, or pass --allow-dirty (the flag is recorded in meta.json)."
+        )
     run = pathlib.Path(cfg.output.runs) / f"{ts}_{sha}{'-dirty' if dirty else ''}_{h}"
     run.mkdir(parents=True, exist_ok=False)
     (run / "config.yaml").write_text(OmegaConf.to_yaml(cfg, resolve=True))
+    (run / "environment.lock").write_text(environment_lock())
     meta = {
         "experiment": name,
         "git_sha": sha,
         "git_dirty": dirty,
+        "allow_dirty": allow_dirty,
         "config_hash": h,
+        "seeds": resolve_seeds(cfg),
         "timestamp_utc": ts,
         "argv": sys.argv,
+        "run_id": cfg.get("run_id"),
+        "sweep": OmegaConf.to_container(cfg.sweep)
+        if cfg.get("sweep") is not None
+        else None,
     }
     (run / "meta.json").write_text(json.dumps(meta, indent=2))
     if dirty:
@@ -66,6 +151,15 @@ def make_run_dir(cfg: DictConfig, name: str) -> pathlib.Path:
             file=sys.stderr,
         )
     return run
+
+
+def write_tuning_budget(run: pathlib.Path, entries: list[dict[str, Any]]) -> None:
+    """Record the hyperparameter search effort per model for results/tuning_budget.md.
+
+    Each entry: ``{"model": str, "configs_tried": int, "epochs": int,
+    "gradient_steps": int, "search_space": str, "selection": str}``.
+    """
+    (run / "tuning_budget.json").write_text(json.dumps(entries, indent=2))
 
 
 def mean_ci(
@@ -85,6 +179,34 @@ def mean_ci(
         "hi": float(np.quantile(boots, 1.0 - a)),
         "n": n,
     }
+
+
+def bootstrap_p_value(
+    values: Sequence[float],
+    *,
+    threshold: float,
+    direction: str,
+    n_boot: int = 2000,
+    seed: int = 0,
+) -> float:
+    """One-sided bootstrap p-value that the seed-mean fails a threshold.
+
+    ``direction="greater"``: H1 is mean > threshold; p = fraction of bootstrap
+    means <= threshold. ``"less"``: H1 is mean < threshold; p = fraction >=.
+    Floored at 1 / n_boot so a zero never masquerades as exact.
+    """
+    v = np.asarray([x for x in values if np.isfinite(x)], dtype=np.float64)
+    if v.size == 0:
+        return float("nan")
+    rng = np.random.default_rng(seed)
+    boots = rng.choice(v, size=(n_boot, v.size), replace=True).mean(axis=1)
+    if direction == "greater":
+        p = float((boots <= threshold).mean())
+    elif direction == "less":
+        p = float((boots >= threshold).mean())
+    else:
+        raise ValueError("direction must be 'greater' or 'less'")
+    return max(p, 1.0 / n_boot)
 
 
 def fmt_ci(d: dict[str, float], nd: int = 3) -> str:

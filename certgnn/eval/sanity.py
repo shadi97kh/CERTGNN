@@ -36,11 +36,42 @@ def randomize_labels(y: torch.Tensor, seed: int = 0) -> torch.Tensor:
 
 
 def shuffle_topology(edge_index: torch.Tensor, num_nodes: int, seed: int = 0):
-    """Degree-preserving edge rewiring. Isolates topology contribution.
-    Critical for brain graphs given the message-passing critique."""
+    """Node relabelling: decouples features from graph position by permuting
+    node ids. This is NOT a degree-preserving rewiring of the graph itself
+    (the graph is isomorphic to the original); use
+    ``degree_preserving_rewire`` for ABLATIONS row 0.6."""
     g = torch.Generator().manual_seed(seed)
     perm = torch.randperm(num_nodes, generator=g)
     return perm[edge_index]
+
+
+def degree_preserving_rewire(
+    edge_index: torch.Tensor,
+    num_nodes: int,
+    seed: int = 0,
+    swaps_per_edge: float = 10.0,
+) -> torch.Tensor:
+    """Degree-preserving rewiring by double-edge swaps (ABLATIONS 0.6).
+
+    Every node keeps its degree and its features; only *which* nodes are
+    connected changes. Isolates the contribution of the specific wiring from
+    that of the degree sequence. Critical for brain graphs given the
+    message-passing critique. Returns an undirected ``edge_index`` with both
+    directions. Raises if the swap procedure cannot run (fewer than 2 edges).
+    """
+    import networkx as nx
+
+    ei = edge_index.cpu()
+    G = nx.Graph()
+    G.add_nodes_from(range(num_nodes))
+    G.add_edges_from((int(u), int(v)) for u, v in ei.t().tolist() if u != v)
+    m = G.number_of_edges()
+    if m < 2:
+        raise ValueError("degree-preserving rewire needs at least 2 edges")
+    n_swaps = max(1, int(swaps_per_edge * m))
+    nx.double_edge_swap(G, nswap=n_swaps, max_tries=100 * n_swaps, seed=seed)
+    und = torch.tensor(sorted(G.edges()), dtype=torch.long).t()
+    return torch.cat([und, und.flip(0)], dim=1)
 
 
 def random_explainer_baseline(num_nodes: int, k: int, seed: int = 0):

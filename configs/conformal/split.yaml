@@ -1,0 +1,4 @@
+method: split
+alpha: 0.1
+score: latent_fidelity_gap
+n_strata: 5

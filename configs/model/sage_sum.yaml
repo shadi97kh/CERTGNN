@@ -1,0 +1,8 @@
+arch: sage_sum
+hidden: 64
+depth: 5            # must span regulator -> target (theorems audit A1.6)
+readout: target
+epochs: 60
+lr: 0.003
+batch_size: 64
+weight_decay: 0.0

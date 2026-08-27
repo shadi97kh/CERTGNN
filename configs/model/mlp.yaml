@@ -1,0 +1,8 @@
+arch: mlp           # ABLATIONS 0.7: node features only, edges removed
+hidden: 64
+depth: 5
+readout: target
+epochs: 60
+lr: 0.003
+batch_size: 64
+weight_decay: 0.0

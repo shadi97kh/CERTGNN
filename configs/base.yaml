@@ -1,10 +1,20 @@
-# Reference config. Override with Hydra-style dotlist arguments, e.g.
+# Reference config. Group selections below are merged from configs/<group>/<name>.yaml;
+# override a selection with `model=gin`, a value with `model.hidden=128`, and any
+# experiment key with dotted paths. Hydra-style dotlist syntax via OmegaConf.
 #   python -m experiments.gate2_link --config configs/base.yaml seeds=5 gate2.coverage.n_test=2000
-seeds: 10
+groups:
+  substrate: synthetic
+  model: sage_sum     # diag 2026-08-27: sage_sum R2 0.77, gin 0.57, gcn 0.13 on the synthetic tier-0 task
+  explainer: soft_mask
+  rewire: none
+  conformal: split
+
+seeds: 10          # number of seeds when `seed` is null
+seed: null         # set by the sweep launcher to run a single seed
 alpha: 0.1
 n_strata: 5
 bootstrap_resamples: 2000
-substrate: synthetic
+torch_threads: 1   # tiny graphs: more threads only cause OpenMP contention (48 ms scatter_add at 8 threads)
 
 output:
   figures: paper/figures
@@ -37,3 +47,10 @@ gate2:
     n_cal: 1000
     n_test: 5000
     explanation_ball_fraction: 0.5
+
+tier0:                 # ABLATIONS 0.6, 0.7, 0.8 (experiments/tier0_controls.py)
+  substrates: [splice, connectome, synthetic]
+  run_bqn_on: [connectome]        # 0.8 is a brain-substrate row
+  candidates: [splice, connectome]  # substrates the verdict may recommend; synthetic is a pipeline check
+  bqn: {layers: 2, clusters: 4, dropout: 0.0, epochs: 60, lr: 0.001, weight_decay: 0.0001}
+  rewire_swaps_per_edge: 10

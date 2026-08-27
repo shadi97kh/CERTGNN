@@ -48,6 +48,16 @@ class SyntheticConfig:
     shift_eta0_mean, shift_eta0_std : float | None
         Test-split distribution of ``eta0``; ``None`` means no shift. Requires
         ``p0 is None``. The likelihood ratio is then closed form.
+    target_indicator : bool
+        Append a one-hot ``is_target`` column. The target is known to every
+        model (it is the readout node), so this leaks nothing; message
+        passing can turn it into distance-to-target, an edge-free model
+        cannot.
+    structural_features : bool
+        Append ``degree / max degree`` and ``distance to target / max
+        distance`` to the node features. These leak topology into the
+        features, which defeats the edge-free MLP control (ABLATIONS 0.7);
+        set ``False`` for that control.
     n_train, n_val, n_cal, n_test : int
     seed : int
     """
@@ -62,6 +72,8 @@ class SyntheticConfig:
     noise: float = 0.0
     shift_eta0_mean: float | None = None
     shift_eta0_std: float | None = None
+    structural_features: bool = True
+    target_indicator: bool = False
     n_train: int = 200
     n_val: int = 50
     n_cal: int = 200
@@ -98,7 +110,8 @@ class SyntheticSubstrate:
     ``eta`` (latent), ``eta0``, ``p0``, ``delta``, ``regulator``,
     ``likelihood_ratio``, ``link``, ``topology`` and ``split``. Node feature
     columns are ``[z, degree / max degree, distance to target / max
-    distance]``; the regulator's ``z`` is the signal.
+    distance]`` (structural columns and the optional ``is_target`` column
+    per config); the regulator's ``z`` is the signal.
     """
 
     name = "synthetic"
@@ -250,7 +263,14 @@ class SyntheticSubstrate:
         deg = np.array([G.degree(v) for v in range(n)], dtype=np.float64)
         dist = nx.single_source_shortest_path_length(G, target)
         d = np.array([dist[v] for v in range(n)], dtype=np.float64)
-        x = np.stack([z, deg / max(deg.max(), 1.0), d / max(d.max(), 1.0)], axis=1)
+        if self.config.structural_features:
+            x = np.stack([z, deg / max(deg.max(), 1.0), d / max(d.max(), 1.0)], axis=1)
+        else:
+            x = z[:, None]
+        if self.config.target_indicator:
+            ind = np.zeros((n, 1))
+            ind[target, 0] = 1.0
+            x = np.concatenate([x, ind], axis=1)
 
         edges = np.array(list(G.edges()), dtype=np.int64).T
         edge_index = torch.from_numpy(np.concatenate([edges, edges[::-1]], axis=1))

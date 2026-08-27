@@ -1,0 +1,4 @@
+name: splice
+# Not implemented: certgnn/substrates/splice/ is an empty stub and data/raw is empty.
+# The launcher reports NOT EVALUATED for this substrate rather than failing silently.
+data_dir: data/raw/splice

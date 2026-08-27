@@ -1,0 +1,15 @@
+name: synthetic
+topology: {kind: nested_bubbles, n_branches: 2, depth: 2, n_distractors: 3}
+regulator: far            # structurally identifiable; 'random' makes the learning task unidentifiable
+delta: 1.0
+link: logit
+p0: 0.5                   # fixed baseline; a sampled eta0 is unobservable and dominates Var(y)
+eta0_mean: 0.0
+eta0_std: 2.0
+noise: 0.05
+structural_features: false   # degree/distance columns leak topology into an edge-free MLP
+target_indicator: true       # is_target column: known to every model, usable only through edges
+n_train: 600
+n_val: 150
+n_cal: 1000
+n_test: 600

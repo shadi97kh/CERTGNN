@@ -55,11 +55,14 @@ from certgnn.substrates.synthetic import (  # noqa: E402
     TopologySpec,
     get_link,
 )
-from experiments._common import (  # noqa: E402
+from experiments._common import (
+    configure_torch,  # noqa: E402
+    bootstrap_p_value,
     fmt_ci,
     load_config,
     make_run_dir,
     mean_ci,
+    resolve_seeds,
     to_jsonable,
 )
 
@@ -442,7 +445,22 @@ def verdict(agg: dict[str, Any]) -> dict[str, Any]:
     prob_ok = gp["mean"] > thr["prob_gap_gt"]
     lat_ok = gl["mean"] < thr["latent_gap_lt"]
     passed = bool(prob_ok and lat_ok and not agg["coverage"]["any_infinite_quantile"])
+    p_prob = bootstrap_p_value(
+        agg["coverage"]["per_seed_gap_probability"],
+        threshold=thr["prob_gap_gt"],
+        direction="greater",
+    )
+    p_lat = bootstrap_p_value(
+        agg["coverage"]["per_seed_gap_latent"],
+        threshold=thr["latent_gap_lt"],
+        direction="less",
+    )
     return {
+        "p_values": {
+            "prob_gap_gt_threshold": p_prob,
+            "latent_gap_lt_threshold": p_lat,
+            "gate": max(p_prob, p_lat),
+        },
         "gate": GATE,
         "threshold": thr,
         "measured": {"prob_gap_mean": gp, "latent_gap_mean": gl},
@@ -654,15 +672,21 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--config", default="configs/base.yaml")
     ap.add_argument("overrides", nargs="*", help="Hydra-style key=value overrides")
+    ap.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="run on a dirty tree (recorded in meta.json)",
+    )
     args = ap.parse_args(argv)
     cfg = load_config(args.config, args.overrides)
-    run = make_run_dir(cfg, "gate2_link")
+    configure_torch(cfg)
+    run = make_run_dir(cfg, "gate2_link", allow_dirty=args.allow_dirty)
     meta = json.loads((run / "meta.json").read_text())
     print(f"run dir: {run}")
 
     per_seed: list[dict[str, Any]] = []
     t0 = time.time()
-    for seed in range(int(cfg.seeds)):
+    for seed in resolve_seeds(cfg):
         rng = np.random.default_rng([seed, 1606])
         r: dict[str, Any] = {
             "seed": seed,
