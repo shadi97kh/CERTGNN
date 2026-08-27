@@ -1,0 +1,13 @@
+in_dim 2
+gcn      epochs=30: test R2=+0.033 best_ep=30 val=+0.051 [141s]
+gcn      epochs=60: test R2=+0.132 best_ep=60 val=+0.150 [355s]
+gcn      shuffled: test R2=+0.006
+sage_sum epochs=30: test R2=+0.741 best_ep=22 val=+0.751 [601s]
+sage_sum epochs=60: test R2=+0.773 best_ep=58 val=+0.798 [636s]
+sage_sum shuffled: test R2=-0.070
+gin      epochs=30: test R2=+0.393 best_ep=30 val=+0.341 [755s]
+gin      epochs=60: test R2=+0.566 best_ep=60 val=+0.635 [777s]
+gin      shuffled: test R2=+0.117
+mlp edge-free: test R2=-0.032
+DONE
+exit=0

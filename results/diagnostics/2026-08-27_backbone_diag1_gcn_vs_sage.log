@@ -1,0 +1,33 @@
+n=15 reg=1 dist=4 Var(y)=0.0432
+oracle R2=0.936
+regulator ids (first 10): [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+
+### threads=8
+GCN d5
+   ep  1 train R2=-0.152 val R2=-0.159  (0.15s/epoch)
+   ep  5 train R2=-0.039 val R2=+0.003  (0.10s/epoch)
+   ep 10 train R2=-0.121 val R2=-0.059  (0.09s/epoch)
+   ep 20 train R2=+0.001 val R2=-0.029  (0.09s/epoch)
+   ep 30 train R2=-0.029 val R2=-0.013  (0.08s/epoch)
+SAGE-sum d5
+   ep  1 train R2=-2.161 val R2=-2.737  (0.09s/epoch)
+   ep  5 train R2=-0.687 val R2=-0.981  (0.08s/epoch)
+   ep 10 train R2=-0.170 val R2=-0.368  (0.08s/epoch)
+   ep 20 train R2=+0.360 val R2=+0.050  (0.07s/epoch)
+   ep 30 train R2=+0.410 val R2=+0.216  (0.10s/epoch)
+
+### threads=1
+GCN d5
+   ep  1 train R2=-0.152 val R2=-0.159  (0.15s/epoch)
+   ep  5 train R2=-0.039 val R2=+0.003  (0.11s/epoch)
+   ep 10 train R2=-0.121 val R2=-0.059  (0.11s/epoch)
+   ep 20 train R2=+0.001 val R2=-0.030  (0.09s/epoch)
+   ep 30 train R2=-0.016 val R2=-0.007  (0.08s/epoch)
+SAGE-sum d5
+   ep  1 train R2=-2.161 val R2=-2.737  (0.10s/epoch)
+   ep  5 train R2=-0.687 val R2=-0.981  (0.08s/epoch)
+   ep 10 train R2=-0.170 val R2=-0.368  (0.07s/epoch)
+   ep 20 train R2=+0.360 val R2=+0.050  (0.07s/epoch)
+   ep 30 train R2=+0.416 val R2=+0.243  (0.07s/epoch)
+DONE
+exit=0

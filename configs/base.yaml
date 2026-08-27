@@ -4,7 +4,7 @@
 #   python -m experiments.gate2_link --config configs/base.yaml seeds=5 gate2.coverage.n_test=2000
 groups:
   substrate: synthetic
-  model: sage_sum     # diag 2026-08-27: sage_sum R2 0.77, gin 0.57, gcn 0.13 on the synthetic tier-0 task
+  model: sage_sum     # chosen from results/diagnostics/ (development diagnostic, not a result)
   explainer: soft_mask
   rewire: none
   conformal: split

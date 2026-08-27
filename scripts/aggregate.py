@@ -291,7 +291,13 @@ def main(argv: list[str] | None = None) -> int:
         problems += check_manifest(runs, manifest)
         ids = {p["run_id"] for p in manifest["runs"]}
         runs = [r for r in runs if r["meta"].get("run_id") in ids]
-    cells, cell_problems = collect_cells(runs, args.expected_seeds)
+    expected = args.expected_seeds
+    if args.manifest:
+        per_module: dict[str, int] = defaultdict(int)
+        for planned in manifest["runs"]:
+            per_module[planned.get("module", "?")] += 1
+        expected = max(expected, min(per_module.values()))  # planned seeds per module
+    cells, cell_problems = collect_cells(runs, expected)
     problems += cell_problems
     if problems:
         print(

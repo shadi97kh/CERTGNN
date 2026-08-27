@@ -76,7 +76,7 @@ class SubstrateUnavailable(RuntimeError):
     """The substrate cannot be evaluated: not implemented or no data."""
 
 
-def make_substrate(name: str, cfg: Any) -> Substrate:
+def make_substrate(name: str, cfg: Any, seed: int = 0) -> Substrate:
     if name == "synthetic":
         s = (
             cfg.substrate
@@ -96,7 +96,7 @@ def make_substrate(name: str, cfg: Any) -> Substrate:
                 n_train=int(s.n_train),
                 n_val=int(s.n_val),
                 n_test=int(s.n_test),
-                seed=0,
+                seed=seed,  # each sweep seed draws its own dataset (stats audit S5)
             )
         )
     if name in ("splice", "connectome"):
@@ -153,14 +153,14 @@ def run_substrate(
     name: str, sub: Substrate, cfg: Any, seeds: list[int], log: Any
 ) -> dict[str, Any]:
     t0 = time.time()
-    splits = {s: sub.load(s) for s in ("train", "val", "test")}
-    in_dim = int(splits["train"][0].x.size(1))
     mc, bc = cfg.model, cfg.tier0.bqn
     run_bqn = name in list(cfg.tier0.run_bqn_on)
-    n_fixed = _num_nodes(splits["train"] + splits["val"] + splits["test"])
     per_seed: dict[str, list[float]] = {m: [] for m in MODELS}
     task = None
     notes: list[str] = []
+    in_dim = 0
+    n_fixed: int | None = None
+    n_tr = 0
 
     def gcn() -> torch.nn.Module:
         return TargetReadoutGCN(
@@ -175,6 +175,11 @@ def run_substrate(
         return NodeFeatureMLP(in_dim, int(mc.hidden), int(mc.depth), str(mc.readout))
 
     for seed in seeds:
+        sub = make_substrate(name, cfg, seed)
+        splits = {s: sub.load(s) for s in ("train", "val", "test")}
+        in_dim = int(splits["train"][0].x.size(1))
+        n_fixed = _num_nodes(splits["train"] + splits["val"] + splits["test"])
+        n_tr = len(splits["train"])
         kw: dict[str, Any] = dict(
             seed=seed,
             epochs=int(mc.epochs),
@@ -226,7 +231,6 @@ def run_substrate(
 
     nb = int(cfg.bootstrap_resamples)
     assert task is not None
-    n_tr = len(splits["train"])
     steps_per_epoch = -(-n_tr // int(mc.batch_size))
     tuning_budget = [
         {
@@ -235,7 +239,11 @@ def run_substrate(
             "epochs": int(ep),
             "lr": float(lr),
             "gradient_steps": int(ep) * steps_per_epoch,
-            "search_space": "none: one pre-specified configuration per model (configs/model/*.yaml, tier0.bqn)",
+            "search_space": (
+                "backbone chosen among gcn/sage_sum/gin in results/diagnostics/ (test-split R2 was inspected; disclosed there)"
+                if m in ("gnn", "shuffled")
+                else "none: one pre-specified configuration (configs/model/mlp.yaml, tier0.bqn)"
+            ),
             "selection": "epoch with best validation metric; test split touched once",
         }
         for m, ep, lr in (
@@ -625,7 +633,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     (run / "log.txt").write_text("\n".join(log_lines))
     print("\n" + table)
-    print(f"table: {tab_dir / 'tier0_controls.md'}\nrun: {run}")
+    print(
+        f"run: {run}"
+        + (
+            ""
+            if cfg.get("sweep") is not None
+            else f"\ntable: {pathlib.Path(cfg.output.tables) / 'tier0_controls.md'}"
+        )
+    )
     return 0
 
 

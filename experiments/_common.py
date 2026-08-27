@@ -205,7 +205,10 @@ def bootstrap_p_value(
 
     ``direction="greater"``: H1 is mean > threshold; p = fraction of bootstrap
     means <= threshold. ``"less"``: H1 is mean < threshold; p = fraction >=.
-    Floored at 1 / n_boot so a zero never masquerades as exact.
+    Uses the (b+1)/(B+1) convention so a zero never masquerades as exact.
+    This is a CI-inversion bootstrap (resampling the observed seed values),
+    not a null-calibrated test; it saturates near 1/(B+1) whenever the
+    threshold lies outside the range of the seed values.
     """
     v = np.asarray([x for x in values if np.isfinite(x)], dtype=np.float64)
     if v.size == 0:
@@ -213,12 +216,14 @@ def bootstrap_p_value(
     rng = np.random.default_rng(seed)
     boots = rng.choice(v, size=(n_boot, v.size), replace=True).mean(axis=1)
     if direction == "greater":
-        p = float((boots <= threshold).mean())
+        b = int((boots <= threshold).sum())
     elif direction == "less":
-        p = float((boots >= threshold).mean())
+        b = int((boots >= threshold).sum())
     else:
         raise ValueError("direction must be 'greater' or 'less'")
-    return max(p, 1.0 / n_boot)
+    return (b + 1.0) / (
+        n_boot + 1.0
+    )  # Davison & Hinkley (b+1)/(B+1); never exactly zero
 
 
 def fmt_ci(d: dict[str, float], nd: int = 3) -> str:
