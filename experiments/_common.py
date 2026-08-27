@@ -97,9 +97,21 @@ def git_sha() -> str:
     ).strip()
 
 
+OUTPUT_PREFIXES = ("results/", "paper/", "configs/generated/")
+
+
 def git_dirty() -> bool:
+    """True if any tracked file is modified, or any file outside the output
+    directories is untracked. Run artifacts (results/, paper/,
+    configs/generated/) do not count: the sweep launcher writes its manifest
+    before launching, and outputs of one run must not block the next."""
     out = subprocess.check_output(["git", "status", "--porcelain"], text=True)
-    return bool(out.strip())
+    for line in out.splitlines():
+        status, path = line[:2], line[3:]
+        if status == "??" and path.startswith(OUTPUT_PREFIXES):
+            continue
+        return True
+    return False
 
 
 def environment_lock() -> str:

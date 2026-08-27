@@ -458,6 +458,85 @@ def make_table(
 # -------------------------------------------------------------------- main
 
 
+def aggregate_manifest(manifest_path: str, cfg: Any) -> int:
+    """Rebuild the cross-seed verdict from the per-seed run directories of a sweep."""
+    manifest = json.loads(pathlib.Path(manifest_path).read_text())
+    by_id: dict[str, pathlib.Path] = {}
+    for d in pathlib.Path(cfg.output.runs).iterdir():
+        mp = d / "meta.json"
+        if mp.exists():
+            rid = json.loads(mp.read_text()).get("run_id")
+            if rid:
+                by_id[rid] = d
+    missing = [
+        r["run_id"]
+        for r in manifest["runs"]
+        if r["run_id"] not in by_id
+        or not (by_id[r["run_id"]] / "results.json").exists()
+    ]
+    if missing:
+        raise SystemExit(
+            f"AGGREGATION REFUSED: {len(missing)} planned run(s) have no results: {missing}"
+        )
+    merged: dict[str, dict[str, Any]] = {}
+    for planned in manifest["runs"]:
+        d = by_id[planned["run_id"]]
+        res = json.loads((d / "results.json").read_text())["results"]
+        for name, r in res.items():
+            if r["status"] != "evaluated":
+                merged.setdefault(name, r)
+                continue
+            m = merged.setdefault(
+                name,
+                {
+                    **r,
+                    "per_seed": {k: [] for k in MODELS},
+                    "seeds": [],
+                    "tuning_budget": r["tuning_budget"],
+                },
+            )
+            for k in MODELS:
+                m["per_seed"][k].extend(r["per_seed"].get(k, []))
+            m["seeds"].extend(r["seeds"])
+    nb = int(cfg.bootstrap_resamples)
+    for name, r in merged.items():
+        if r["status"] != "evaluated":
+            continue
+        gnn = np.array(r["per_seed"]["gnn"])
+        r["n_seeds"] = len(r["seeds"])
+        r["summary"] = {m: mean_ci(v, n_boot=nb) for m, v in r["per_seed"].items() if v}
+        r["paired_gnn_minus_control"] = {
+            m: mean_ci((gnn - np.array(r["per_seed"][m])).tolist(), n_boot=nb)
+            for m in ("shuffled", "mlp", "bqn")
+            if r["per_seed"][m]
+        }
+        r["bqn_run"] = bool(r["per_seed"]["bqn"])
+        r["interpretation"] = interpret(r, name in list(cfg.tier0.candidates))
+    rec = recommend(merged, list(cfg.tier0.candidates))
+    meta = {
+        "git_sha": manifest["id"].split("_")[-1],
+        "git_dirty": manifest["git_dirty"],
+        "config_hash": "sweep:" + manifest["id"],
+    }
+    table = make_table(merged, rec, cfg, meta)
+    tab_dir = pathlib.Path(cfg.output.tables)
+    tab_dir.mkdir(parents=True, exist_ok=True)
+    (tab_dir / "tier0_controls.md").write_text(table)
+    out = pathlib.Path("results") / "tier0_verdict.md"
+    out.write_text(
+        f"sweep: {manifest['id']}\nruns: {len(manifest['runs'])}\n\n"
+        + "## Verdict\n\n"
+        + "\n".join(f"- {line}" for line in rec["lines"])
+        + f"\n\n**{rec['recommendation']}**\n"
+    )
+    (pathlib.Path("results/sweeps") / f"{manifest['id']}.aggregate.json").write_text(
+        json.dumps(to_jsonable({"results": merged, "recommendation": rec}), indent=1)
+    )
+    print(table)
+    print(f"table: {tab_dir / 'tier0_controls.md'}\nverdict: {out}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter

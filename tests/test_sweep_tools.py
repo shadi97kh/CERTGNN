@@ -187,3 +187,21 @@ def test_aggregate_refuses_incomplete_cells_and_writes_nothing(tmp_path):
         ]
     )
     assert rc == 1 and not (tmp_path / "t2").exists()
+
+
+def test_git_dirty_ignores_untracked_outputs_only(monkeypatch):
+    import experiments._common as C
+
+    def fake(status_text):
+        monkeypatch.setattr(C.subprocess, "check_output", lambda *a, **k: status_text)
+
+    fake(
+        "?? results/sweeps/x.json\n?? paper/tables/t.md\n?? configs/generated/a.yaml\n"
+    )
+    assert C.git_dirty() is False
+    fake("?? certgnn/new_module.py\n")
+    assert C.git_dirty() is True
+    fake(" M paper/tables/t.md\n")
+    assert C.git_dirty() is True  # a modified *tracked* file always counts
+    fake("")
+    assert C.git_dirty() is False
