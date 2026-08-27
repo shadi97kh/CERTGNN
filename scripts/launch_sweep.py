@@ -212,7 +212,12 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--matrix", default="ABLATIONS.md")
-    ap.add_argument("--tier", type=int, required=True)
+    ap.add_argument(
+        "--tier",
+        type=int,
+        default=None,
+        help="tier to launch (required unless --resume)",
+    )
     ap.add_argument(
         "--rows", default=None, help="comma-separated row ids to restrict to"
     )
@@ -246,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.resume:
         return resume(pathlib.Path(args.resume), args.allow_dirty)
+    if args.tier is None:
+        ap.error("--tier is required unless --resume is given")
 
     dirty = git_dirty()
     if dirty and not args.allow_dirty and not args.dry_run:
