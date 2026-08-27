@@ -244,7 +244,7 @@ def tuning_budget_markdown(runs: list[dict[str, Any]]) -> str:
     ]
     agg: dict[tuple[str, str, str], dict[str, Any]] = {}
     for r in sorted(
-        runs, key=lambda r: r["meta"]["timestamp_utc"]
+        runs, key=lambda r: r["meta"].get("timestamp_utc", "")
     ):  # latest entry wins
         for e in r.get("tuning_budget") or []:
             key = (r["meta"]["experiment"], str(e.get("substrate", "-")), e["model"])

@@ -75,6 +75,11 @@ class TargetReadoutGCN(nn.Module):
     depth : int
         Number of message-passing layers.
     readout : {"target", "mean"}
+    out_dim : int
+        Number of logits. ``1`` (the default) returns shape ``(batch,)`` and is
+        the binary/regression case the synthetic substrate uses. ``k > 1``
+        returns ``(batch, k)`` for multiclass benchmarks, where the output map
+        is a softmax rather than the logistic link -- see ABLATIONS C.7.
     arch : {"gcn", "sage_sum", "gin"}
         Backbone: symmetric-normalized GCN, GraphSAGE with sum aggregation, or
         GIN (sum aggregation with an MLP update). Sum aggregation preserves
@@ -88,6 +93,7 @@ class TargetReadoutGCN(nn.Module):
         depth: int = 3,
         readout: str = "target",
         arch: str = "gcn",
+        out_dim: int = 1,
     ) -> None:
         super().__init__()
         dims = [in_dim] + [hidden] * depth
@@ -111,7 +117,8 @@ class TargetReadoutGCN(nn.Module):
             raise ValueError("arch must be gcn, sage_sum or gin")
         self.convs = nn.ModuleList(convs)
         self.arch = arch
-        self.head = nn.Linear(hidden, 1)
+        self.head = nn.Linear(hidden, out_dim)
+        self.out_dim = out_dim
         self.readout = readout
 
     def forward(
@@ -133,7 +140,8 @@ class TargetReadoutGCN(nn.Module):
         h = _apply_mask(x, mask)
         for conv in self.convs:
             h = _apply_mask(torch.relu(conv(h, edge_index)), mask)
-        return self.head(_readout(h, batch, ptr, target_idx, self.readout)).squeeze(-1)
+        out = self.head(_readout(h, batch, ptr, target_idx, self.readout))
+        return out.squeeze(-1) if self.out_dim == 1 else out
 
 
 class NodeFeatureMLP(nn.Module):

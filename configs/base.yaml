@@ -65,6 +65,17 @@ gate2_model:           # experiments/gate2_model.py: 1.9 with a TRAINED model
   min_val_r2: 0.05     # below this the model has not learned and the arm is
                        # reported as uninformative rather than as evidence
 
+benchmark:             # ABLATIONS C.5-C.8, experiments/benchmark_reeval.py
+  # CANDIDATE. The rows this serves are status: candidate and unapproved.
+  root: data/benchmarks
+  datasets: [mutag, ba_2motifs, tree_cycles, ba_shapes, ba_community]
+  explainers: [gnn_explainer, pg_explainer, graphmask, dummy]
+  max_instances: 300   # per dataset per seed; node-level datasets sample nodes
+  epochs: 60
+  batch_size: 32
+  explainer_epochs: 100
+  aopc_k: 10           # perturbation-curve depth; null uses every candidate node
+
 tier0:                 # ABLATIONS 0.6, 0.7, 0.8 (experiments/tier0_controls.py)
   substrates: [splice, connectome, synthetic]
   run_bqn_on: [connectome]        # 0.8 is a brain-substrate row

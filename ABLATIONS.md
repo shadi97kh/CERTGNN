@@ -1567,3 +1567,186 @@ falsified_if: >-
   be weakened.
 gate: null
 ```
+
+---
+
+## Candidate additions — published-benchmark re-evaluation (proposed 2026-08-27, NOT approved)
+
+Everything below is `status: candidate` and is ignored by the launcher. It is
+proposed in response to the question the synthetic gates cannot answer: whether
+the link confound *changes explainer rankings on the benchmarks the field
+actually uses*, or is real but inconsequential. `experiments/benchmark_reeval.py`
+implements these rows; it has not been run.
+
+**Four decisions need the PI before any of this launches.**
+
+1. **The `substrate` enum does not cover benchmarks.** The schema allows
+   `splice | connectome | synthetic`. These rows use `benchmark`, which needs a
+   one-word schema extension and a `certgnn/substrates/benchmark/` implementing
+   the existing protocol. Nothing in core changes.
+
+2. **Theorem 2 is a statement about the logistic link, and half the named
+   datasets are multiclass.** BA-Shapes is 4-class and BA-Community 8-class, so
+   the output map is softmax, whose Jacobian is `diag(p) - p pᵀ`, not `p(1-p)`.
+   The clean test of Theorem 2 as written is the binary rows (C.5, C.6). C.7 is
+   an extension and is labelled as one; it must not be reported as evidence for
+   Theorem 2 in its current form.
+
+3. **GraphXAI is not installed and is not on PyPI.** It is a GitHub research
+   repo with its own pinned dependency set and its own metric implementations.
+   These rows deliberately do *not* depend on it: they rebuild its evaluation
+   datasets from `torch_geometric.datasets` equivalents. If the PI wants
+   GraphXAI itself, it needs an approved pinned commit and probably an isolated
+   environment, and its metrics must not silently replace `certgnn.eval.faithfulness`.
+
+4. **The explainer roster is limited by what is installed.**
+   `torch_geometric.explain.algorithm` ships GNNExplainer, PGExplainer,
+   AttentionExplainer, GraphMaskExplainer, CaptumExplainer and DummyExplainer.
+   `captum` is **not installed**, so CaptumExplainer (Integrated Gradients,
+   Saliency) is unavailable without a new dependency. AttentionExplainer needs
+   an attention backbone, so using it forces a GAT arm the rest of the paper
+   does not use. The proposal below uses GNNExplainer, PGExplainer,
+   GraphMaskExplainer and DummyExplainer-as-floor on the same GCN, and asks
+   whether to add `captum` for a gradient-based fourth method.
+
+### C.5 Benchmark ranking re-evaluation, binary graph classification
+
+```yaml
+id: "C.5"
+name: explainer ranking in probability vs latent space, binary graph classification
+tier: 3
+status: candidate
+blocking: null
+claim: C2 / Theorem 2, field-level consequence
+defends: >-
+  If probability-space faithfulness is confounded by the link, then explainer
+  rankings computed in probability space differ from rankings computed in
+  latent space on the benchmarks the field publishes on.
+substrate: [benchmark]
+axes:
+  benchmark.dataset: [mutag, ba_2motifs]
+  benchmark.explainer: [gnn_explainer, pg_explainer, graphmask, dummy]
+sweep: two_factor
+seeds: 10
+metrics:
+  [comprehensiveness_paired, sufficiency_paired, aopc_paired,
+   normalized_aopc_paired, kendall_tau_between_spaces, operating_point_spread]
+expected: >-
+  Unknown, and that is the point of running it. Theorem 2 bounds the
+  divergence by the spread of the Jacobian p(1-p) across instances, so a
+  ranking change requires both a divergent metric and a wide operating-point
+  distribution. Either outcome is publishable.
+falsified_if: >-
+  Kendall tau between the probability-space and latent-space rankings is at or
+  near 1 on every dataset and every metric, with CIs excluding a rank swap. The
+  confound is then real but inconsequential for practice, and the paper must
+  report that as the headline of this section rather than bury it.
+gate: null
+notes: >-
+  MUTAG via TUDataset; BA-2Motifs via BA2MotifDataset. Both binary, so the
+  logistic Jacobian applies exactly. DummyExplainer is the random floor
+  required by rule 4, not a method under comparison; it is excluded from the
+  ranking and reported beside it.
+```
+
+### C.6 Benchmark ranking re-evaluation, binary node classification
+
+```yaml
+id: "C.6"
+name: explainer ranking in probability vs latent space, binary node classification
+tier: 3
+status: candidate
+blocking: null
+claim: C2 / Theorem 2, field-level consequence
+defends: >-
+  The ranking comparison of C.5 holds, or fails, in the node-classification
+  setting the original BA-Shapes-style benchmarks were built for.
+substrate: [benchmark]
+axes:
+  benchmark.dataset: [tree_cycles]
+  benchmark.explainer: [gnn_explainer, pg_explainer, graphmask, dummy]
+sweep: two_factor
+seeds: 10
+metrics:
+  [comprehensiveness_paired, sufficiency_paired, aopc_paired,
+   normalized_aopc_paired, kendall_tau_between_spaces, operating_point_spread]
+expected: >-
+  As C.5. Node classification is the setting where the target-node readout
+  already used everywhere else in this repo applies without modification.
+falsified_if: >-
+  As C.5.
+gate: null
+notes: >-
+  Tree-Cycles is binary (in-motif vs not), so the logistic Jacobian applies.
+  Built from ExplainerDataset + BAGraph/TreeGraph motifs, since
+  torch_geometric.datasets.BAShapes is deprecated in 2.7.
+```
+
+### C.7 Multiclass extension, explicitly not a Theorem 2 test
+
+```yaml
+id: "C.7"
+name: explainer ranking under softmax, multiclass benchmarks
+tier: 3
+status: candidate
+blocking: null
+claim: extension beyond Theorem 2 as stated
+defends: >-
+  Whether the ranking divergence, if any, survives when the output map is
+  softmax rather than the logistic link Theorem 2 is written for.
+substrate: [benchmark]
+axes:
+  benchmark.dataset: [ba_shapes, ba_community]
+  benchmark.explainer: [gnn_explainer, pg_explainer, graphmask, dummy]
+sweep: two_factor
+seeds: 10
+metrics:
+  [comprehensiveness_paired, sufficiency_paired, aopc_paired,
+   normalized_aopc_paired, kendall_tau_between_spaces, operating_point_spread]
+expected: >-
+  Undetermined. The softmax Jacobian is diag(p) - p pᵀ, so the scalar p(1-p)
+  argument does not carry over and this row cannot confirm Theorem 2. It can
+  show whether the practical concern generalizes.
+falsified_if: >-
+  Nothing here falsifies Theorem 2, by construction. Reporting this row as
+  support for Theorem 2 would be the error; it is listed so that it cannot be
+  quietly folded into C.5's numbers.
+gate: null
+notes: >-
+  Scores use the explained class's logit against its softmax probability.
+  Report separately from C.5 and C.6 in the paper.
+```
+
+### C.8 Operating-point pre-check, run before the ranking matrix
+
+```yaml
+id: "C.8"
+name: operating-point distribution of trained benchmark models
+tier: 3
+status: candidate
+blocking: null
+claim: precondition for C.5 to C.7
+defends: >-
+  A ranking change requires the link Jacobian to vary across instances. This
+  measures the spread of p(1-p) at the unmasked operating point for each
+  trained benchmark model, which bounds how large any divergence can be.
+substrate: [benchmark]
+axes:
+  benchmark.dataset: [mutag, ba_2motifs, tree_cycles, ba_shapes, ba_community]
+sweep: one_factor
+seeds: 5
+metrics: [operating_point_histogram, jacobian_spread_ratio, saturated_fraction]
+expected: >-
+  Well-trained benchmark models are usually saturated, which makes p(1-p)
+  vary over orders of magnitude and leaves room for a ranking change. A model
+  concentrated near p = 0.5 cannot produce one.
+falsified_if: >-
+  Not a falsification row. It is cheap and it decides whether the full matrix
+  is worth running, so it runs first and its result is reported even if the
+  matrix is then abandoned.
+gate: null
+notes: >-
+  This row exists so that a tau near 1 in C.5 can be attributed correctly:
+  to a narrow operating-point distribution rather than to Theorem 2 being
+  wrong.
+```
