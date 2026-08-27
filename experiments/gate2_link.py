@@ -64,6 +64,7 @@ from experiments._common import (
     mean_ci,
     resolve_seeds,
     to_jsonable,
+    write_tuning_budget,
 )
 
 GATE = "G2"
@@ -413,6 +414,10 @@ def aggregate(per_seed: list[dict[str, Any]], cfg: Any) -> dict[str, Any]:
         "any_infinite_quantile": any(
             r["coverage"]["infinite_quantile"] for r in per_seed
         ),
+        "per_seed_gap_probability": [
+            r["coverage"]["gap_probability"] for r in per_seed
+        ],
+        "per_seed_gap_latent": [r["coverage"]["gap_latent"] for r in per_seed],
         "stratum_edges_abs_logit_p0": np.mean(
             stack(["coverage", "stratum_edges_abs_logit_p0"]), axis=0
         ),
@@ -719,6 +724,55 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(to_jsonable({"aggregate": agg, "verdict": v}), indent=1)
     )
     (run / "table.md").write_text(table)
+    (run / "per_seed_values.json").write_text(
+        json.dumps(
+            {
+                "gap_probability": {
+                    str(r["seed"]): r["coverage"]["gap_probability"] for r in per_seed
+                },
+                "gap_latent": {
+                    str(r["seed"]): r["coverage"]["gap_latent"] for r in per_seed
+                },
+                "marginal_probability": {
+                    str(r["seed"]): r["coverage"]["marginal_probability"]
+                    for r in per_seed
+                },
+                "marginal_latent": {
+                    str(r["seed"]): r["coverage"]["marginal_latent"] for r in per_seed
+                },
+            },
+            indent=1,
+        )
+    )
+    write_tuning_budget(
+        run,
+        [
+            {
+                "model": "none",
+                "configs_tried": 0,
+                "epochs": 0,
+                "gradient_steps": 0,
+                "search_space": "no trained model: oracle substrate",
+                "selection": "n/a",
+            }
+        ],
+    )
+    (run / "gate_stats.json").write_text(
+        json.dumps(
+            to_jsonable(
+                {
+                    "gate": GATE,
+                    "verdict": v["verdict"],
+                    "p_value": v["p_values"]["gate"],
+                    "p_values": v["p_values"],
+                    "measured": v["measured"],
+                    "threshold": v["threshold"],
+                    "n_seeds": agg["n_seeds"],
+                }
+            ),
+            indent=1,
+        )
+    )
     (run / "verdict.md").write_text(
         f"gate: {GATE}\ngit_sha: {meta['git_sha']}\ngit_dirty: {meta['git_dirty']}\n"
         f"config_hash: {meta['config_hash']}\ntimestamp_utc: {meta['timestamp_utc']}\n"
