@@ -137,7 +137,9 @@ def _model_and_batch(depth=3, seed=0):
 
 
 def _fwd(model, batch, mask=None):
-    return model(batch.x, batch.edge_index, batch.batch, batch.ptr, batch.target_idx, mask)
+    return model(
+        batch.x, batch.edge_index, batch.batch, batch.ptr, batch.target_idx, mask
+    )
 
 
 def test_mask_of_ones_is_the_unmasked_forward():
@@ -233,7 +235,14 @@ def test_mlp_accepts_a_mask_for_interface_parity():
 def test_fit_returns_the_trained_model_and_it_is_usable():
     """gate2_model needs the fitted weights, not just the metrics."""
     _, tr, va, te = _data(n=60)
-    r = fit(lambda: TargetReadoutGCN(int(tr[0].x.size(1)), 16, 2), tr, va, te, seed=0, epochs=2)
+    r = fit(
+        lambda: TargetReadoutGCN(int(tr[0].x.size(1)), 16, 2),
+        tr,
+        va,
+        te,
+        seed=0,
+        epochs=2,
+    )
     assert r.model is not None
     batch = _one_batch(te)
     with torch.no_grad():
@@ -254,7 +263,9 @@ def test_baseline_feature_appends_the_instance_baseline():
         seed=0,
     )
     off = SyntheticSubstrate(SyntheticConfig(**kw)).load("train")[0]
-    on = SyntheticSubstrate(SyntheticConfig(**kw, baseline_feature=True)).load("train")[0]
+    on = SyntheticSubstrate(SyntheticConfig(**kw, baseline_feature=True)).load("train")[
+        0
+    ]
     assert on.x.size(1) == off.x.size(1) + 1
     col = on.x[:, -1]
     assert torch.allclose(col, col[0].expand_as(col))
