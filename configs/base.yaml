@@ -1,0 +1,39 @@
+# Reference config. Override with Hydra-style dotlist arguments, e.g.
+#   python -m experiments.gate2_link --config configs/base.yaml seeds=5 gate2.coverage.n_test=2000
+seeds: 10
+alpha: 0.1
+n_strata: 5
+bootstrap_resamples: 2000
+substrate: synthetic
+
+output:
+  figures: paper/figures
+  tables: paper/tables
+  runs: results/runs
+
+gate2:
+  eta0_mean: 0.0
+  eta0_std: 2.0
+  links: [identity, logit, probit, cloglog]
+  link_sweep:          # ABLATIONS 1.6
+    n_instances: 1000
+    delta: 0.1
+    n_pairs: 20000
+  curve_fit:           # ABLATIONS 1.7
+    deltas: [0.1, 0.3, 0.7, 1.0]
+    n_instances: 1000
+  rank_reversal:       # ABLATIONS 1.8
+    baseline_pairs: [[0.5, 0.9], [0.5, 0.95], [0.5, 0.99]]
+    n_per_baseline: 200
+    delta: 1.0
+  coverage:            # ABLATIONS 1.9 / Gate G2
+    topology:
+      kind: nested_bubbles
+      n_branches: 2
+      depth: 2
+      n_distractors: 3
+    regulator: random
+    delta: 1.0
+    n_cal: 1000
+    n_test: 5000
+    explanation_ball_fraction: 0.5

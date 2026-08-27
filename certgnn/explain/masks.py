@@ -131,6 +131,7 @@ def resistance_ball_init(
     ball_size: int | None = None,
     inside: float = 0.9,
     outside: float = 0.1,
+    exact: bool = True,
 ) -> torch.Tensor:
     """Warm start from the resistance ball of Theorem 4.
 
@@ -138,13 +139,15 @@ def resistance_ball_init(
     ``inside``; all others at ``outside``. Give either ``radius`` or
     ``ball_size`` (the ball then contains the ``ball_size`` nearest
     non-target nodes). Both init levels are strictly inside (0, 1): the warm
-    start is a soft mask, not a hard pre-selection.
+    start is a soft mask, not a hard pre-selection. ``exact=False`` uses the
+    Laplacian pseudo-inverse directly (same values, O(n^3)); useful when many
+    small graphs are processed.
     """
     if (radius is None) == (ball_size is None):
         raise ValueError("give exactly one of radius or ball_size")
     if not (0.0 < outside < inside < 1.0):
         raise ValueError("need 0 < outside < inside < 1")
-    R = resistance_to_target(G, target)
+    R = resistance_to_target(G, target, exact=exact)
     nodes = sorted(G.nodes())
     if nodes != list(range(len(nodes))):
         raise ValueError("graph nodes must be labelled 0..n-1")

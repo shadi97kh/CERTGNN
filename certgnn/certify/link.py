@@ -49,5 +49,6 @@ def stratify_by_baseline(p0: torch.Tensor, n_strata: int = 5) -> torch.Tensor:
     """Mondrian strata on |logit p0|. Theorem 2(iii) says conditional coverage
     fails without this."""
     z = logit(p0).abs()
-    qs = torch.quantile(z, torch.linspace(0, 1, n_strata + 1)[1:-1])
+    probs = torch.linspace(0, 1, n_strata + 1, dtype=z.dtype, device=z.device)[1:-1]
+    qs = torch.quantile(z, probs)
     return torch.bucketize(z, qs)
