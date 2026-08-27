@@ -1,0 +1,186 @@
+{
+ "id": "tier0_20260827T152310Z_0888545",
+ "tier": 0,
+ "matrix": "ABLATIONS.md",
+ "allow_dirty": false,
+ "git_dirty": false,
+ "rows_requested": [
+  "0.6",
+  "0.7",
+  "0.8"
+ ],
+ "rows_unlaunchable": [],
+ "runs": [
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed0",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 0,
+   "overrides": [
+    "seed=0",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed0"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed0.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed1",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 1,
+   "overrides": [
+    "seed=1",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed1"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed1.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed2",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 2,
+   "overrides": [
+    "seed=2",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed2"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed2.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed3",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 3,
+   "overrides": [
+    "seed=3",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed3"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed3.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed4",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 4,
+   "overrides": [
+    "seed=4",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed4"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed4.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed5",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 5,
+   "overrides": [
+    "seed=5",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed5"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed5.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed6",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 6,
+   "overrides": [
+    "seed=6",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed6"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed6.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed7",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 7,
+   "overrides": [
+    "seed=7",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed7"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed7.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed8",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 8,
+   "overrides": [
+    "seed=8",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed8"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed8.yaml",
+   "exit_code": 1
+  },
+  {
+   "run_id": "tier0_20260827T152310Z_0888545/tier0_controls_seed9",
+   "module": "experiments.tier0_controls",
+   "rows": [
+    "0.6",
+    "0.7",
+    "0.8"
+   ],
+   "cell": {},
+   "seed": 9,
+   "overrides": [
+    "seed=9",
+    "run_id=tier0_20260827T152310Z_0888545/tier0_controls_seed9"
+   ],
+   "config_path": "configs/generated/tier0_20260827T152310Z_0888545/tier0_controls_seed9.yaml",
+   "exit_code": 1
+  }
+ ],
+ "dry_run": false
+}

@@ -283,7 +283,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--prefix", default="aggregate")
     args = ap.parse_args(argv)
 
-    runs = load_runs(pathlib.Path(args.runs))
+    all_runs = load_runs(pathlib.Path(args.runs))
+    runs = all_runs
     problems: list[str] = []
     if args.manifest:
         manifest = json.loads(pathlib.Path(args.manifest).read_text())
@@ -306,14 +307,14 @@ def main(argv: list[str] | None = None) -> int:
 
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    gates = gate_table(runs)
+    gates = gate_table(all_runs)  # the gate family spans sweeps
     (out / f"{args.prefix}_cells.md").write_text(cells_markdown(cells))
     (out / f"{args.prefix}_cells.tex").write_text(cells_latex(cells))
     (out / f"{args.prefix}_gates.md").write_text(gates_markdown(gates))
     (out / f"{args.prefix}_gates.tex").write_text(gates_latex(gates))
     tb = pathlib.Path(args.tuning_budget)
     tb.parent.mkdir(parents=True, exist_ok=True)
-    tb.write_text(tuning_budget_markdown(runs))
+    tb.write_text(tuning_budget_markdown(all_runs))
     print(
         f"wrote {out / (args.prefix + '_cells.{md,tex}')}, {out / (args.prefix + '_gates.{md,tex}')}, {tb}"
     )

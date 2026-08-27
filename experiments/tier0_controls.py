@@ -548,8 +548,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="run on a dirty tree (recorded in meta.json)",
     )
+    ap.add_argument(
+        "--aggregate",
+        default=None,
+        metavar="MANIFEST",
+        help="rebuild the cross-seed verdict from a sweep manifest instead of running",
+    )
     args = ap.parse_args(argv)
     cfg = load_config(args.config, args.overrides)
+    if args.aggregate:
+        return aggregate_manifest(args.aggregate, cfg)
     configure_torch(cfg)
     run = make_run_dir(cfg, "tier0_controls", allow_dirty=args.allow_dirty)
     meta = json.loads((run / "meta.json").read_text())
@@ -605,10 +613,13 @@ def main(argv: list[str] | None = None) -> int:
     }
     (run / "per_seed_values.json").write_text(json.dumps(per_seed_values, indent=1))
     table = make_table(results, rec, cfg, meta)
-    tab_dir = pathlib.Path(cfg.output.tables)
-    tab_dir.mkdir(parents=True, exist_ok=True)
-    (tab_dir / "tier0_controls.md").write_text(table)
     (run / "table.md").write_text(table)
+    if cfg.get("sweep") is None:
+        # a direct multi-seed run publishes its table; a per-seed sweep run does not,
+        # the cross-seed aggregate (--aggregate MANIFEST) publishes instead
+        tab_dir = pathlib.Path(cfg.output.tables)
+        tab_dir.mkdir(parents=True, exist_ok=True)
+        (tab_dir / "tier0_controls.md").write_text(table)
     (run / "results.json").write_text(
         json.dumps(to_jsonable({"results": results, "recommendation": rec}), indent=1)
     )
