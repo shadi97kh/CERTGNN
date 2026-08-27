@@ -170,6 +170,43 @@ def write_config(
     return path
 
 
+def resume(man_path: pathlib.Path, allow_dirty: bool) -> int:
+    """Re-launch every run in a manifest whose exit code is missing or non-zero.
+
+    Used after an interrupted sweep. Run ids and generated configs are reused
+    so the aggregate can check completeness against the original plan; the
+    manifest records which runs were resumed and at which SHA.
+    """
+    manifest = json.loads(man_path.read_text())
+    if git_dirty() and not allow_dirty:
+        raise SystemExit(
+            "REFUSING TO RESUME: working tree is dirty. Commit, or pass --allow-dirty."
+        )
+    todo = [r for r in manifest["runs"] if r.get("exit_code") != 0]
+    print(
+        f"resume {manifest['id']}: {len(todo)} of {len(manifest['runs'])} run(s) to (re)launch at {git_sha()}"
+    )
+    for run in todo:
+        cmd = [sys.executable, "-m", run["module"], "--config", run["config_path"]] + (
+            ["--allow-dirty"] if allow_dirty else []
+        )
+        print(f"launch {run['run_id']}: {' '.join(cmd)}", flush=True)
+        proc = subprocess.run(cmd)
+        run["exit_code"] = proc.returncode
+        run.setdefault("resumed_at", []).append(git_sha())
+        man_path.write_text(json.dumps(manifest, indent=1))
+        if proc.returncode != 0:
+            print(
+                f"RUN FAILED (exit {proc.returncode}): {run['run_id']}", file=sys.stderr
+            )
+    failed = [r["run_id"] for r in manifest["runs"] if r.get("exit_code") != 0]
+    print(
+        f"done: {len(manifest['runs']) - len(failed)} ok, {len(failed)} failed"
+        + (f": {failed}" if failed else "")
+    )
+    return 1 if failed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -199,7 +236,16 @@ def main(argv: list[str] | None = None) -> int:
         help="launch runnable rows even if some rows have no runner",
     )
     ap.add_argument("--include-draft", action="store_true")
+    ap.add_argument(
+        "--resume",
+        default=None,
+        metavar="MANIFEST",
+        help="re-launch the runs of an existing manifest that did not exit 0",
+    )
     args = ap.parse_args(argv)
+
+    if args.resume:
+        return resume(pathlib.Path(args.resume), args.allow_dirty)
 
     dirty = git_dirty()
     if dirty and not args.allow_dirty and not args.dry_run:

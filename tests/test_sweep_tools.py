@@ -205,3 +205,51 @@ def test_git_dirty_ignores_untracked_outputs_only(monkeypatch):
     assert C.git_dirty() is True  # a modified *tracked* file always counts
     fake("")
     assert C.git_dirty() is False
+
+
+def test_resume_relaunches_only_unfinished_runs(tmp_path, monkeypatch):
+    man = tmp_path / "m.json"
+    man.write_text(
+        json.dumps(
+            {
+                "id": "s",
+                "runs": [
+                    {
+                        "run_id": "s/a_seed0",
+                        "module": "experiments.x",
+                        "config_path": "c0.yaml",
+                        "exit_code": 0,
+                    },
+                    {
+                        "run_id": "s/a_seed1",
+                        "module": "experiments.x",
+                        "config_path": "c1.yaml",
+                        "exit_code": None,
+                    },
+                    {
+                        "run_id": "s/a_seed2",
+                        "module": "experiments.x",
+                        "config_path": "c2.yaml",
+                        "exit_code": 1,
+                    },
+                ],
+            }
+        )
+    )
+    launched = []
+
+    class P:
+        returncode = 0
+
+    monkeypatch.setattr(ls, "git_dirty", lambda: False)
+    monkeypatch.setattr(ls, "git_sha", lambda: "abc1234")
+    monkeypatch.setattr(
+        ls.subprocess, "run", lambda cmd: launched.append(cmd[-1]) or P()
+    )
+    assert ls.resume(man, allow_dirty=False) == 0
+    assert launched == ["c1.yaml", "c2.yaml"]
+    m = json.loads(man.read_text())
+    assert [r["exit_code"] for r in m["runs"]] == [0, 0, 0]
+    assert (
+        m["runs"][1]["resumed_at"] == ["abc1234"] and "resumed_at" not in m["runs"][0]
+    )
