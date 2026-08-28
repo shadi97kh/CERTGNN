@@ -76,6 +76,24 @@ benchmark:             # ABLATIONS C.5-C.8, experiments/benchmark_reeval.py
   explainer_epochs: 100
   aopc_k: 10           # perturbation-curve depth; null uses every candidate node
 
+identifiability:       # experiments/identifiability_probe.py
+  topology: {kind: nested_bubbles, n_branches: 2, depth: 2, n_distractors: 3}
+  n_instances: 800
+  nonlinearity: 1.0    # weight of the quadratic term in phi*; 0 makes phi* linear
+  quad_rank: 3
+  scale: 2.0           # steepness of g* = sigmoid(scale * phi)
+  noise: 0.01
+  restarts: 12
+  loss_tol: 0.20       # a refit counts as "equally good" within 20% of the best loss;
+                       # too tight and a class yields one fit and no restart pair
+  epochs: 1500
+  warp_fit_epochs: 2000
+  lr: 0.01
+  hidden: 32
+  ge_components: 5
+  warp_strength: 0.8   # |s| < 1 keeps psi strictly monotone
+  warp_omega: 2.0
+
 rank_reversal_std:     # ABLATIONS 1.8 third arm (experiments/rank_reversal_standardized.py)
   topology: {kind: nested_bubbles, n_branches: 2, depth: 2, n_distractors: 3}
   delta: 1.0
