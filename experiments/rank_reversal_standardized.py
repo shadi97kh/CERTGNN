@@ -311,6 +311,8 @@ def main(argv: list[str] | None = None) -> int:
         for k in keys
     }
     spaces_equal = all(e["lo"] <= 0.0 <= e["hi"] for e in equalise.values())
+    # Does the raw latent arm actually rank correctly (well below chance)?
+    latent_correct = all(agg["pairs"][k]["latent_raw"]["hi"] < 0.1 for k in keys)
     raw = worst("probability_raw")
     std = worst("probability_standardized")
     lat_std = worst("latent_standardized")
@@ -323,7 +325,23 @@ def main(argv: list[str] | None = None) -> int:
     std_uninformative = abs(rho_std_lo) < 0.2 and abs(rho_std_hi) < 0.2
     std_fixes = std["hi"] < 0.5 and rho_std_lo > 0.5
 
-    if raw_biased and spaces_equal:
+    if raw_biased and std_at_chance and latent_correct:
+        statement = (
+            "The raw probability-space score is systematically reversed and gets worse as the "
+            "baselines separate (up to "
+            f"{max(agg['pairs'][k]['probability_raw']['mean'] for k in keys):.3f} vs a chance level of "
+            "0.500), so row 1.8's premise reproduces under per-node scores. The per-instance "
+            "standardization SQUID performs removes almost all of that bias, but it lands at "
+            "chance rather than at the correct ordering: it neutralises the artifact by "
+            "destroying magnitude information, not by recovering it. The latent score ranks "
+            "correctly. Clause (ii) therefore survives the prior-art objection, but only in "
+            "this narrowed form -- standardization is not a substitute for the latent "
+            "transform when effect magnitudes must be compared across instances, which is a "
+            "different use than the map-shape consistency SQUID uses it for. Scope: the "
+            "latent arm is exact by construction on this substrate, so the informative "
+            "contrast is raw versus standardized, not either against latent."
+        )
+    elif raw_biased and spaces_equal:
         statement = (
             "The raw probability-space score is systematically reversed, but after the "
             "per-instance standardization SQUID performs the two spaces are "
@@ -373,6 +391,7 @@ def main(argv: list[str] | None = None) -> int:
         "standardized_uninformative": bool(std_uninformative),
         "standardized_fixes_it": bool(std_fixes),
         "spaces_equal_after_standardization": bool(spaces_equal),
+        "latent_raw_ranks_correctly": bool(latent_correct),
         "standardized_minus_latent": equalise,
         "statement": statement,
     }

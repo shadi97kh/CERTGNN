@@ -562,23 +562,39 @@ status: specified
 blocking: WEEK1
 claim: C2 / Theorem 2, cross-instance comparability
 defends: >-
-  Probability-space attribution scores reverse the ranking of node effects
+  Raw probability-space attribution scores reverse the ranking of node effects
   across instances with different baselines, while latent-space scores
-  preserve it.
+  preserve it, and the per-instance standardization the prior art already
+  performs (SQUID, Methods) does not repair the ranking.
 substrate: [synthetic, splice]
 axes:
   link.baseline_pair: ["0.5_vs_0.9", "0.5_vs_0.95", "0.5_vs_0.99"]
 sweep: one_factor
 seeds: 10
-metrics: [reversal_rate_probability_space, reversal_rate_latent_space]
+metrics: [reversal_rate_probability_raw, reversal_rate_probability_standardized,
+          reversal_rate_latent_raw, reversal_rate_latent_standardized,
+          spearman_with_true_effect]
 expected: >-
-  Probability-space reversal rate exceeds 20% of cross-instance pairs and
-  grows with baseline separation; latent-space reversal rate is within CI of
-  zero.
+  Read against a chance level of 0.5, not zero. Raw probability-space reversal
+  exceeds chance and grows with baseline separation; latent-space reversal is
+  within CI of zero; the standardized probability arm is at chance, i.e. it
+  removes the bias without recovering the ordering.
 falsified_if: >-
-  Probability-space reversal rate is within CI of the latent-space rate.
-  Probability-space scores would then be cross-instance comparable in
-  practice and Theorem 2's motivation is moot.
+  The raw probability-space reversal rate is not reliably above chance (row's
+  premise unsupported), OR the standardized probability arm falls reliably
+  below chance with a strong rank correlation to the true effect. In the
+  latter case per-instance standardization already does what the latent
+  transform does, clause (ii) is not a contribution over standard practice,
+  and Theorem 2 must rest on clause (iii) alone.
+notes: >-
+  The third and fourth arms were added on 2026-08-28 after
+  paper/prior_art/squid_collision.md showed the original two-arm comparison
+  was against a baseline the field does not use. Implemented by
+  experiments/rank_reversal_standardized.py, which uses single-node-removal
+  scores over every candidate node because standardization needs a score
+  vector rather than this row's single scalar. The two-arm result recorded in
+  paper/tables/gate2_link.md stands as measured; it is simply not the whole
+  comparison. PREREGISTRATION.md is untouched: C2 is unchanged.
 gate: G2
 ```
 

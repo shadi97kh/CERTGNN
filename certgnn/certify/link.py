@@ -1,9 +1,25 @@
 """Link-function corrections (Theorem 2).
 
 Attribution and faithfulness scores on bounded outputs inherit the link's
-Jacobian, which varies with the operating point. Comparing raw scores across
-instances with different baselines is therefore not meaningful. These helpers
-move scores into a space where they are comparable.
+Jacobian, which varies with the operating point. That an output nonlinearity
+confounds additive attribution is established prior art, not a finding here:
+see Seitz, McCandlish, Kinney & Koo, Nat. Mach. Intell. 6:701-713 (2024)
+(SQUID), whose Methods already take "the logit of the output probability"
+before fitting, and Tareen et al., Genome Biol. 23:98 (2022) (MAVE-NN) on
+latent phenotypes and global-epistasis nonlinearities.
+
+Comparing *raw, unstandardized* scores across instances with different
+baselines is not meaningful. The qualifier matters: dividing each instance's
+score vector by its own spread, as SQUID does before comparing attribution
+maps across loci, removes the per-instance p0(1-p0) factor -- but it lands at
+chance rather than recovering the ranking, because it discards magnitude
+information along with the artifact (experiments/rank_reversal_standardized.py,
+paper/tables/rank_reversal_standardized.md). These helpers move scores into a
+space where magnitudes remain comparable.
+
+Scope (Kinney & Atwal, Neural Comput. 26:637-653, 2014): a scalar latent
+admits additive *and* multiplicative diffeomorphic modes, so latent scores are
+invariant to the operating point only at a fixed model and head scale.
 """
 
 from __future__ import annotations
