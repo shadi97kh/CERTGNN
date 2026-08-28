@@ -431,6 +431,11 @@ def make_table(agg: dict[str, Any], meta: dict[str, Any]) -> str:
     )
     L.append("## B. Empirical: how are equally-good refits related?\n")
     L.append(
+        "Read with the composite control at the foot of section C. Refits speak to the "
+        "equivalence class only if they fit the same function; where their composite "
+        "attributions disagree, they are different fits, not different representatives.\n"
+    )
+    L.append(
         "| G-P map | equally-good fits | affine R^2 | Spearman | recovers phi* (Spearman) |"
     )
     L.append("|---|---|---|---|---|")
@@ -508,6 +513,11 @@ def main(argv: list[str] | None = None) -> int:
     linear_not_closed = lin["twin_in_class_r2"]["hi"] < 0.95
     twin_breaks_cross = neu["twin_latent_cross_spearman"]["hi"] < 0.9
     restarts_break_cross = neu["restart_latent_cross_spearman"]["hi"] < 0.9
+    # Restarts only speak to the equivalence class if they fit the SAME function.
+    # The composite gradient is invariant under reparameterization algebraically,
+    # so if it disagrees across restarts they are different fits, not different
+    # representatives, and part B cannot be used as evidence either way.
+    restarts_prediction_equivalent = neu["restart_composite_within_cosine"]["lo"] > 0.95
     within_preserved = neu["twin_latent_within_cosine"]["lo"] > 0.95
 
     if neural_closed and twin_breaks_cross:
@@ -527,9 +537,14 @@ def main(argv: list[str] | None = None) -> int:
             "infinite equivalence class. Within-instance rankings survive."
             + (
                 " Ordinary multi-restart training also lands in different members of the class."
-                if restarts_break_cross
-                else " Ordinary multi-restart training did NOT explore the class here, so this is"
-                " a statement about what the class permits, not about what Adam happens to find."
+                if restarts_break_cross and restarts_prediction_equivalent
+                else " The multi-restart arm cannot corroborate this: the restarts' *composite*"
+                " attributions disagree too (cosine"
+                f" {neu['restart_composite_within_cosine']['mean']:.3f}), and the composite is"
+                " invariant under reparameterization algebraically, so those restarts are"
+                " different fits rather than different representatives of one function. Part B"
+                " is therefore reported but carries no weight; the result rests on the"
+                " construction, which is exact."
             )
         )
     elif neural_closed and within_preserved and not twin_breaks_cross:
@@ -560,6 +575,7 @@ def main(argv: list[str] | None = None) -> int:
         "linear_class_not_closed": bool(linear_not_closed),
         "twin_breaks_cross_instance": bool(twin_breaks_cross),
         "restarts_break_cross_instance": bool(restarts_break_cross),
+        "restarts_prediction_equivalent": bool(restarts_prediction_equivalent),
         "within_instance_preserved": bool(within_preserved),
         "statement": statement,
     }
