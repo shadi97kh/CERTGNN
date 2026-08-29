@@ -92,12 +92,53 @@ library size: 7 free N positions and one Y position gives 4^7 x 2 =
 32,768. **30,483** is the number actually measured and released. Both
 numbers are correct for different things; only 30,483 exist as data.
 
-### 2.3 Not obtained
+### 2.3 MFASS — OBTAINED, and the only acquired dataset with topological variation
 
-- **MFASS** (Cheung et al. 2019), **MaPSy** (Soemedi et al. 2017),
-  **Vex-seq** (Adamson et al. 2018): not attempted. 2.1 and 2.2 satisfy
-  the requirement of at least one MPSA with position-resolved
-  measurements, so nothing was substituted for a failed download.
+Cheung R, Insigne KD, Yao D, Burghard CP, Wang J, Hsiao Y-HE, Jones EM,
+Goodman DB, Xiao X, Kosuri S. "A Multiplexed Assay for Exon Recognition
+Reveals that an Unappreciated Fraction of Rare Genetic Variants Cause
+Large-Effect Splicing Disruptions." *Molecular Cell* 73:183-194 (2019).
+From `github.com/KosuriLab/MFASS`, `processed_data/snv/snv_data_clean.txt`.
+
+| file | size | SHA-256 |
+|---|---|---|
+| `mfass_snv_data_clean.txt` | 41,445,250 B | `a637ca0e307e66ff48811ec7efa22b9ce453bc7883b04f0cacb867f7283132d8` |
+
+| quantity | value |
+|---|---|
+| variant rows | 32,669 |
+| distinct exons (`ensembl_id`) | **2,339** |
+| exon length | 18-99 nt, 28 distinct values |
+| intron 1 / intron 2 length | 30-80 / 30-81 nt, 34 / 33 distinct |
+| distinct (exon, intron1, intron2) length triples | **53** |
+| measurement | splicing index in [0, 1]; `v2_index` n = 31,031, median 0.991 |
+| assayed fragment | 170 nt (`sequence`) |
+| coordinates | hg38 (`chr`, `start`, `end`, `strand`, `snp_position_hg38_*`) |
+
+**Why this dataset was added.** Sections 2.1 and 2.2 are single-locus
+libraries: every FAS genotype is the same exon with the same flanking
+introns, and every BRCA2 variant is the same splice site. Under
+Definition 1 that yields ONE graph topology shared by every instance, so
+ABLATIONS rows 0.6 (degree-preserving shuffle) and 0.7 (edge-free MLP)
+are null by construction on them and would return "topology is
+decorative" as an artifact of the library design. MFASS has 2,339 exons
+across 53 distinct structural configurations, which is the topological
+variation those rows require.
+
+**A caveat that bears on Definition 1.** MFASS exons are short (median 81
+nt) with short flanking introns (median 45 nt) inside a 170 nt assayed
+fragment. Definition 1's 300 nt intronic radius therefore exceeds the
+available context: tiled windows would extend past the sequence that was
+actually measured. Either the radius is reduced to the construct, or the
+windows are drawn from hg38 beyond the minigene, which is a different
+object from the thing assayed. This must be decided before graphs are
+built.
+
+### 2.4 Not obtained
+
+- **MaPSy** (Soemedi et al. 2017), **Vex-seq** (Adamson et al. 2018):
+  not attempted. Nothing was substituted for a failed download; every
+  dataset listed above downloaded successfully.
 - **Baeza-Centurion et al. 2019 combinatorial FAS library**: not
   downloaded, pending the decision in 2.1.
 
