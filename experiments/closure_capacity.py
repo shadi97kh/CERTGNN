@@ -509,9 +509,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.retable:
         run = pathlib.Path(args.retable)
         meta = json.loads((run / "meta.json").read_text())
-        files = sorted(
-            run.glob("seed_*.json"), key=lambda f: int(f.stem.split("_")[1])
-        )
+        files = sorted(run.glob("seed_*.json"), key=lambda f: int(f.stem.split("_")[1]))
         if not files:
             print(f"no seed_*.json in {run}", file=sys.stderr)
             return 2
@@ -580,7 +578,11 @@ def main(argv: list[str] | None = None) -> int:
     agg["asymptote_underparam"] = (
         asymptote_over(per_seed, agg, keys_under, nboot_a)
         if len(keys_under) >= 4
-        else {"gap_inf": float("nan"), "n_cells": len(keys_under), "note": "too few cells"}
+        else {
+            "gap_inf": float("nan"),
+            "n_cells": len(keys_under),
+            "note": "too few cells",
+        }
     )
 
     # Floors and corroboration.
@@ -616,13 +618,19 @@ def main(argv: list[str] | None = None) -> int:
     closed_under = [k for k, v in under.items() if reaches_one(v)]
     closed_over = [k for k, v in over.items() if reaches_one(v)]
     best_under = (
-        min(under, key=lambda k: 1.0 - under[k]["closure_r2"]["mean"]) if under else None
+        min(under, key=lambda k: 1.0 - under[k]["closure_r2"]["mean"])
+        if under
+        else None
     )
     best_over = (
         min(over, key=lambda k: 1.0 - over[k]["closure_r2"]["mean"]) if over else None
     )
-    gap_under = 1.0 - under[best_under]["closure_r2"]["mean"] if best_under else float("nan")
-    gap_over = 1.0 - over[best_over]["closure_r2"]["mean"] if best_over else float("nan")
+    gap_under = (
+        1.0 - under[best_under]["closure_r2"]["mean"] if best_under else float("nan")
+    )
+    gap_over = (
+        1.0 - over[best_over]["closure_r2"]["mean"] if best_over else float("nan")
+    )
     trend_at_best = best["effect_trend_rho"]
     trend_vanished = trend_at_best["lo"] <= 0.2
 
@@ -706,9 +714,7 @@ def main(argv: list[str] | None = None) -> int:
             "mechanism test is viable, and the identifiability claim is the weaker "
             "practical one, not the strong claim.** The twin is detectable at "
             "sufficient sample size and the two global-epistasis mechanisms are not "
-            "provably confusable."
-            + floor_note
-            + fit_note
+            "provably confusable." + floor_note + fit_note
         )
     agg["closure_reached"] = {
         "underparameterized": sorted(closed_under),
