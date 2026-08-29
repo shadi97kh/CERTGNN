@@ -81,6 +81,13 @@ ism:                   # experiments/ism_invariance.py
   omega: 2.0           # warp shape parameter; strengths come from identifiability.radius
   cut: 0.95            # the within-locus Spearman below which the rule is called broken
 
+identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
+  path: data/raw/mpsa_data.csv.gz
+  n_max: 4000          # sequences per seed; the full library is 30,483
+  restarts: 3          # keep the best fit as the reference
+  epochs: 1200
+  omega: 2.0
+
 identifiability:       # experiments/identifiability_probe.py
   topology: {kind: nested_bubbles, n_branches: 2, depth: 2, n_distractors: 3}
   n_instances: 800
