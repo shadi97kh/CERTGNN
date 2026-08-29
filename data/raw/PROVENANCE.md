@@ -24,13 +24,50 @@ CC-BY-4.0, a single file:
 |---|---|---|
 | `otari_resources.tar.gz` | 5.094 GB | `bef09c5bc5b3b7eb59042c1a1291d6e4` |
 
-Per the otari README this bundle contains the ConvSplice, Sei and Seqweaver
-model weights, the hg38 FASTA with `pyfaidx` index files, GENCODE v47
-annotations, and the transcriptome datasets used for training and
-validation. **STATUS: download in progress at the time of writing.** The
-contents, their individual sizes and their SHA-256 sums are NOT yet listed
-below, and no claim about them may be made until they are. The downloaded
-archive must be verified against the MD5 above before extraction.
+**STATUS: downloaded and VERIFIED.** `md5sum -c` against the Zenodo MD5
+above returns OK. Extracted to `resources/` (5.1 GB, 24 files). hg38 was
+confirmed readable through `pyfaidx`: 455 contigs, `chr1` length
+248,956,422, random access working through the bgzip `.gzi` index without
+decompressing the FASTA.
+
+Extracted contents, SHA-256 truncated to 16 hex characters (full sums via
+the regeneration command at the top of this file):
+
+| file | bytes | SHA-256 |
+|---|---:|---|
+| `resources/CTX_isoform_data.tsv.gz` | 2,360,737 | `4025386630d077ec…` |
+| `resources/ESPRESSO_isoform_data.tsv.gz` | 326,206,717 | `585dd77fada500d6…` |
+| `resources/GTEx_isoform_data.tsv.gz` | 353,815,006 | `e3117139f0303997…` |
+| `resources/gencode.v47.basic.annotation.clean.gtf.gz` | 37,803,573 | `3f803fad25c0dffb…` |
+| `resources/gencode.v47.basic.annotation.gtf.gz` | 36,228,629 | `b08c4dae664350fe…` |
+| `resources/gene2chrom.pkl` | 1,566,383 | `3ceb3ca6b793967f…` |
+| `resources/gene2transcripts.pkl` | 4,529,361 | `1759731b2193fbe2…` |
+| `resources/hg38.fa.gz` | 1,006,351,693 | `c5c78f86d98dbb3e…` |
+| `resources/hg38.fa.gz.fai` | 19,381 | `3b425de206296a5c…` |
+| `resources/hg38.fa.gz.gzi` | 799,192 | `86194d38eacde5ed…` |
+| `resources/model_weights/ConvSplice_model_1.pt` | 4,606,866 | `f4db10589bcde9a4…` |
+| `resources/model_weights/ConvSplice_model_2.pt` | 4,606,866 | `db55581627d55176…` |
+| `resources/model_weights/ConvSplice_model_3.pt` | 4,606,866 | `23e8b552458ea9ce…` |
+| `resources/model_weights/ConvSplice_model_4.pt` | 4,606,866 | `bc8df1badb37a090…` |
+| `resources/model_weights/ConvSplice_model_5.pt` | 4,606,866 | `0496bcef108ed649…` |
+| `resources/model_weights/__init__.py` | 0 | `e3b0c44298fc1c14…` |
+| `resources/model_weights/histone_features.csv` | 480,693 | `c99117c4861ebde8…` |
+| `resources/model_weights/human_seqweaver.pth` | 28,851,556 | `2c5838962f276e0e…` |
+| `resources/model_weights/sei.pth` | 3,559,928,168 | `9d4771d5363e4955…` |
+| `resources/model_weights/sei.target.names` | 905,833 | `3a2cece0a7877dad…` |
+| `resources/model_weights/seqclass.names` | 692 | `5276a0a39f4d0364…` |
+| `resources/model_weights/seqweaver.colnames` | 6,151 | `1a3f49d4e1bf453f…` |
+| `resources/transcript2gene.pkl` | 5,701,274 | `cd98dfc1b7be5be1…` |
+| `resources/transcripts.pkl` | 62,529,377 | `af1c5ef900cdf7ec…` |
+
+The three model weight sets (ConvSplice x5, Seqweaver, Sei) are the
+sequence-to-function predictors Otari uses for node features; `sei.pth`
+alone is 3.56 GB. `transcripts.pkl`, `transcript2gene.pkl`,
+`gene2transcripts.pkl` and `gene2chrom.pkl` are the GENCODE-derived
+indices. `GTEx_isoform_data.tsv.gz`, `ESPRESSO_isoform_data.tsv.gz` and
+`CTX_isoform_data.tsv.gz` are the isoform abundance targets Otari trains
+on, which are a different phenotype from the splicing measurements in
+section 2.
 
 ---
 
@@ -176,7 +213,13 @@ checksums are the commit's and are not duplicated here.
 ## 4. Gate on modelling
 
 Per the standing instruction, no modelling proceeds until this file lists
-real files with checksums for the data a model would consume. As of this
-writing that is satisfied for the two MPSA datasets (section 2) and NOT
-satisfied for the Otari resources bundle (section 1), whose contents are
-still downloading and unverified.
+real files with checksums for the data a model would consume. As of this writing that
+is SATISFIED: the Otari resources bundle is downloaded, its MD5 matches
+Zenodo, its contents are extracted and checksummed above, and hg38 is
+confirmed readable through pyfaidx. The splicing datasets in section 2
+are downloaded and checksummed. The gate is open.
+
+What remains before graphs can be built is not data but two decisions,
+recorded in sections 2.3 and 2.1: which library the tier-0 topology
+controls should run on, and how Definition 1's 300 nt intronic radius is
+reconciled with a 170 nt assayed fragment.
