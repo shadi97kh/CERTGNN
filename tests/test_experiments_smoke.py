@@ -95,4 +95,5 @@ def test_tier0_controls_runs_end_to_end(tmp_path):
         "gnn": 3,
         "shuffled": 3,
         "mlp": 1,
+        "mlp_mean": 1,
     }  # honest count: backbone chosen among 3

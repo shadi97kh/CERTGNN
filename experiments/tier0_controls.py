@@ -268,6 +268,7 @@ def run_substrate(
             ("gnn", mc.epochs, mc.lr),
             ("shuffled", mc.epochs, mc.lr),
             ("mlp", mc.epochs, mc.lr),
+            ("mlp_mean", mc.epochs, mc.lr),
             ("bqn", bc.epochs, bc.lr),
         )
         if per_seed[m]
