@@ -300,6 +300,7 @@ def class_contains_warp(
 # ------------------------------------------------------- warp families
 
 WARP_FAMILIES = ("sinusoid", "spline", "sigmoid_mixture")
+WARP_SPAN = 6.0  # psi is defined and inverted on [-WARP_SPAN, WARP_SPAN]
 
 
 def _standardize(v: torch.Tensor) -> torch.Tensor:
@@ -330,14 +331,17 @@ def warp(
     g = torch.Generator().manual_seed(seed)
     if family == "spline":
         n_knots = max(4, int(round(omega * 4)))
-        lo, hi = float(z.min()), float(z.max())
+        # A fixed span, not the data's range: psi must be one function, the same
+        # for every input array, or it cannot be inverted exactly.
+        lo, hi = -WARP_SPAN, WARP_SPAN
         knots = torch.linspace(lo, hi, n_knots, dtype=torch.float64)
         u = torch.rand(n_knots - 1, generator=g, dtype=torch.float64) * 2 - 1
         inc = 1.0 + strength * u
         vals = torch.cat([torch.zeros(1, dtype=torch.float64), torch.cumsum(inc, 0)])
         vals = vals * (hi - lo) / float(vals[-1]) + lo
-        idx = torch.clamp(torch.bucketize(z, knots) - 1, 0, n_knots - 2)
-        t = (z - knots[idx]) / (knots[idx + 1] - knots[idx])
+        zc = torch.clamp(z, lo, hi)
+        idx = torch.clamp(torch.bucketize(zc, knots) - 1, 0, n_knots - 2)
+        t = (zc - knots[idx]) / (knots[idx + 1] - knots[idx])
         return vals[idx] + t * (vals[idx + 1] - vals[idx])
     if family == "sigmoid_mixture":
         k = max(2, int(round(omega * 2)))
@@ -348,6 +352,31 @@ def warp(
         gz = _standardize(gz)
         return (1.0 - strength) * z + strength * gz
     raise ValueError(f"unknown warp family {family!r}")
+
+
+def invert_warp(
+    target: torch.Tensor,
+    family: str,
+    strength: float,
+    omega: float,
+    seed: int,
+    iters: int = 80,
+) -> torch.Tensor:
+    """psi^-1 by bisection on the analytic psi, exact to machine precision.
+
+    Interpolating the inverse from paired samples instead makes the error grow
+    with the warp's curvature, which is then indistinguishable from the warp's
+    own effect -- the artifact this replaces.
+    """
+    lo = torch.full_like(target, -WARP_SPAN)
+    hi = torch.full_like(target, WARP_SPAN)
+    for _ in range(iters):
+        mid = 0.5 * (lo + hi)
+        w = warp(mid, family, strength, omega, seed)
+        below = w < target
+        lo = torch.where(below, mid, lo)
+        hi = torch.where(below, hi, mid)
+    return 0.5 * (lo + hi)
 
 
 def is_monotone(
@@ -467,7 +496,7 @@ def radius_sweep(
         phi0, m0 = fit_class_to_target(
             kind, x, z_ref, cfg, gen, warm_start=ref.model.phi
         )
-        z_back0 = invert_on_samples(z_ref, z_ref, _standardize(phi0))
+        z_back0 = invert_warp(_standardize(phi0), "sinusoid", 0.0, 1.0, seed)
         with torch.no_grad():
             pred0 = ref.model.g(mu + sd * z_back0).detach()
         null = indistinguishability(y, pred_orig, pred0)
