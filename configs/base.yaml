@@ -106,6 +106,14 @@ closure_capacity:      # experiments/closure_capacity.py: does closure -> 1 with
                        # deepcopy fix and the GPU make this affordable per cell
   asymptote_boot: 400
 
+closure_shuffled:      # experiments/closure_shuffled.py: closure or interpolation?
+  # Grid, epochs, lr ladder and pilot are taken from closure_capacity so the
+  # protocol is identical across the two experiments and the warp column here
+  # is directly comparable to the closure column there.
+  strength: 0.95       # same warp strength the capacity sweep reported on
+  interpolating_r2: 0.90   # shuffled target re-represented this well = interpolating
+  selective_r2: 0.50       # shuffled target no better than this = selective
+
 identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
   path: data/raw/mpsa_data.csv.gz
   n_max: 4000          # sequences per seed; the full library is 30,483
