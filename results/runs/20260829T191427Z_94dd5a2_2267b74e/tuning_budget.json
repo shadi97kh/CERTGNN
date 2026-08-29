@@ -1,0 +1,98 @@
+[
+  {
+    "model": "neural_16x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_16x2",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_16x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_32x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_32x2",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_32x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_64x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_64x2",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_64x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_128x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_128x2",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  },
+  {
+    "model": "neural_128x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a pilot on the FIT SPLIT's training loss",
+    "selection": "best iterate for every refit; Arm 2 reuses the maximal cell's learning rate"
+  }
+]
