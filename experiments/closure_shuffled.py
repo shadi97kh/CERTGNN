@@ -508,8 +508,16 @@ def verdict_text(agg: dict[str, Any], cfg: Any, hi: float, lo: float) -> str:
             "(`experiments/closure_heldout.py`, `paper/tables/closure_heldout.md`), "
             "which refits on a subset and evaluates the warp target on points the "
             "refit never saw. Containing the twin implies it predicts on unseen "
-            "points; memorizing does not. Until that is measured, neither branch of "
-            "the identifiability question is decided."
+            "points; memorizing does not.\n\n"
+            "**That measurement has now been made and it came out on the "
+            "memorization side.** Held-out agreement collapses at exactly the "
+            "cells that read 1.000000 in sample, with both of its validity "
+            "gates holding, so the in-sample closure was the refit reproducing "
+            "the target on the points it was fitted to. No cell contains the "
+            "twin as a function, and the identifiability claim is the weaker "
+            "practical one. The measurements in this table stand; what they "
+            "establish is that an in-sample fit was the wrong instrument, "
+            "which is why the held-out one was built."
         )
     elif wide and wide_shuf <= lo:
         parts.append(
