@@ -66,7 +66,7 @@ from experiments._common import (
     write_tuning_budget,
 )
 
-MODELS = ("gnn", "shuffled", "mlp", "bqn")
+MODELS = ("gnn", "shuffled", "mlp", "mlp_mean", "bqn")
 
 
 # ------------------------------------------------------------ substrates
@@ -103,6 +103,11 @@ def make_substrate(name: str, cfg: Any, seed: int = 0) -> Substrate:
         mod = importlib.import_module(f"certgnn.substrates.{name}")
         cls_name = f"{name.capitalize()}Substrate"
         cls = getattr(mod, cls_name, None)
+        if cls is not None and name == "splice":
+            from certgnn.substrates.splice import SpliceConfig
+
+            sc = cfg.get("splice", {}) or {}
+            return cls(SpliceConfig(seed=seed, **{k: v for k, v in dict(sc).items()}))
         if cls is None:
             data_dir = pathlib.Path("data/raw")
             n_files = sum(1 for _ in data_dir.rglob("*")) if data_dir.exists() else 0
@@ -174,6 +179,14 @@ def run_substrate(
     def mlp() -> torch.nn.Module:
         return NodeFeatureMLP(in_dim, int(mc.hidden), int(mc.depth), str(mc.readout))
 
+    def mlp_mean() -> torch.nn.Module:
+        # Mean-pool over every node with the edges removed: a bag of windows.
+        # The target-readout MLP above sees ONLY the readout node, which is a
+        # severe handicap and makes the GNN look good for the wrong reason.
+        # This arm is the one that tests whether topology adds anything beyond
+        # the node features taken as an unordered set.
+        return NodeFeatureMLP(in_dim, int(mc.hidden), int(mc.depth), "mean")
+
     for seed in seeds:
         sub = make_substrate(name, cfg, seed)
         splits = {s: sub.load(s) for s in ("train", "val", "test")}
@@ -201,6 +214,9 @@ def run_substrate(
         edgeless = {s: _strip_edges(splits[s]) for s in splits}
         r = fit(mlp, edgeless["train"], edgeless["val"], edgeless["test"], **kw)
         per_seed["mlp"].append(r.test_metrics[key])
+
+        r = fit(mlp_mean, edgeless["train"], edgeless["val"], edgeless["test"], **kw)
+        per_seed["mlp_mean"].append(r.test_metrics[key])
 
         if run_bqn:
             if n_fixed is None:
@@ -259,7 +275,7 @@ def run_substrate(
     summary = {m: mean_ci(v, n_boot=nb) for m, v in per_seed.items() if v}
     gnn = np.array(per_seed["gnn"])
     paired = {}
-    for m in ("shuffled", "mlp", "bqn"):
+    for m in ("shuffled", "mlp", "mlp_mean", "bqn"):
         if per_seed[m]:
             paired[m] = mean_ci(
                 (gnn - np.array(per_seed[m])).tolist(), n_boot=nb
@@ -294,12 +310,15 @@ def interpret(res: dict[str, Any], is_candidate: bool) -> dict[str, Any]:
         "bqn_beats_gnn": False,
     }
 
-    d = p["mlp"]
+    d = p.get("mlp_mean", p["mlp"])
     if d["lo"] <= 0.0:
         flags["mlp_matches_gnn"] = True
         findings.append(
-            f"MLP matches GNN (GNN−MLP = {d['mean']:+.3f} [{d['lo']:+.3f}, {d['hi']:+.3f}] includes 0): "
-            "the substrate is not a graph problem and cannot carry a topology paper."
+            f"Edge-free MLP matches the GNN (GNN−MLP = {d['mean']:+.3f} [{d['lo']:+.3f}, "
+            f"{d['hi']:+.3f}] includes 0): the substrate is NOT a graph problem and cannot "
+            "carry a topology paper. The comparison uses the mean-pool arm, which sees every "
+            "node's features as an unordered set; the target-readout arm sees only the readout "
+            "node and would flatter the GNN."
         )
     else:
         findings.append(
@@ -517,7 +536,7 @@ def aggregate_manifest(manifest_path: str, cfg: Any) -> int:
         r["summary"] = {m: mean_ci(v, n_boot=nb) for m, v in r["per_seed"].items() if v}
         r["paired_gnn_minus_control"] = {
             m: mean_ci((gnn - np.array(r["per_seed"][m])).tolist(), n_boot=nb)
-            for m in ("shuffled", "mlp", "bqn")
+            for m in ("shuffled", "mlp", "mlp_mean", "bqn")
             if r["per_seed"][m]
         }
         r["bqn_run"] = bool(r["per_seed"]["bqn"])
