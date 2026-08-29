@@ -125,6 +125,16 @@ closure_heldout:       # experiments/closure_heldout.py: containment or memoriza
   floor_max: 0.10      # shuffled target held-out R2 above this = split leaking
   heldout_closed: 0.999999   # held-out warp R2 at or above this = contains the twin
 
+closure_search:        # experiments/closure_search.py: can the refit FIND a member?
+  # Grid, epochs, lr ladder and pilot come from closure_capacity.
+  n_fit: 3000
+  strength: 0.95
+  search_ok: 0.999     # cold-start null held-out R2 at/above this in EVERY cell =
+                       # the optimiser can reach in-class targets it did not start
+                       # at, so a warp failure is about the class, not the search
+  rise_margin: 0.01    # arm-2 improvement whose CI lower bound must exceed this
+                       # for the larger class to count as recovering the twin
+
 identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
   path: data/raw/mpsa_data.csv.gz
   n_max: 4000          # sequences per seed; the full library is 30,483
