@@ -442,10 +442,8 @@ def fit_class_to_target(
     # Keep the best iterate, not the last: warm-started at the exact solution,
     # Adam wanders away from it, and that wandering -- not the warp -- then
     # dominates the indistinguishability test.
-    import copy as _copy
-
     best_loss = float(normalized_loss().detach())
-    best_state = _copy.deepcopy(m.state_dict())
+    best_state = {k: v.detach().clone() for k, v in m.state_dict().items()}
     for _ in range(int(ip.radius.warp_fit_epochs)):
         opt.zero_grad()
         loss = normalized_loss()
@@ -453,7 +451,10 @@ def fit_class_to_target(
         opt.step()
         cur = float(loss.detach())
         if cur < best_loss:
-            best_loss, best_state = cur, _copy.deepcopy(m.state_dict())
+            best_loss, best_state = (
+                cur,
+                {k: v.detach().clone() for k, v in m.state_dict().items()},
+            )
         if best_loss < float(ip.radius.fit_tol):
             break
     m.load_state_dict(best_state)

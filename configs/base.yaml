@@ -81,6 +81,20 @@ ism:                   # experiments/ism_invariance.py
   omega: 2.0           # warp shape parameter; strengths come from identifiability.radius
   cut: 0.95            # the within-locus Spearman below which the rule is called broken
 
+closure_capacity:      # experiments/closure_capacity.py: does closure -> 1 with capacity?
+  n_max: 4000          # matches the budget diagnostic; brackets params/n = 1
+  device: cuda:1       # GPU 0 is occupied by another job; float64 is 18x slower
+                       # than float32 on these TITAN RTX, so this is not free speed
+  hidden: [16, 32, 64, 128, 256]   # 256x3 is already 35 params/point; 512 adds
+                                   # cost inside the interpolation regime, not information
+  depth: [1, 2, 3]
+  strengths: [0.25, 0.55, 0.75, 0.95]
+  omega: 2.0
+  ref_epochs: 1200
+  refit_epochs: 6000   # the budget diagnostic's curve is flat past ~4000; the
+                       # deepcopy fix and the GPU make this affordable per cell
+  asymptote_boot: 400
+
 identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
   path: data/raw/mpsa_data.csv.gz
   n_max: 4000          # sequences per seed; the full library is 30,483
