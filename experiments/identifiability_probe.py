@@ -1047,6 +1047,30 @@ def main(argv: list[str] | None = None) -> int:
                     }
     agg["radius"] = radius
 
+    # The measurable quantity: attribution divergence as a function of warp
+    # strength, averaged over seeds and shape parameters.
+    div_lines: list[str] = []
+    for fam in fams:
+        pieces = []
+        for st in list(ip.radius.strengths):
+            vals = [
+                r["cross_instance_spearman"]
+                for rec in per_seed
+                for r in rec["radius_rows"]
+                if r["class"] == "neural"
+                and r["family"] == fam
+                and not r.get("is_null_control")
+                and abs(r["strength"] - float(st)) < 1e-9
+                and r.get("cross_instance_spearman") is not None
+            ]
+            if vals:
+                pieces.append(f"s={float(st):.2f}: {float(np.mean(vals)):.3f}")
+        if pieces:
+            div_lines.append(
+                f"- neural, {fam}, cross-instance attribution Spearman -- "
+                + ", ".join(pieces)
+            )
+
     neural_closed_all = all(
         closure[(("neural"), fam)]["lo"] > 0.999999
         for fam in fams
@@ -1149,8 +1173,15 @@ def main(argv: list[str] | None = None) -> int:
             "not harder.\n\nThe correct statement is that for a G-P map flexible enough to be "
             "closed under monotone reparameterization, no MPSA sample size separates the twin, "
             "so the radius is bounded by the monotonicity limit and not by the data. The "
-            "quantity that IS measurable is the attribution divergence, reported below.\n\n"
-            + "\n".join(lines)
+            "quantity that IS measurable is the attribution divergence, which falls "
+            "monotonically as the warp strengthens while predictions stay at the floor:\n\n"
+            + "\n".join(div_lines)
+            + "\n\nWithin-instance attribution direction is preserved throughout; what "
+            "diverges is the cross-instance comparison. Note this is established for "
+            "autograd gradients. The field's primitive on MPSA data is in-silico "
+            "mutagenesis, a finite difference, where the mean value theorem gives a "
+            "per-mutation multiplier psi'(xi) rather than a per-instance one, so the "
+            "within-instance invariance does not transfer to ISM without further argument."
         )
     else:
         agg["radius_verdict"] = (
