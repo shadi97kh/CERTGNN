@@ -82,9 +82,14 @@ def test_tier0_controls_runs_end_to_end(tmp_path):
     d = _run_dir(out)
     assert PROVENANCE <= {p.name for p in d.iterdir()}
     per_seed = json.loads((d / "per_seed_values.json").read_text())
-    assert set(per_seed) == {"synthetic/gnn", "synthetic/shuffled", "synthetic/mlp"}
+    assert set(per_seed) == {
+        "synthetic/gnn",
+        "synthetic/shuffled",
+        "synthetic/mlp",
+        "synthetic/mlp_mean",
+    }
     budget = json.loads((d / "tuning_budget.json").read_text())
-    assert {b["model"] for b in budget} == {"gnn", "shuffled", "mlp"}
+    assert {b["model"] for b in budget} == {"gnn", "shuffled", "mlp", "mlp_mean"}
     tried = {b["model"]: b["configs_tried"] for b in budget}
     assert tried == {
         "gnn": 3,
