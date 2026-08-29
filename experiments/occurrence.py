@@ -347,6 +347,12 @@ def main(argv: list[str] | None = None) -> int:
         entry["pooled_rho_max"] = float(np.max(allr)) if allr else float("nan")
         entry["pooled_rho_median"] = float(np.median(allr)) if allr else float("nan")
         entry["pooled_nsep_median"] = float(np.median(alln)) if alln else float("nan")
+        # Fractions of the surviving pairs below given agreement levels. The
+        # min alone is one pair; these say how common the disagreement is.
+        for t in (0.9, 0.8, 0.7):
+            entry[f"pooled_frac_below_{int(t * 10)}"] = (
+                float(np.mean(np.asarray(allr) < t)) if allr else float("nan")
+            )
         agg["cells"][f"{h}x{dp}"] = entry
 
     agg["verdict"] = verdict_text(agg, cfg)
@@ -505,6 +511,33 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
             for k in sorted(usable)[:3]
         )
         + ", so where the rankings differ the underlying latents differ too."
+    )
+    # A reviewer will ask whether the disagreement is just a symptom of weak
+    # models, and the honest answer is that model quality does matter but does
+    # not explain it away. Reported at the BEST-predicting cell so the claim does
+    # not rest on the cells that fit worst.
+    r2s = [v["heldout_r2_mean"]["mean"] for v in usable.values()]
+    mins = [v["pooled_rho_min"] for v in usable.values()]
+    meds = [v["pooled_rho_median"] for v in usable.values()]
+    rq_min = spearmanr(r2s, mins).statistic
+    rq_med = spearmanr(r2s, meds).statistic
+    best_cell = max(usable, key=lambda k: usable[k]["heldout_r2_mean"]["mean"])
+    b = usable[best_cell]
+    parts.append(
+        "**Is this just weak models?** Partly, but not mainly, and the question "
+        "deserves the number rather than a reassurance. Across cells the held-out "
+        f"predictive R² does correlate with agreement (Spearman {rq_min:+.3f} against "
+        f"the minimum ρ, {rq_med:+.3f} against the median), so better-fitting cells "
+        "do agree more. The claim therefore rests on the best-fitting cell, not the "
+        f"worst: at {best_cell}, held-out R² {b['heldout_r2_mean']['mean']:.4f}, the "
+        f"highest in the grid, "
+        f"{b['n_pairs_indistinguishable']['mean']:.0f} of "
+        f"{b['n_pairs_total']['mean']:.0f} pairs are indistinguishable and among them "
+        f"{b['pooled_frac_below_9'] * 100:.0f}% rank the loci at ρ below 0.9, "
+        f"{b['pooled_frac_below_8'] * 100:.0f}% below 0.8 and "
+        f"{b['pooled_frac_below_7'] * 100:.0f}% below 0.7, reaching "
+        f"{b['pooled_rho_min']:+.3f}. The disagreement is not confined to the cells "
+        "that predict badly."
     )
     parts.append(
         "This experiment corrects the Part B reading in the original identifiability "
