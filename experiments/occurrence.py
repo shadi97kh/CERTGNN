@@ -191,6 +191,15 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                 sq_errs.append(se)
                 r2s.append(r2)
 
+            # Quality-matched subset. Depth and fit quality are confounded in
+            # this grid -- held-out R2 does not overlap between depth 1 and
+            # depth 3 -- so an agree/disagree split by depth is also a split by
+            # how well the models fit. Restricting to pairs where BOTH models
+            # are in the cell's better-fitting half tests whether the split
+            # survives at matched quality, and needs no retraining.
+            order = np.argsort(-np.asarray(r2s))
+            top_half = set(order[: max(K // 2, 2)].tolist())
+
             pairs: list[dict[str, Any]] = []
             n_total = 0
             for i, j in itertools.combinations(range(K), 2):
@@ -210,7 +219,13 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                 pi = per_instance_rho(per_inst[i], per_inst[j])
                 tk = top_k_agreement(per_inst[i], per_inst[j])
                 tkr = per_instance_rho_topk(per_inst[i], per_inst[j])
-                conc = attribution_concentration(per_inst[i])
+                # Symmetric in the pair: measuring only model i would report one
+                # arbitrary member's concentration as if it described both.
+                ci = attribution_concentration(per_inst[i])
+                cj = attribution_concentration(per_inst[j])
+                conc = {
+                    k: 0.5 * (ci[k] + cj[k]) for k in ci
+                }
                 ok_sub = np.isfinite(subs[i]) & np.isfinite(subs[j])
                 r_sub = (
                     spearmanr(subs[i][ok_sub], subs[j][ok_sub]).statistic
@@ -247,6 +262,8 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                         "mde_r2": float(mde_mse / sst_mean)
                         if sst_mean > 0
                         else float("nan"),
+                        "both_top_half": bool(i in top_half and j in top_half),
+                        "pair_r2_min": float(min(r2s[i], r2s[j])),
                         "n_separate": float(crit / snr2) if snr2 > 0 else float("inf"),
                         "rms_pred_diff": float(np.sqrt(np.mean(diff[fin] ** 2)))
                         if fin.any()
@@ -396,6 +413,17 @@ def main(argv: list[str] | None = None) -> int:
             if np.isfinite(p["n_separate"])
         ]
         entry["pooled_pairs"] = len(allr)
+        th_pairs = [p for c in sel for p in c["pairs"] if p.get("both_top_half")]
+        entry["top_pairs"] = len(th_pairs)
+        r2q = [p["pair_r2_min"] for p in th_pairs if np.isfinite(p["pair_r2_min"])]
+        allq = [
+            p["pair_r2_min"]
+            for c in sel
+            for p in c["pairs"]
+            if np.isfinite(p["pair_r2_min"])
+        ]
+        entry["top_pair_r2_median"] = float(np.median(r2q)) if r2q else float("nan")
+        entry["all_pair_r2_median"] = float(np.median(allq)) if allq else float("nan")
         entry["pooled_rho_min"] = float(np.min(allr)) if allr else float("nan")
         entry["pooled_rho_max"] = float(np.max(allr)) if allr else float("nan")
         entry["pooled_rho_median"] = float(np.median(allr)) if allr else float("nan")
@@ -408,15 +436,28 @@ def main(argv: list[str] | None = None) -> int:
             ("mde_r2", "mde_r2"),
             ("conc_top3", "conc_top3"),
             ("eff_pos", "eff_pos"),
-            ("tk_j1", "tk_jaccard_top1_median"),
-            ("tk_j2", "tk_jaccard_top2_median"),
-            ("tk_j3", "tk_jaccard_top3_median"),
-            ("tk_ex1", "tk_top1_exact_frac"),
+            ("tk_j2", "tk_jaccard_top2_mean"),
+            ("tk_j3", "tk_jaccard_top3_mean"),
+            ("tk_ex1", "tk_exact_top1_frac"),
+            ("tk_ex3", "tk_exact_top3_frac"),
             ("tk_rho", "tk_topk_rho_median"),
             ("tk_union", "tk_topk_union_median"),
         ):
-            vv = [p[key] for c in sel for p in c["pairs"] if np.isfinite(p.get(key, np.nan))]
+            vv = [
+                p[key]
+                for c in sel
+                for p in c["pairs"]
+                if np.isfinite(p.get(key, np.nan))
+            ]
             entry[f"pooled_{nm}"] = float(np.median(vv)) if vv else float("nan")
+            # Same statistic on the quality-matched subset only.
+            rv = [
+                p[key]
+                for c in sel
+                for p in c["pairs"]
+                if p.get("both_top_half") and np.isfinite(p.get(key, np.nan))
+            ]
+            entry[f"top_{nm}"] = float(np.median(rv)) if rv else float("nan")
         # Fractions of the surviving pairs below given agreement levels. The
         # min alone is one pair; these say how common the disagreement is.
         for t in (0.9, 0.8, 0.7):
@@ -491,17 +532,45 @@ def main(argv: list[str] | None = None) -> int:
         "two models' top-k position SETS — what a reader actually uses.\n"
     )
     L.append(
-        "| width | depth | top-3 mass | eff. positions | Jaccard top1 / top2 / top3 "
-        "| top-1 exact | ρ on top-3 union |"
+        "| width | depth | top-3 mass | eff. pos. | mean Jaccard top2 / top3 | "
+        "exact top-1 / top-3 | ρ on top-3 union |"
     )
     L.append("|---|---|---|---|---|---|---|")
     for h, dp in keys:
         c = agg["cells"][f"{h}x{dp}"]
         L.append(
             f"| {h} | {dp} | {c['pooled_conc_top3']:.3f} | {c['pooled_eff_pos']:.2f} | "
-            f"{c['pooled_tk_j1']:.2f} / {c['pooled_tk_j2']:.2f} / "
-            f"**{c['pooled_tk_j3']:.2f}** | {c['pooled_tk_ex1'] * 100:.0f}% | "
+            f"{c['pooled_tk_j2']:.2f} / **{c['pooled_tk_j3']:.2f}** | "
+            f"{c['pooled_tk_ex1'] * 100:.0f}% / **{c['pooled_tk_ex3'] * 100:.0f}%** | "
             f"{c['pooled_tk_rho']:+.3f} (n≈{c['pooled_tk_union']:.1f}) |"
+        )
+    L.append("")
+    L.append(
+        "Jaccard on sets this small takes only four values at k=3 (0, 0.2, 0.5, 1) "
+        "and two at k=1, so its median carries almost nothing — the median top-1 "
+        "Jaccard is just the exact-match fraction thresholded at one half. The MEAN "
+        "is reported instead, together with the exact-set-match fraction, which is "
+        "what the verdict's branch condition uses.\n"
+    )
+    L.append(
+        "**Quality-matched.** Depth and fit quality are confounded in this grid, so "
+        "an agree/disagree split by depth is also a split by how well the models fit. "
+        "These columns repeat the comparison on pairs where BOTH models are in their "
+        "cell's better-fitting half, with the median of the pair's lower held-out R² "
+        "shown so the quality level is visible.\n"
+    )
+    L.append(
+        "| width | depth | pairs | pair R² (all → top half) | mean Jaccard top3 "
+        "(all → top half) | exact top-3 (all → top half) |"
+    )
+    L.append("|---|---|---|---|---|---|")
+    for h, dp in keys:
+        c = agg["cells"][f"{h}x{dp}"]
+        L.append(
+            f"| {h} | {dp} | {c['top_pairs']} | "
+            f"{c['all_pair_r2_median']:.4f} → **{c['top_pair_r2_median']:.4f}** | "
+            f"{c['pooled_tk_j3']:.2f} → **{c['top_tk_j3']:.2f}** | "
+            f"{c['pooled_tk_ex3'] * 100:.0f}% → **{c['top_tk_ex3'] * 100:.0f}%** |"
         )
     L.append("")
     L.append(
@@ -632,11 +701,11 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
         pif = {k: v["pooled_pi_frac_below_05"] for k, v in usable.items()}
         w_pi = min(pim, key=lambda k: pim[k])
         w_f = max(pif, key=lambda k: pif[k])
-        j3 = {k: v["pooled_tk_j3"] for k, v in usable.items()}
+        j3 = {k: v["pooled_tk_ex3"] for k, v in usable.items()}
         ex1 = {k: v["pooled_tk_ex1"] for k, v in usable.items()}
         mass = float(np.median([v["pooled_conc_top3"] for v in usable.values()]))
         effp = float(np.median([v["pooled_eff_pos"] for v in usable.values()]))
-        thr = float(cfg.separation.jaccard_agree)
+        thr = float(cfg.separation.exact_top3_agree)
         w_j = min(j3, key=lambda k: j3[k])
         parts.append(
             "**And they attribute differently -- measured per instance.** For a given "
@@ -657,13 +726,13 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
                 "part carrying signal. In "
                 + ", ".join(agree)
                 + " the models AGREE on which positions those are (median top-3 "
-                f"Jaccard at least {min(j3[k] for k in agree):.2f}), so there the "
+                f"sets matching exactly in at least {min(j3[k] for k in agree) * 100:.0f}% of instances), so there the "
                 "full-rank disagreement is tail ordering, the low per-instance ρ is "
                 "NOT the headline, and the supported claim is the narrow one: tied on "
                 "accuracy, they agree about what matters and differ on the ordering "
                 "of what does not. In "
                 + ", ".join(disagree)
-                + f" they do NOT agree — median top-3 Jaccard down to {j3[w_j]:.2f}, "
+                + f" they do NOT agree — top-3 sets matching exactly in only {j3[w_j] * 100:.0f}% of instances, "
                 f"strongest position matching exactly in only {ex1[w_j] * 100:.0f}% of "
                 "sequences, and median rank agreement on the top-3 union of "
                 f"{usable[w_j]['pooled_tk_rho']:+.3f}. There the models differ about "
@@ -730,6 +799,67 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
     rq_med = spearmanr(r2s, meds).statistic
     best_cell = max(usable, key=lambda k: usable[k]["heldout_r2_mean"]["mean"])
     b = usable[best_cell]
+    # Does the split survive at matched fit quality? Depth and held-out R2 do not
+    # overlap across the grid, so the depth split is also a quality split unless
+    # this says otherwise.
+    deep = {k: v for k, v in usable.items() if v["depth"] >= 3 and v["top_pairs"] > 0}
+    if deep:
+        a3 = {k: v["pooled_tk_ex3"] for k, v in deep.items()}
+        t3 = {k: v["top_tk_ex3"] for k, v in deep.items()}
+        tj = {k: v["top_tk_j3"] for k, v in deep.items()}
+        r_all = float(np.median([v["all_pair_r2_median"] for v in deep.values()]))
+        r_top = float(np.median([v["top_pair_r2_median"] for v in deep.values()]))
+        shallow = {k: v for k, v in usable.items() if v["depth"] == 1}
+        r_shallow = (
+            float(np.median([v["all_pair_r2_median"] for v in shallow.values()]))
+            if shallow
+            else float("nan")
+        )
+        thr2 = float(cfg.separation.exact_top3_agree)
+        rose = min(t3.values()) >= thr2
+        parts.append(
+            "**Is the depth split just fit quality?** Depth and held-out R² are "
+            "confounded in this grid, so the question is answered on pairs matched "
+            "for quality rather than argued. Restricting to pairs where both models "
+            "are in their cell's better-fitting half lifts the median pair R² at "
+            f"depth 3 from {r_all:.4f} to {r_top:.4f}, and top-3 exact agreement goes "
+            f"from {min(a3.values()) * 100:.0f}–{max(a3.values()) * 100:.0f}% to "
+            f"{min(t3.values()) * 100:.0f}–{max(t3.values()) * 100:.0f}% "
+            f"(mean Jaccard {min(tj.values()):.2f}–{max(tj.values()):.2f})."
+            + (
+                ""
+                if not shallow
+                else f" Note what this does and does not match: the restriction "
+                f"equalises quality WITHIN a cell, while the confound is BETWEEN "
+                f"depths. Depth-1 pairs sit at a median R² of {r_shallow:.4f}, and "
+                f"the best depth-3 pairs reach {r_top:.4f}, so the two "
+                + (
+                    "now overlap and the comparison is quality-matched in the sense "
+                    "that matters."
+                    if r_top >= r_shallow
+                    else "still do NOT overlap. The depth-3 models remain the worse "
+                    "fits even after restriction, so this test bounds the confound "
+                    "rather than eliminating it: it shows how much of the split "
+                    "survives a quality improvement of "
+                    f"{r_top - r_all:+.4f}, not what would happen at equal fit."
+                )
+            )
+            + (
+                " **The split is a quality artifact.** Among well-fitting depth-3 "
+                "pairs the top-3 sets agree, so the disagreement seen over all pairs "
+                "reflects how badly the worse models fit rather than anything about "
+                "depth, and the claim narrows accordingly."
+                if rose
+                else " **The split is not a quality artifact.** Well-fitting depth-3 "
+                "pairs still disagree about which positions matter, so the effect is "
+                "expressivity rather than fit. This matches "
+                "`paper/tables/closure_search.md`, where a cold-started refit "
+                "recovers an in-class target at depth 1 and fails at depths 2 and 3: "
+                "one mechanism -- what the optimiser can reach in a deeper class -- "
+                "would produce both results."
+            )
+        )
+
     parts.append(
         "**Is this just weak models?** Partly, but not mainly, and the question "
         "deserves the number rather than a reassurance. Across cells the held-out "

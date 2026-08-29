@@ -342,11 +342,17 @@ def top_k_agreement(
 ) -> dict[str, float]:
     """Do two models pick the same top positions, per instance?
 
-    Jaccard overlap of the top-k position SETS, which is what actually gets used
+    Overlap of the top-k position SETS, which is what actually gets used
     downstream: a reader asks which positions matter for this splice site, not
-    how positions seven through nine are ordered. Reported as the median over
-    instances, plus the fraction of instances whose single top position matches
-    exactly.
+    how positions seven through nine are ordered.
+
+    Jaccard on sets this small is heavily quantized -- k=1 admits only {0, 1},
+    k=2 only {0, 1/3, 1}, k=3 only {0, 0.2, 0.5, 1} -- so its MEDIAN is a
+    near-useless summary: the median top-1 Jaccard is just the exact-match
+    fraction thresholded at one half, and any agreement threshold in (0.5, 1]
+    on the top-3 median selects the identical partition. The mean is continuous
+    and is what the tables report, alongside the fraction of instances whose
+    top-k sets match exactly.
     """
     out: dict[str, float] = {}
     A = np.abs(np.asarray(a, dtype=float))
@@ -358,9 +364,8 @@ def top_k_agreement(
         for r in range(A.shape[0]):
             sa, sb = set(ia[r].tolist()), set(ib[r].tolist())
             jac[r] = len(sa & sb) / len(sa | sb)
-        out[f"jaccard_top{k}_median"] = float(np.median(jac))
-        if k == 1:
-            out["top1_exact_frac"] = float(np.mean(jac >= 1.0))
+        out[f"jaccard_top{k}_mean"] = float(np.mean(jac))
+        out[f"exact_top{k}_frac"] = float(np.mean(jac >= 1.0))
     return out
 
 
@@ -650,8 +655,9 @@ def main(argv: list[str] | None = None) -> int:
                 f: mean_ci([c[f] for c in sel], n_boot=nb)
                 for f in (
                     "conc_top3_ref", "conc_top3_twin", "eff_pos_ref", "eff_pos_twin",
-                    "tk_jaccard_top1_median", "tk_jaccard_top2_median",
-                    "tk_jaccard_top3_median", "tk_top1_exact_frac",
+                    "tk_jaccard_top1_mean", "tk_jaccard_top2_mean",
+                    "tk_jaccard_top3_mean", "tk_exact_top1_frac",
+                    "tk_exact_top2_frac", "tk_exact_top3_frac",
                     "tk_topk_rho_median", "tk_topk_union_median",
                 )
             },
@@ -719,8 +725,8 @@ def main(argv: list[str] | None = None) -> int:
         "position SETS — the quantity a reader actually uses.\n"
     )
     L.append(
-        "| width | depth | top-3 mass | eff. positions | Jaccard top1 / top2 / top3 "
-        "| top-1 exact | ρ on top-3 union |"
+        "| width | depth | top-3 mass | eff. positions | mean Jaccard top2 / top3 "
+        "| exact top-1 / top-3 | ρ on top-3 union |"
     )
     L.append("|---|---|---|---|---|---|---|")
     for h, dp in keys:
@@ -728,10 +734,10 @@ def main(argv: list[str] | None = None) -> int:
         L.append(
             f"| {h} | {dp} | {c['conc_top3_ref']['mean']:.3f} | "
             f"{c['eff_pos_ref']['mean']:.2f} | "
-            f"{c['tk_jaccard_top1_median']['mean']:.2f} / "
-            f"{c['tk_jaccard_top2_median']['mean']:.2f} / "
-            f"**{c['tk_jaccard_top3_median']['mean']:.2f}** | "
-            f"{c['tk_top1_exact_frac']['mean'] * 100:.0f}% | "
+            f"{c['tk_jaccard_top2_mean']['mean']:.2f} / "
+            f"**{c['tk_jaccard_top3_mean']['mean']:.2f}** | "
+            f"{c['tk_exact_top1_frac']['mean'] * 100:.0f}% / "
+            f"**{c['tk_exact_top3_frac']['mean'] * 100:.0f}%** | "
             f"{c['tk_topk_rho_median']['mean']:+.3f} "
             f"(n≈{c['tk_topk_union_median']['mean']:.1f}) |"
         )
@@ -863,11 +869,11 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
     # is ambiguous between "the fits disagree about what matters" and "they agree
     # about what matters and order the irrelevant tail independently". The top-k
     # set overlap separates those, so the verdict is stated conditionally on it.
-    j3 = {k: v["tk_jaccard_top3_median"]["mean"] for k, v in cells.items()}
-    ex1 = {k: v["tk_top1_exact_frac"]["mean"] for k, v in cells.items()}
+    j3 = {k: v["tk_exact_top3_frac"]["mean"] for k, v in cells.items()}
+    ex1 = {k: v["tk_exact_top1_frac"]["mean"] for k, v in cells.items()}
     mass = {k: v["conc_top3_ref"]["mean"] for k, v in cells.items()}
     effp = {k: v["eff_pos_ref"]["mean"] for k, v in cells.items()}
-    thr = float(cfg.separation.jaccard_agree)
+    thr = float(cfg.separation.exact_top3_agree)
     worst_j = min(j3, key=lambda k: j3[k])
     concentrated = float(np.median(list(mass.values())))
     agree = sorted(k for k in j3 if j3[k] >= thr)
@@ -881,11 +887,11 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
             f"{agg['seq_len']}), so the top-3 set is the part that carries signal. In "
             + ", ".join(agree)
             + f" the two fits AGREE on which positions those are (median top-3 Jaccard "
-            f"at least {min(j3[k] for k in agree):.2f}), so there the full-rank "
+            f"exact in at least {min(j3[k] for k in agree) * 100:.0f}% of instances), so there the full-rank "
             "disagreement is tail ordering and the low per-instance ρ is NOT the "
             "headline; the honest claim for those cells is the narrow one. In "
             + ", ".join(disagree)
-            + f" they do NOT agree (median top-3 Jaccard down to {j3[worst_j]:.2f}, "
+            + f" they do NOT agree (top-3 sets exact in only {j3[worst_j] * 100:.0f}% of instances, "
             f"strongest position matching exactly in only {ex1[worst_j] * 100:.0f}% of "
             "sequences), so there the models differ about what matters and the claim "
             "stands as written. **Top-k set overlap is the statistic to lead with "
@@ -899,7 +905,8 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
             f"sits in three positions, an effective "
             f"{float(np.median(list(effp.values()))):.2f} contributing positions of "
             f"{agg['seq_len']} — and the two fits agree on WHICH positions those are: "
-            f"the median top-3 Jaccard is at least {min(j3.values()):.2f} in every "
+            f"top-3 sets match EXACTLY in at least {min(j3.values()) * 100:.0f}% of "
+            f"instances in every "
             f"cell and the single strongest position matches exactly in "
             f"{min(ex1.values()) * 100:.0f}% to {max(ex1.values()) * 100:.0f}% of "
             "sequences. **The full-rank disagreement is therefore mostly in the tail, "
