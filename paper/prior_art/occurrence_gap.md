@@ -63,6 +63,25 @@ This is the quantity the interpretability claim turns on, and it degrades
 monotonically across a range over which the model's predictions are
 indistinguishable.
 
+**A correction we must carry, because it weakens (E3).** Two objects have been
+conflated in earlier drafts and they behave differently. The *analytic* twin
+`psi . phi_hat`, evaluated exactly, has `grad(psi . phi) = psi'(phi) grad phi`,
+a per-instance positive scalar, so its within-instance attribution direction is
+preserved *exactly*. The *in-class representative* -- the member of the model
+class that actually realizes the twin, which is what a fitted model would be --
+agrees with the warped latent in value at closure `R^2 = 1.000000` but **not in
+gradient**: its within-instance cosine falls from 0.997 at `s = 0.10` to 0.906
+at `s = 0.95`. Value-level closure does not imply gradient-level closure, and
+attributions are gradients.
+
+So the honest form of (E3) is: within-instance direction degrades slowly
+(cosine 0.997 to 0.906) while cross-instance ranking degrades faster (Spearman
+0.994 to 0.842). The dissociation is between predictions and attributions, and
+between within- and cross-instance comparison in degree rather than in kind.
+Saying "within-instance direction is preserved" without the qualifier is an
+overclaim and appears in `paper/tables/identifiability_radius.md`, which should
+be read with this correction.
+
 ---
 
 ## 2. What is NOT established: occurrence
@@ -221,7 +240,12 @@ Verbatim intent, to be carried into the paper:
    sequence data, and at an observation-noise level (sigma = 0.01) that was
    chosen for an earlier experiment rather than calibrated to MPSA
    measurements. The radius conclusion is a function of that sigma.
-5. The within-instance invariance is established for autograd gradients. The
+5. Within-instance direction is preserved *exactly* only for the analytic
+   twin. The in-class representative that realizes it degrades to cosine 0.906
+   at the largest warp tested, so value-level closure does not imply
+   gradient-level closure. Any statement of the form "within-instance
+   attributions are safe" must name which of the two objects it means.
+6. The within-instance invariance is established for autograd gradients. The
    field's primitive is in-silico mutagenesis, a finite difference, whose warp
    multiplier is `psi'(xi)` at an intermediate point by the mean value theorem
    and is therefore per-mutation rather than per-instance. The invariance does
