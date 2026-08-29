@@ -132,3 +132,49 @@ No explanation was degenerate in any arm (0.0000 [0.0000, 0.0000]).
 - timestamp (UTC): 2026-08-27T19:41:59Z (run start)
 - substrate: synthetic; scorer: generator's latent function (see the G2-M entry for the trained-model follow-up, which did not reproduce the pattern)
 - artifacts: paper/figures/gate2_link.{png,pdf}, paper/tables/gate2_link.md now trace to this run
+
+---
+
+## Tier 0 rows 0.6/0.7 and Gate 2 on the REAL splice substrate — UNINFORMATIVE
+
+Two 10-seed runs on MFASS (Cheung et al. 2019) via `certgnn/substrates/splice`.
+The synthetic G2 block above is unchanged and remains the record of what was
+run on synthetic data.
+
+- experiments: `experiments/tier0_controls.py`, `experiments/gate2_splice.py`
+- runs: `results/runs/20260829T063136Z_e3bc94a_48b6bc98` (tier 0),
+  and the gate2_splice run of the same date
+- seeds: 10 each, mean [95% bootstrap CI]; splits grouped by `ensembl_id`
+- substrate: 2,339 exons, Definition 1 graphs, 15 distinct chord placements,
+  effective intronic radius 81 nt against 300 nt requested (the assayed
+  fragment is 170 nt; the reason is recorded in the module and in
+  `data/raw/PROVENANCE.md`)
+
+**Tier 0.** GNN R² = -0.028 [-0.042, -0.017]; degree-preserving shuffle
+-0.008; edge-free MLP (target readout) -0.017; edge-free MLP (mean pool)
+-0.006. Every arm is at or below zero on held-out exons, so rows 0.6 and 0.7
+are **unanswerable, not answered**. Verdict: **UNINFORMATIVE**.
+
+**Gate 2 (`gate2_splice`).** Trained GNN, soft mask threaded through every
+message-passing layer, real measured baseline rate, no oracle anywhere, which
+is the circularity this experiment exists to remove. Test R² = -0.015
+[-0.021, -0.009]; r(model latent, logit baseline) = 0.004 [-0.024, 0.037].
+Probability-space gap 0.070 [0.055, 0.085] against latent-space 0.075 [0.057,
+0.094], with model randomization at 0.062 and label randomization at 0.087 --
+the trained model is indistinguishable from its own null controls. Verdict:
+**UNINFORMATIVE**. G2's pre-registered verdict is not re-decided; it has not
+been confirmed on real data and this run does not confirm it.
+
+**Cause, measured.** The reference model reaches train R² +0.545 while test R²
+falls to -0.251, so capacity is not the constraint and generalization is.
+78.5% of MFASS variance is within-exon, i.e. single-nucleotide effect, and
+using the natural exon's index as the prediction gives R² 0.042. An
+exon-grouped split therefore poses the SpliceAI problem.
+
+**A correction on the record.** The tier-0 interpretation initially reported
+"the substrate is NOT a graph problem" and "the topology is decorative" from
+these numbers, because it applied the pre-stated rules without checking that
+the reference model had learned anything. That was an overclaim drawn from
+noise. `interpret()` is now gated on the reference beating the mean and the
+table reports UNINFORMATIVE. Full analysis in
+`paper/prior_art/splice_negative.md`.

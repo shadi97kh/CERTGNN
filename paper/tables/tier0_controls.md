@@ -1,34 +1,25 @@
 # Tier 0 controls (ABLATIONS 0.6, 0.7, 0.8)
 
-git 271475f, config sweep:tier0_20260827T153742Z_271475f, 10 seed(s), mean [95% bootstrap CI]. Test-split performance; model selection on validation only.
+git e3bc94a, config 48b6bc98, 10 seed(s), mean [95% bootstrap CI]. Test-split performance; model selection on validation only.
 
 ## splice — candidate
-
-**NOT EVALUATED.** splice: certgnn/substrates/splice/ defines no SpliceSubstrate (package is an empty stub) and data/raw holds 0 files. The substrate has not been implemented; nothing was run for it.
-
-## connectome — candidate
-
-**NOT EVALUATED.** connectome: certgnn/substrates/connectome/ defines no ConnectomeSubstrate (package is an empty stub) and data/raw holds 0 files. The substrate has not been implemented; nothing was run for it.
-
-## synthetic — pipeline validation (not a candidate)
 
 task: regression, metric: r2, seeds: 10
 
 | model | row | test metric | paired GNN − model |
 |---|---|---|---|
-| gnn | reference | 0.778 [0.763, 0.794] (n=10) | — |
-| shuffled | 0.6 degree-preserving shuffle | 0.041 [-0.001, 0.081] (n=10) | 0.737 [0.701, 0.780] (n=10) |
-| mlp | 0.7 edge-free MLP | -0.010 [-0.018, -0.003] (n=10) | 0.788 [0.776, 0.800] (n=10) |
+| gnn | reference | -0.028 [-0.042, -0.017] (n=10) | — |
+| shuffled | 0.6 degree-preserving shuffle | -0.008 [-0.011, -0.005] (n=10) | -0.021 [-0.035, -0.009] (n=10) |
+| mlp | 0.7 edge-free MLP (target readout) | -0.017 [-0.021, -0.013] (n=10) | -0.011 [-0.026, 0.002] (n=10) |
+| mlp_mean | 0.7b edge-free MLP (mean pool) | -0.006 [-0.014, -0.001] (n=10) | -0.022 [-0.039, -0.008] (n=10) |
 | bqn | 0.8 Hadamard/BQN | not run (brain-substrate row) | — |
 
-- GNN beats the edge-free MLP by +0.788 [+0.776, +0.800]: the edges carry information the model uses.
-- Real topology beats degree-preserving shuffle by +0.737 [+0.701, +0.780]: the specific wiring matters, not just the degree sequence.
+- UNINFORMATIVE: the reference GNN scores -0.028 [-0.042, -0.017], at or below the threshold of 0.02, i.e. no better than predicting the mean. Rows 0.6 and 0.7 compare the GNN against controls, so with no reference performance to compare against they are UNANSWERABLE rather than answered. This is not evidence that the topology is decorative or that the substrate is not a graph problem; it is the absence of evidence either way.
 
-**Tier 0: PASS**
+**Tier 0: UNINFORMATIVE**
 
 ## Verdict: SpliceCert vs ConnectomeCert
 
-- splice: NOT EVALUATED — splice: certgnn/substrates/splice/ defines no SpliceSubstrate (package is an empty stub) and data/raw holds 0 files. The substrate has not been implemented; nothing was run for it.
-- connectome: NOT EVALUATED — connectome: certgnn/substrates/connectome/ defines no ConnectomeSubstrate (package is an empty stub) and data/raw holds 0 files. The substrate has not been implemented; nothing was run for it.
+- splice: UNINFORMATIVE — UNINFORMATIVE: the reference GNN scores -0.028 [-0.042, -0.017], at or below the threshold of 0.02, i.e. no better than predicting the mean. Rows 0.6 and 0.7 compare the GNN against controls, so with no reference performance to compare against they are UNANSWERABLE rather than answered. This is not evidence that the topology is decorative or that the substrate is not a graph problem; it is the absence of evidence either way.
 
-**UNDECIDED: no candidate substrate could be evaluated. The SpliceCert vs ConnectomeCert question is blocked on implementing the substrates and obtaining their data, not on results.**
+**UNDECIDED: every evaluated substrate is UNINFORMATIVE. The reference model does not beat predicting the mean, so rows 0.6 and 0.7 cannot discriminate and no topology verdict follows in either direction. A model that generalises across exons is needed before these rows can be answered.**

@@ -301,8 +301,17 @@ def run_substrate(
 # ----------------------------------------------------------- interpretation
 
 
-def interpret(res: dict[str, Any], is_candidate: bool) -> dict[str, Any]:
-    """Apply the pre-stated rules to one evaluated substrate."""
+def interpret(
+    res: dict[str, Any], is_candidate: bool, min_reference: float = 0.02
+) -> dict[str, Any]:
+    """Apply the pre-stated rules to one evaluated substrate.
+
+    Gated on the reference model being informative. Neither rule means
+    anything when the GNN itself does not beat predicting the mean: "the MLP
+    matches the GNN" and "the shuffle matches the real topology" are then both
+    statements about two models that predict nothing, and reporting either as a
+    finding would turn a null into a claim about splice biology.
+    """
     p = res["paired_gnn_minus_control"]
     findings: list[str] = []
     flags = {
@@ -310,6 +319,27 @@ def interpret(res: dict[str, Any], is_candidate: bool) -> dict[str, Any]:
         "topology_decorative": False,
         "bqn_beats_gnn": False,
     }
+    ref = res["summary"].get("gnn", {})
+    ref_mean = float(ref.get("mean", float("nan")))
+    ref_lo = float(ref.get("lo", float("nan")))
+    ref_hi = float(ref.get("hi", float("nan")))
+    if not (ref_hi > min_reference):
+        return {
+            "flags": flags,
+            "findings": [
+                f"UNINFORMATIVE: the reference GNN scores {ref_mean:+.3f} "
+                f"[{ref_lo:+.3f}, {ref_hi:+.3f}], at or below the threshold of "
+                f"{min_reference:g}, i.e. no better than predicting the mean. Rows 0.6 "
+                "and 0.7 compare the GNN against controls, so with no reference "
+                "performance to compare against they are UNANSWERABLE rather than "
+                "answered. This is not evidence that the topology is decorative or "
+                "that the substrate is not a graph problem; it is the absence of "
+                "evidence either way."
+            ],
+            "passes_tier0": None,
+            "uninformative": True,
+            "candidate": is_candidate,
+        }
 
     d = p.get("mlp_mean", p["mlp"])
     if d["lo"] <= 0.0:
@@ -360,6 +390,7 @@ def interpret(res: dict[str, Any], is_candidate: bool) -> dict[str, Any]:
         "flags": flags,
         "findings": findings,
         "passes_tier0": passes,
+        "uninformative": False,
         "candidate": is_candidate,
     }
 
@@ -379,10 +410,16 @@ def recommend(
         for n, r in results.items()
         if n in candidates and r["status"] != "evaluated"
     }
-    passing = [n for n, r in evaluated.items() if r["interpretation"]["passes_tier0"]]
-    failing = [
-        n for n, r in evaluated.items() if not r["interpretation"]["passes_tier0"]
-    ]
+    uninformative = {
+        n: r for n, r in evaluated.items() if r["interpretation"].get("uninformative")
+    }
+    decided = {
+        n: r
+        for n, r in evaluated.items()
+        if not r["interpretation"].get("uninformative")
+    }
+    passing = [n for n, r in decided.items() if r["interpretation"]["passes_tier0"]]
+    failing = [n for n, r in decided.items() if not r["interpretation"]["passes_tier0"]]
 
     for n, r in unavailable.items():
         lines.append(f"{n}: NOT EVALUATED — {r['reason']}")
@@ -393,6 +430,11 @@ def recommend(
         )
     for n in passing:
         lines.append(f"{n}: passes tier 0.")
+    for n in uninformative:
+        lines.append(
+            f"{n}: UNINFORMATIVE — "
+            + " ".join(results[n]["interpretation"]["findings"])
+        )
 
     if len(passing) == 1 and not unavailable:
         rec = f"RECOMMEND {passing[0]}: it is the only candidate that passes tier 0."
@@ -406,9 +448,16 @@ def recommend(
             f"PROVISIONAL: {passing[0]} passes tier 0; {', '.join(unavailable)} could not be evaluated. "
             "The comparison is incomplete until the missing substrate is implemented and run."
         )
-    elif evaluated and not passing and not unavailable:
+    elif uninformative and not passing and not failing:
+        rec = (
+            "UNDECIDED: every evaluated substrate is UNINFORMATIVE. The reference model "
+            "does not beat predicting the mean, so rows 0.6 and 0.7 cannot discriminate "
+            "and no topology verdict follows in either direction. A model that "
+            "generalises across exons is needed before these rows can be answered."
+        )
+    elif decided and not passing and not unavailable:
         rec = "NEITHER SUBSTRATE PASSES tier 0. Do not proceed with a topology paper on either as framed."
-    elif evaluated and not passing:
+    elif decided and not passing:
         rec = (
             f"NO CANDIDATE PASSES among those evaluated ({', '.join(evaluated)}); "
             f"{', '.join(unavailable)} could not be evaluated. No substrate can be adopted on current evidence."
@@ -477,7 +526,13 @@ def make_table(
         for n_ in r["notes"]:
             L.append(f"- note: {n_}")
         L.append(
-            f"\n**Tier 0: {'PASS' if r['interpretation']['passes_tier0'] else 'FAIL'}**\n"
+            "\n**Tier 0: "
+            + (
+                "UNINFORMATIVE"
+                if r["interpretation"].get("uninformative")
+                else ("PASS" if r["interpretation"]["passes_tier0"] else "FAIL")
+            )
+            + "**\n"
         )
     L.append("## Verdict: SpliceCert vs ConnectomeCert\n")
     for line in rec["lines"]:
@@ -580,6 +635,12 @@ def main(argv: list[str] | None = None) -> int:
         help="run on a dirty tree (recorded in meta.json)",
     )
     ap.add_argument(
+        "--retable",
+        default=None,
+        metavar="RUNDIR",
+        help="re-emit a stored run's table with the current interpretation logic",
+    )
+    ap.add_argument(
         "--aggregate",
         default=None,
         metavar="MANIFEST",
@@ -587,6 +648,21 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = ap.parse_args(argv)
     cfg = load_config(args.config, args.overrides)
+    if args.retable:
+        d = pathlib.Path(args.retable)
+        stored = json.loads((d / "results.json").read_text())["results"]
+        for nm, rr in stored.items():
+            if rr.get("status") == "evaluated":
+                rr["interpretation"] = interpret(rr, nm in list(cfg.tier0.candidates))
+        rec2 = recommend(stored, list(cfg.tier0.candidates))
+        meta2 = json.loads((d / "meta.json").read_text())
+        tbl = make_table(stored, rec2, cfg, meta2)
+        td = pathlib.Path(cfg.output.tables)
+        td.mkdir(parents=True, exist_ok=True)
+        (td / "tier0_controls.md").write_text(tbl)
+        (d / "table.md").write_text(tbl)
+        print(tbl)
+        return 0
     if args.aggregate:
         return aggregate_manifest(args.aggregate, cfg)
     configure_torch(cfg)
