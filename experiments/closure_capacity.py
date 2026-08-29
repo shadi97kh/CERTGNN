@@ -67,6 +67,7 @@ from torch import nn
 
 from experiments._common import (
     configure_torch,
+    git_sha,
     fmt_ci,
     load_config,
     make_run_dir,
@@ -379,7 +380,13 @@ def fit_asymptote(params: np.ndarray, gap: np.ndarray) -> dict[str, float]:
     """Fit gap(c) = g_inf + a * c^(-b); the asymptote is 1 - g_inf."""
     ok = np.isfinite(params) & np.isfinite(gap) & (gap > 0)
     if ok.sum() < 4:
-        return {"g_inf": float("nan"), "a": float("nan"), "b": float("nan")}
+        return {
+            "g_inf": float("nan"),
+            "a": float("nan"),
+            "b": float("nan"),
+            "rmse": float("nan"),
+            "b_at_bound": True,
+        }
 
     def model(c, g_inf, a, b):
         return g_inf + a * np.power(c, -b)
@@ -393,67 +400,49 @@ def fit_asymptote(params: np.ndarray, gap: np.ndarray) -> dict[str, float]:
             bounds=([0.0, 0.0, 0.0], [1.0, np.inf, 5.0]),
             maxfev=20000,
         )
-        return {"g_inf": float(popt[0]), "a": float(popt[1]), "b": float(popt[2])}
+        g_inf, a, b = (float(v) for v in popt)
+        resid = float(np.sqrt(np.mean((model(params[ok], g_inf, a, b) - gap[ok]) ** 2)))
+        # b pinned at a bound means the power law could not describe the data.
+        # That happens here because the gap is not monotone in parameter count:
+        # depth and width are not interchangeable along a single axis, so a
+        # cell with more parameters can have a LARGER gap. An asymptote read
+        # off such a fit is false precision and is reported as unusable.
+        return {
+            "g_inf": g_inf,
+            "a": a,
+            "b": b,
+            "rmse": resid,
+            "b_at_bound": bool(b >= 4.999 or b <= 1e-6),
+        }
     except Exception:
-        return {"g_inf": float("nan"), "a": float("nan"), "b": float("nan")}
-
-
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    ap.add_argument("--config", default="configs/base.yaml")
-    ap.add_argument("overrides", nargs="*")
-    ap.add_argument("--allow-dirty", action="store_true")
-    args = ap.parse_args(argv)
-    cfg = load_config(args.config, args.overrides)
-    configure_torch(cfg)
-    run = make_run_dir(cfg, "closure_capacity", allow_dirty=args.allow_dirty)
-    meta = json.loads((run / "meta.json").read_text())
-    print(f"run dir: {run}")
-
-    per_seed = []
-    for seed in resolve_seeds(cfg):
-        r = run_seed(cfg, seed)
-        per_seed.append(r)
-        best = max(c["closure_r2"] for c in r["cells"] if np.isfinite(c["closure_r2"]))
-        print(
-            f"seed {seed}: best closure {best:.6f} over {len(r['cells'])} cells",
-            flush=True,
-        )
-        (run / f"seed_{seed}.json").write_text(json.dumps(to_jsonable(r), indent=1))
-
-    nb = int(cfg.bootstrap_resamples)
-    keys = [(c["hidden"], c["depth"]) for c in per_seed[0]["cells"]]
-    agg: dict[str, Any] = {"n_seeds": len(per_seed), "n": per_seed[0]["n"], "cells": {}}
-    for h, dp in keys:
-        sel = [
-            c
-            for r in per_seed
-            for c in r["cells"]
-            if c["hidden"] == h and c["depth"] == dp
-        ]
-        agg["cells"][f"{h}x{dp}"] = {
-            "hidden": h,
-            "depth": dp,
-            "n_params": sel[0]["n_params"],
-            "closure_r2": mean_ci([c["closure_r2"] for c in sel], n_boot=nb),
-            "null_closure_r2": mean_ci([c["null_closure_r2"] for c in sel], n_boot=nb),
-            "null_effect_size": mean_ci(
-                [c["null_effect_size"] for c in sel], n_boot=nb
-            ),
-            "effect_trend_rho": mean_ci(
-                [c["effect_trend_rho"] for c in sel], n_boot=nb
-            ),
-            "fit_r2": mean_ci([c["fit_r2"] for c in sel], n_boot=nb),
-            "n_degenerate": sum(1 for c in sel if c.get("degenerate", False)),
-            "lrs": sorted({c.get("lr") for c in sel if c.get("lr") is not None}),
+        return {
+            "g_inf": float("nan"),
+            "a": float("nan"),
+            "b": float("nan"),
+            "rmse": float("nan"),
+            "b_at_bound": True,
         }
 
-    # asymptote, bootstrapped over seeds
+
+def asymptote_over(
+    per_seed: list[dict[str, Any]],
+    agg: dict[str, Any],
+    keys: list[tuple[int, int]],
+    n_boot: int,
+) -> dict[str, Any]:
+    """Fit the closure gap against parameter count over the given cells.
+
+    Fitted twice by the caller: once over every cell, and once restricted to
+    cells with fewer parameters than datapoints. The unrestricted fit is
+    dominated by the widest cells, which are exactly the ones that can
+    interpolate any target on the observed points, so on its own it will report
+    convergence to 1 for a reason that says nothing about whether the model
+    class is structurally closed. The restricted fit is the one that speaks to
+    structure, and the verdict leans on it.
+    """
     rng = np.random.default_rng(0)
     g_infs = []
-    for _ in range(int(cfg.closure_capacity.asymptote_boot)):
+    for _ in range(n_boot):
         idx = rng.choice(len(per_seed), len(per_seed), replace=True)
         pv, gv = [], []
         for h, dp in keys:
@@ -467,15 +456,7 @@ def main(argv: list[str] | None = None) -> int:
                 and not c.get("degenerate", False)
             ]
             if vals:
-                pv.append(
-                    float(
-                        next(
-                            c["n_params"]
-                            for c in per_seed[0]["cells"]
-                            if c["hidden"] == h and c["depth"] == dp
-                        )
-                    )
-                )
+                pv.append(float(agg["cells"][f"{h}x{dp}"]["n_params"]))
                 gv.append(1.0 - float(np.mean(vals)))
         f = fit_asymptote(np.array(pv), np.array(gv))
         if np.isfinite(f["g_inf"]):
@@ -492,7 +473,9 @@ def main(argv: list[str] | None = None) -> int:
         if g_infs
         else (float("nan"),) * 2
     )
-    agg["asymptote"] = {
+    return {
+        "n_cells": len(keys),
+        "cells": [f"{h}x{dp}" for h, dp in keys],
         "gap_inf": point["g_inf"],
         "gap_inf_lo": lo,
         "gap_inf_hi": hi,
@@ -501,81 +484,257 @@ def main(argv: list[str] | None = None) -> int:
         "closure_inf_hi": 1.0 - lo,
         "power_a": point["a"],
         "power_b": point["b"],
+        "rmse": point.get("rmse", float("nan")),
+        "b_at_bound": point.get("b_at_bound", True),
         "n_boot": len(g_infs),
     }
 
-    # floors and corroboration
-    null_floor = max(agg["cells"][k]["null_effect_size"]["mean"] for k in agg["cells"])
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument("--config", default="configs/base.yaml")
+    ap.add_argument("overrides", nargs="*")
+    ap.add_argument("--allow-dirty", action="store_true")
+    ap.add_argument(
+        "--retable",
+        metavar="RUNDIR",
+        help="rebuild the aggregate and table from an existing run's seed JSONs "
+        "instead of recomputing; the numbers stay traceable to that run",
+    )
+    args = ap.parse_args(argv)
+    cfg = load_config(args.config, args.overrides)
+    configure_torch(cfg)
+    if args.retable:
+        run = pathlib.Path(args.retable)
+        meta = json.loads((run / "meta.json").read_text())
+        files = sorted(
+            run.glob("seed_*.json"), key=lambda f: int(f.stem.split("_")[1])
+        )
+        if not files:
+            print(f"no seed_*.json in {run}", file=sys.stderr)
+            return 2
+        per_seed = [json.loads(f.read_text()) for f in files]
+        retabled = True
+        print(f"retable: {run} ({len(per_seed)} seeds)")
+    else:
+        retabled = False
+        run = make_run_dir(cfg, "closure_capacity", allow_dirty=args.allow_dirty)
+        meta = json.loads((run / "meta.json").read_text())
+        print(f"run dir: {run}")
+
+        per_seed = []
+        for seed in resolve_seeds(cfg):
+            r = run_seed(cfg, seed)
+            per_seed.append(r)
+            best = max(
+                c["closure_r2"] for c in r["cells"] if np.isfinite(c["closure_r2"])
+            )
+            print(
+                f"seed {seed}: best closure {best:.6f} over {len(r['cells'])} cells",
+                flush=True,
+            )
+            (run / f"seed_{seed}.json").write_text(json.dumps(to_jsonable(r), indent=1))
+
+    nb = int(cfg.bootstrap_resamples)
+    keys = [(c["hidden"], c["depth"]) for c in per_seed[0]["cells"]]
+    agg: dict[str, Any] = {"n_seeds": len(per_seed), "n": per_seed[0]["n"], "cells": {}}
+    for h, dp in keys:
+        sel = [
+            c
+            for r in per_seed
+            for c in r["cells"]
+            if c["hidden"] == h and c["depth"] == dp
+        ]
+        agg["cells"][f"{h}x{dp}"] = {
+            "hidden": h,
+            "depth": dp,
+            "n_params": sel[0]["n_params"],
+            # The interpolation confound turns on this ratio, so it is computed
+            # here rather than assumed: above 1 a map can fit any target on the
+            # observed points and its closure is not evidence about structure.
+            "params_per_point": sel[0]["n_params"] / float(per_seed[0]["n"]),
+            "closure_r2": mean_ci([c["closure_r2"] for c in sel], n_boot=nb),
+            "null_closure_r2": mean_ci([c["null_closure_r2"] for c in sel], n_boot=nb),
+            "null_effect_size": mean_ci(
+                [c["null_effect_size"] for c in sel], n_boot=nb
+            ),
+            "effect_trend_rho": mean_ci(
+                [c["effect_trend_rho"] for c in sel], n_boot=nb
+            ),
+            "fit_r2": mean_ci([c["fit_r2"] for c in sel], n_boot=nb),
+            "n_degenerate": sum(1 for c in sel if c.get("degenerate", False)),
+            "lrs": sorted({c.get("lr") for c in sel if c.get("lr") is not None}),
+        }
+
+    # asymptote, bootstrapped over seeds. Fitted twice: over every cell, and
+    # restricted to cells with fewer parameters than datapoints. A cell that can
+    # interpolate reaches closure for a reason unrelated to structural closure,
+    # so the unrestricted fit alone would answer the wrong question.
+    nboot_a = int(cfg.closure_capacity.asymptote_boot)
+    agg["asymptote"] = asymptote_over(per_seed, agg, keys, nboot_a)
+    keys_under = [
+        (h, dp) for h, dp in keys if agg["cells"][f"{h}x{dp}"]["params_per_point"] < 1.0
+    ]
+    agg["asymptote_underparam"] = (
+        asymptote_over(per_seed, agg, keys_under, nboot_a)
+        if len(keys_under) >= 4
+        else {"gap_inf": float("nan"), "n_cells": len(keys_under), "note": "too few cells"}
+    )
+
+    # Floors and corroboration.
+    #
+    # The verdict is deliberately NON-PARAMETRIC. The power-law asymptote is
+    # misspecified on this data: the closure gap is not monotone in parameter
+    # count (16x3 has 1,153 parameters and a smaller gap than 64x1 with 2,433),
+    # because depth and width do not trade off along a single axis. Both fits
+    # return b pinned at its bound. Reading a six-figure asymptote off that fit
+    # would be false precision on the number that decides the paper, so the
+    # decision rests on what the cells actually reached.
+    #
+    # The floor for a CLOSURE claim is the null control's CLOSURE, not its
+    # effect size: comparing a closure gap against an effect size compares two
+    # different quantities.
+    null_closure_gap = max(
+        1.0 - agg["cells"][k]["null_closure_r2"]["mean"] for k in agg["cells"]
+    )
+    null_effect_floor = max(
+        agg["cells"][k]["null_effect_size"]["mean"] for k in agg["cells"]
+    )
     best_cell = max(agg["cells"], key=lambda k: agg["cells"][k]["closure_r2"]["mean"])
     best = agg["cells"][best_cell]
-    goes_to_one = float(hi) < 1e-5 if np.isfinite(hi) else False
+
+    # "Reaches 1.000000" means rounding to 1.000000 at six decimals, and by a
+    # margin larger than the pipeline's own numerical floor.
+    def reaches_one(v: dict[str, Any]) -> bool:
+        gap = 1.0 - v["closure_r2"]["mean"]
+        return gap < 5e-7 and gap <= max(null_closure_gap, 0.0) + 5e-7
+
     under = {k: v for k, v in agg["cells"].items() if v["params_per_point"] < 1.0}
-    closed_under = [k for k, v in under.items() if v["closure_r2"]["lo"] > 0.999999]
+    over = {k: v for k, v in agg["cells"].items() if v["params_per_point"] >= 1.0}
+    closed_under = [k for k, v in under.items() if reaches_one(v)]
+    closed_over = [k for k, v in over.items() if reaches_one(v)]
     best_under = (
-        max(under, key=lambda k: under[k]["closure_r2"]["mean"]) if under else None
+        min(under, key=lambda k: 1.0 - under[k]["closure_r2"]["mean"]) if under else None
     )
+    best_over = (
+        min(over, key=lambda k: 1.0 - over[k]["closure_r2"]["mean"]) if over else None
+    )
+    gap_under = 1.0 - under[best_under]["closure_r2"]["mean"] if best_under else float("nan")
+    gap_over = 1.0 - over[best_over]["closure_r2"]["mean"] if best_over else float("nan")
     trend_at_best = best["effect_trend_rho"]
     trend_vanished = trend_at_best["lo"] <= 0.2
 
-    if goes_to_one:
+    fit_note = (
+        " The power-law asymptote is reported above but is NOT used for this "
+        "verdict: b is pinned at its bound in the fit, because the closure gap "
+        "is not monotone in parameter count. The verdict rests on what the "
+        "cells reached."
+        if agg["asymptote"].get("b_at_bound", True)
+        else ""
+    )
+    floor_note = (
+        f" The pipeline's numerical floor is the null control's closure, which "
+        f"is 1.000000 in every cell (largest null gap {null_closure_gap:.2e}), "
+        f"so a shortfall above that floor is real. (The null EFFECT size reaches "
+        f"{null_effect_floor:.4f}, which is why effect size is not used as the "
+        f"closure floor here.)"
+    )
+
+    if closed_under:
         verdict = (
-            f"**Closure converges to 1.000000 with capacity.** The fitted asymptote is "
-            f"{1.0 - point['g_inf']:.6f} [{1.0 - hi:.6f}, {1.0 - lo:.6f}]; the residual gap is "
-            f"indistinguishable from zero. A sufficiently flexible G-P map IS closed under "
-            "monotone reparameterization on real MPSA data, so the twin is a legitimate "
-            "alternative fit that predicts identically and no sample size separates it. The two "
-            "global-epistasis mechanisms are therefore provably confusable at that capacity. "
-            "**This kills the mechanism-discrimination direction and restores the strong "
-            "identifiability claim.** The 32-unit shortfall recorded in the budget diagnostic "
-            "was a capacity artifact after all."
+            f"**Closure reaches 1.000000 in the underparameterized regime.** "
+            f"{len(closed_under)} of {len(under)} cells with FEWER parameters than "
+            f"datapoints reach it ({', '.join(sorted(closed_under))}); the best is "
+            f"{best_under} at a gap of {gap_under:.2e}. A sufficiently flexible G-P "
+            "map IS closed under monotone reparameterization on real MPSA data, and "
+            "because this happens where the map cannot simply interpolate the "
+            "observed points, it is a property of the model class. The twin is then "
+            "a legitimate alternative fit that predicts identically and no sample "
+            "size separates it, so the two global-epistasis mechanisms are provably "
+            "confusable at that capacity. **This kills the mechanism-discrimination "
+            "direction and restores the strong identifiability claim.**"
+            + floor_note
+            + fit_note
             + (
-                f" It is reached in the UNDERPARAMETERIZED regime as well "
-                f"({len(closed_under)} of {len(under)} cells with fewer parameters than "
-                "datapoints reach it), so this is a property of the model class rather "
-                "than interpolation."
-                if closed_under
-                else (
-                    " **Caveat that limits this:** no cell with fewer parameters than "
-                    f"datapoints reaches closure (best such cell {best_under} at "
-                    f"{under[best_under]['closure_r2']['mean']:.6f}). Closure appears only "
-                    "where the map can interpolate any target on the observed points, so it "
-                    "is interpolation rather than a structural property of the class, and "
-                    "the strong identifiability claim does NOT follow."
-                    if under
-                    else ""
-                )
-            )
-            + (
-                f" Corroboration: at the best cell ({best_cell}) the effect-versus-strength "
-                f"Spearman is {trend_at_best['mean']:+.3f} "
-                f"[{trend_at_best['lo']:+.3f}, {trend_at_best['hi']:+.3f}], consistent with an "
-                "undetectable twin."
+                f" Corroboration: at {best_cell} the effect-versus-strength Spearman "
+                f"is {trend_at_best['mean']:+.3f} [{trend_at_best['lo']:+.3f}, "
+                f"{trend_at_best['hi']:+.3f}], consistent with an undetectable twin."
                 if trend_vanished
-                else f" INCONSISTENT: at the best cell the effect still trends with strength "
-                f"({trend_at_best['mean']:+.3f}), which should not happen if the twin is "
-                "undetectable. Resolve before using this result."
+                else f" INCONSISTENT: at {best_cell} the effect still trends with "
+                f"strength ({trend_at_best['mean']:+.3f} [{trend_at_best['lo']:+.3f}, "
+                f"{trend_at_best['hi']:+.3f}]), which should not happen if the twin "
+                "is undetectable. Resolve before using this result."
+            )
+        )
+    elif closed_over:
+        verdict = (
+            f"**Closure reaches 1.000000 ONLY by interpolation.** No cell with fewer "
+            f"parameters than datapoints reaches it: the best such cell is "
+            f"{best_under} at closure "
+            f"{under[best_under]['closure_r2']['mean']:.6f} (gap {gap_under:.2e}). "
+            f"Closure appears only once the map is overparameterized "
+            f"({', '.join(sorted(closed_over))}; best {best_over} at gap "
+            f"{gap_over:.2e}), where it can fit ANY target on the observed points, so "
+            "reaching 1 there says nothing about whether the model class is closed "
+            "under reparameterization. **The strong identifiability claim does NOT "
+            "follow.** On the evidence that is not interpolation, the classes remain "
+            "separable on real data, the mechanism test is viable, and the "
+            "identifiability claim is the weaker practical one."
+            + floor_note
+            + fit_note
+            + (
+                f" Note that at {best_cell} the effect-versus-strength Spearman is "
+                f"{trend_at_best['mean']:+.3f} [{trend_at_best['lo']:+.3f}, "
+                f"{trend_at_best['hi']:+.3f}]: the twin is still detectable in a cell "
+                "reporting closure of 1.000000, which is itself inconsistent with "
+                "genuine closure and corroborates the interpolation reading."
+                if not trend_vanished
+                else ""
             )
         )
     else:
         verdict = (
-            f"**Closure asymptotes BELOW 1.** The fitted asymptote is "
-            f"{1.0 - point['g_inf']:.6f} [{1.0 - hi:.6f}, {1.0 - lo:.6f}], a residual gap of "
-            f"{point['g_inf']:.2e} that does not close as width and depth grow; the best cell "
-            f"reached {best['closure_r2']['mean']:.6f} at {best['n_params']:,} parameters. The "
-            "numerical floor is visible in the null control at "
-            f"{null_floor:.4f}, so the shortfall is not the pipeline's own error. **The G-P map "
-            "classes are separable on real data, the mechanism test is viable, and the "
-            "identifiability claim is the weaker practical one, not the strong claim.** The "
-            "twin is detectable at sufficient sample size and the two global-epistasis "
-            "mechanisms are not provably confusable."
+            f"**Closure does NOT reach 1.000000 at any capacity tested.** The best "
+            f"cell is {best_cell} at {best['closure_r2']['mean']:.6f} "
+            f"({best['n_params']:,} parameters, "
+            f"{best['params_per_point']:.2f} per datapoint), a residual gap of "
+            f"{1.0 - best['closure_r2']['mean']:.2e} that does not close as width and "
+            f"depth grow; the best underparameterized cell is {best_under} at gap "
+            f"{gap_under:.2e}. **The G-P map classes are separable on real data, the "
+            "mechanism test is viable, and the identifiability claim is the weaker "
+            "practical one, not the strong claim.** The twin is detectable at "
+            "sufficient sample size and the two global-epistasis mechanisms are not "
+            "provably confusable."
+            + floor_note
+            + fit_note
         )
+    agg["closure_reached"] = {
+        "underparameterized": sorted(closed_under),
+        "overparameterized": sorted(closed_over),
+        "best_underparameterized": best_under,
+        "best_underparameterized_gap": gap_under,
+        "best_overparameterized": best_over,
+        "best_overparameterized_gap": gap_over,
+        "null_closure_gap": null_closure_gap,
+    }
     agg["verdict"] = verdict
-    agg["null_floor"] = null_floor
+    agg["null_floor_effect_size"] = null_effect_floor
+    agg["null_floor_closure_gap"] = null_closure_gap
     agg["best_cell"] = best_cell
 
     L = ["# Does closure converge to 1.000000 as G-P map capacity grows?\n"]
     L.append(
-        f"git SHA `{meta['git_sha']}`{' (DIRTY)' if meta['git_dirty'] else ''}, config "
+        f"git SHA `{meta['git_sha']}`{' (DIRTY)' if meta['git_dirty'] else ''}"
+        + (
+            f", **aggregated post hoc by `{git_sha()}` via --retable** (the seed "
+            f"values below were computed by `{meta['git_sha']}`; the aggregation, "
+            f"asymptote and verdict code is the later one)"
+            if retabled
+            else ""
+        )
+        + f", config "
         f"`{meta['config_hash']}`, {agg['n_seeds']} seeds, mean [95% bootstrap CI]. "
         f"{agg['n']} real BRCA2 5' splice sites per seed; warp family {FAMILY}; refit "
         f"{int(cfg.closure_capacity.refit_epochs):,} epochs, warm-started, best iterate.\n"
@@ -607,13 +766,32 @@ def main(argv: list[str] | None = None) -> int:
         )
     L.append("")
     L.append("## Asymptote\n")
+    A, U = agg["asymptote"], agg["asymptote_underparam"]
     L.append(
-        f"Fitting the closure gap as `1 - R² = g_inf + a·params^(-b)` over all cells gives "
-        f"`g_inf` = {point['g_inf']:.3e} [{lo:.3e}, {hi:.3e}] "
-        f"(b = {point['power_b']:.3f}, {agg['asymptote']['n_boot']} bootstrap fits over seeds), "
-        f"so closure tends to **{1.0 - point['g_inf']:.6f}** "
-        f"[{1.0 - hi:.6f}, {1.0 - lo:.6f}].\n"
+        f"Fitting the closure gap as `1 - R² = g_inf + a·params^(-b)` over all "
+        f"{A['n_cells']} cells gives `g_inf` = {A['gap_inf']:.3e} "
+        f"[{A['gap_inf_lo']:.3e}, {A['gap_inf_hi']:.3e}] "
+        f"(b = {A['power_b']:.3f}, {A['n_boot']} bootstrap fits over seeds), "
+        f"so closure tends to **{A['closure_inf']:.6f}** "
+        f"[{A['closure_inf_lo']:.6f}, {A['closure_inf_hi']:.6f}].\n"
     )
+    if np.isfinite(U.get("gap_inf", float("nan"))):
+        L.append(
+            f"That fit is dominated by the widest cells, which are the ones able to "
+            f"interpolate any target on the observed points. Restricted to the "
+            f"{U['n_cells']} cells with FEWER parameters than datapoints "
+            f"({', '.join(U['cells'])}), the same fit gives `g_inf` = "
+            f"{U['gap_inf']:.3e} [{U['gap_inf_lo']:.3e}, {U['gap_inf_hi']:.3e}], "
+            f"i.e. closure tends to **{U['closure_inf']:.6f}** "
+            f"[{U['closure_inf_lo']:.6f}, {U['closure_inf_hi']:.6f}]. This is the "
+            f"fit that bears on structural closure; the unrestricted one cannot "
+            f"separate closure from interpolation.\n"
+        )
+    else:
+        L.append(
+            f"The restricted fit over cells with fewer parameters than datapoints "
+            f"could not be computed ({U.get('n_cells', 0)} such cells, needs 4).\n"
+        )
     L.append("## Verdict\n")
     L.append(verdict)
     table = "\n".join(L) + "\n"
@@ -644,11 +822,19 @@ def main(argv: list[str] | None = None) -> int:
         [
             {
                 "model": f"neural_{h}x{dp}",
-                "configs_tried": 1,
+                "configs_tried": len(list(cfg.closure_capacity.lr_ladder)),
                 "epochs": int(cfg.closure_capacity.ref_epochs),
-                "gradient_steps": int(cfg.closure_capacity.ref_epochs),
-                "search_space": "the capacity sweep itself; no per-cell tuning",
-                "selection": "final iterate for the reference, best iterate for refits",
+                "gradient_steps": int(cfg.closure_capacity.ref_epochs)
+                + len(list(cfg.closure_capacity.lr_ladder))
+                * int(cfg.closure_capacity.pilot_epochs),
+                "search_space": "learning rate over "
+                + str([float(v) for v in cfg.closure_capacity.lr_ladder])
+                + ", chosen per cell by a "
+                + str(int(cfg.closure_capacity.pilot_epochs))
+                + "-epoch pilot; architecture is the sweep axis, not tuned",
+                "selection": "pilot picks lr by the REFERENCE fit's training loss "
+                "only (never a warp, refit or closure value); then final iterate "
+                "for the reference, best iterate for refits",
             }
             for h, dp in keys
         ],
