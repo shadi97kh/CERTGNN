@@ -626,7 +626,10 @@ def main(argv: list[str] | None = None) -> int:
     closed_depths = sorted({cells_v[k]["depth"] for k in closed})
     open_depths = [d for d in depths if d not in closed_depths]
 
-    best_by_depth = {d: min((k for k in cells_v if cells_v[k]["depth"] == d), key=gap_of) for d in depths}
+    best_by_depth = {
+        d: min((k for k in cells_v if cells_v[k]["depth"] == d), key=gap_of)
+        for d in depths
+    }
     fit_flag = agg["asymptote"].get("b_at_bound", True)
 
     # Depth-1 sentence, built from the data rather than asserted.
@@ -668,9 +671,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # The competing mechanisms, and what each predicts.
     over_one = [k for k in cells_v if cells_v[k]["params_per_point"] >= 1.0]
-    over_one_open = sorted(
-        (k for k in over_one if not reaches_one(k)), key=gap_of
-    )
+    over_one_open = sorted((k for k in over_one if not reaches_one(k)), key=gap_of)
     ratio_txt = (
         "The parameters-per-datapoint reading is additionally contradicted by the "
         "table: it predicts that every cell above one parameter per datapoint "
