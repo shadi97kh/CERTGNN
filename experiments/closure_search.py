@@ -576,6 +576,52 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
             "unresolved."
         )
 
+    # Whether the warp comparison is INTERPRETABLE at a given depth. This is a
+    # weaker question than the search_ok gate above and deliberately uses no
+    # absolute threshold, because none is needed: the null target is guaranteed
+    # to be in the class, so the procedure's score on it is a ceiling for what
+    # the same procedure can say about any other target. If a depth scores
+    # HIGHER on the warp than on that ceiling, the ranking is inverted and the
+    # warp number is reporting initialization rather than the class. Depth 1
+    # clears this (cold null above warp) while depths 2 and 3 invert it, so the
+    # two regimes support different conclusions and must not be pooled.
+    depths = sorted({v["depth"] for v in cells.values()})
+    by_depth = {d: {k: v for k, v in cells.items() if v["depth"] == d} for d in depths}
+    worst_null = {
+        d: min(c["arm1_cold_heldout"]["mean"] for c in by_depth[d].values())
+        for d in depths
+    }
+    worst_warp = {
+        d: min(c["base_warp_heldout"]["mean"] for c in by_depth[d].values())
+        for d in depths
+    }
+    ok_depths = [d for d in depths if worst_null[d] >= worst_warp[d]]
+    bad_depths = [d for d in depths if d not in ok_depths]
+    agg["interpretable_depths"] = ok_depths
+    if ok_depths and bad_depths:
+        parts.append(
+            "**Interpretability splits by depth, and so does what can be concluded.** "
+            "The null target is in the class by construction, so the procedure's "
+            "score on it bounds what the same procedure can say about anything else. "
+            + "; ".join(
+                f"depth {d}: cold-start null {worst_null[d]:.4f} vs warp "
+                f"{worst_warp[d]:.4f}"
+                for d in depths
+            )
+            + ". At depth "
+            + ", ".join(str(d) for d in ok_depths)
+            + " the ceiling sits above the measurement, so the comparison is valid "
+            "there, and the warp target is genuinely not reached as well as an "
+            "in-class one: that is evidence, for those classes specifically, that "
+            "ψ∘φ̂ is not in them as exactly as φ̂ is. **At depth "
+            + ", ".join(str(d) for d in bad_depths)
+            + " the ranking is INVERTED** -- the warm-started warp refit scores "
+            "higher than a cold-started refit to the reference's own latent, so the "
+            "procedure does better on the harder target than on one guaranteed to be "
+            "in the class. That is initialization dominating the result, and no "
+            "conclusion about the class can be drawn at those depths."
+        )
+
     other_seed = {k: v["arm1_other_seed_heldout"]["mean"] for k, v in cells.items()}
     other_cell = {k: v["arm1_other_cell_heldout"]["mean"] for k, v in cells.items()}
     parts.append(
