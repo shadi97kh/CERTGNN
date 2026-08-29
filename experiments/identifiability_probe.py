@@ -1047,6 +1047,12 @@ def main(argv: list[str] | None = None) -> int:
                     }
     agg["radius"] = radius
 
+    neural_closed_all = all(
+        closure[(("neural"), fam)]["lo"] > 0.999999
+        for fam in fams
+        if ("neural", fam) in closure
+    )
+
     # Is the radius measurable at all? For a class closed under the warp the
     # twin's predictions are identical in exact arithmetic, so the true effect
     # is zero and anything measured is the pipeline's own floor. Three checks:
@@ -1124,11 +1130,6 @@ def main(argv: list[str] | None = None) -> int:
                 f"[{entry['cross_instance_spearman']['lo']:.3f}, {entry['cross_instance_spearman']['hi']:.3f}], "
                 f"within-instance cosine {entry['within_instance_cosine']['mean']:.3f}."
             )
-    neural_closed_all = all(
-        closure[(("neural"), fam)]["lo"] > 0.999999
-        for fam in fams
-        if ("neural", fam) in closure
-    )
     if not agg["radius_measurable"]:
         agg["radius_verdict"] = (
             "**The radius is not measurable for the neural class, and the numbers in the "
