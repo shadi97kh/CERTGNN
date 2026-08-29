@@ -143,6 +143,16 @@ separation:            # experiments/separation.py: the quantitative claim
   ism_instances: 400   # held-out sequences used for the per-locus attribution
   library_size: 30483  # the full BRCA2 5'ss library, for "is Z reachable today?"
 
+occurrence:            # experiments/occurrence.py: the claim without a twin
+  n_fit: 3000
+  n_models: 20         # per cell, differing ONLY in initialization seed
+  alpha: 0.05          # paired t-test on held-out squared errors; a pair above
+                       # this is one the data cannot choose between. Uncorrected
+                       # on purpose: that makes the surviving set stricter.
+  ism_instances: 400
+  rho_near_one: 0.95   # if every cell's median attribution rho is at least this,
+                       # training pins the attribution and the verdict says so
+
 identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
   path: data/raw/mpsa_data.csv.gz
   n_max: 4000          # sequences per seed; the full library is 30,483
