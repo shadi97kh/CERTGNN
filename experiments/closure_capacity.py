@@ -145,6 +145,50 @@ def train(
         return float(((model(x) - y) ** 2).mean())
 
 
+def select_lr(
+    d: int,
+    hidden: int,
+    depth: int,
+    k: int,
+    gen_seed: int,
+    torch_seed: int,
+    x: torch.Tensor,
+    y: torch.Tensor,
+    ladder: list[float],
+    pilot_epochs: int,
+) -> float:
+    """Pick the learning rate for one cell by a short pilot fit.
+
+    At a fixed lr of 0.01 the 128-wide cells collapse onto the mean predictor
+    within 200 epochs and never leave it: training loss freezes at var(y) and
+    `fit_r2` is 0. The closure of such a cell is the agreement of two constant
+    functions, which is near 1 for a reason that has nothing to do with
+    identifiability, and those cells are precisely the ones an asymptote fit
+    leans on. Lowering the rate to 0.003 fits the same cells to R^2 0.70 and
+    0.94, so the collapse is an optimizer artifact, not a property of the map.
+
+    Selection is on the *reference fit's* training loss only. It never sees a
+    warp, a refit, or a closure value, so it cannot tilt the quantity under
+    test; it only decides whether the cell is fit at all.
+    """
+    best_lr, best_loss = ladder[0], float("inf")
+    for lr in ladder:
+        gen = torch.Generator().manual_seed(gen_seed)
+        torch.manual_seed(torch_seed)
+        m = CapacityModel(d, hidden, depth, k, gen).to(x.device)
+        opt = torch.optim.Adam(m.parameters(), lr=lr)
+        for _ in range(pilot_epochs):
+            opt.zero_grad()
+            loss = ((m(x) - y) ** 2).mean()
+            loss.backward()
+            opt.step()
+        with torch.no_grad():
+            final = float(((m(x) - y) ** 2).mean())
+        if np.isfinite(final) and final < best_loss:
+            best_lr, best_loss = lr, final
+    return best_lr
+
+
 def _snapshot(m: nn.Module) -> dict[str, torch.Tensor]:
     """Detached clone of the parameters.
 
@@ -206,10 +250,24 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
 
     for hidden in [int(h) for h in cc.hidden]:
         for depth in [int(dp) for dp in cc.depth]:
-            gen = torch.Generator().manual_seed(seed * 7919 + hidden * 31 + depth)
-            torch.manual_seed(seed * 100 + hidden + depth)
+            gen_seed = seed * 7919 + hidden * 31 + depth
+            torch_seed = seed * 100 + hidden + depth
+            cell_lr = select_lr(
+                d,
+                hidden,
+                depth,
+                int(ip.ge_components),
+                gen_seed,
+                torch_seed,
+                x,
+                y,
+                [float(v) for v in cc.lr_ladder],
+                int(cc.pilot_epochs),
+            )
+            gen = torch.Generator().manual_seed(gen_seed)
+            torch.manual_seed(torch_seed)
             ref = CapacityModel(d, hidden, depth, int(ip.ge_components), gen).to(dev)
-            train(ref, x, y, int(cc.ref_epochs), float(ip.lr))
+            train(ref, x, y, int(cc.ref_epochs), cell_lr)
             z_ref = _standardize(ref.latent(x).detach())
             mu, sd = float(ref.latent(x).mean()), float(ref.latent(x).std())
             with torch.no_grad():
@@ -228,7 +286,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                 depth,
                 gen,
                 int(cc.refit_epochs),
-                float(ip.lr),
+                cell_lr,
                 float(ip.radius.fit_tol),
             )
             z_back0 = invert_warp(_standardize(phi0).cpu(), FAMILY, 0.0, 1.0, seed).to(
@@ -253,7 +311,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     depth,
                     gen,
                     int(cc.refit_epochs),
-                    float(ip.lr),
+                    cell_lr,
                     float(ip.radius.fit_tol),
                 )
                 z_back = invert_warp(
@@ -286,6 +344,14 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     "depth": depth,
                     "n_params": n_params(ref.phi),
                     "fit_r2": fit_r2,
+                    "lr": cell_lr,
+                    # A reference fit that never left the mean predictor makes
+                    # every downstream number in the cell meaningless: closure
+                    # then compares two constants. Such a cell is excluded from
+                    # the asymptote rather than being allowed to pull it to 1.
+                    "degenerate": bool(
+                        not np.isfinite(fit_r2) or fit_r2 < float(cc.min_fit_r2)
+                    ),
                     "closure_r2": at_max["closure_r2"] if at_max else float("nan"),
                     "null_closure_r2": null_closure,
                     "null_effect_size": abs(null["effect_size"]),
@@ -380,6 +446,8 @@ def main(argv: list[str] | None = None) -> int:
                 [c["effect_trend_rho"] for c in sel], n_boot=nb
             ),
             "fit_r2": mean_ci([c["fit_r2"] for c in sel], n_boot=nb),
+            "n_degenerate": sum(1 for c in sel if c.get("degenerate", False)),
+            "lrs": sorted({c.get("lr") for c in sel if c.get("lr") is not None}),
         }
 
     # asymptote, bootstrapped over seeds
@@ -396,6 +464,7 @@ def main(argv: list[str] | None = None) -> int:
                 if c["hidden"] == h
                 and c["depth"] == dp
                 and np.isfinite(c["closure_r2"])
+                and not c.get("degenerate", False)
             ]
             if vals:
                 pv.append(
@@ -512,17 +581,29 @@ def main(argv: list[str] | None = None) -> int:
         f"{int(cfg.closure_capacity.refit_epochs):,} epochs, warm-started, best iterate.\n"
     )
     L.append(
-        "| width | depth | params | closure R² at s=0.95 | null-control closure | null effect | effect-vs-strength ρ |"
+        "| width | depth | params | params/point | fit R² | closure R² at s=0.95 | "
+        "null-control closure | null effect | effect-vs-strength ρ |"
     )
-    L.append("|---|---|---|---|---|---|---|")
+    L.append("|---|---|---|---|---|---|---|---|---|")
     for h, dp in keys:
         c = agg["cells"][f"{h}x{dp}"]
+        flag = f" ⚠️{c['n_degenerate']}/{agg['n_seeds']}" if c["n_degenerate"] else ""
         L.append(
             f"| {h} | {dp} | {c['n_params']:,} | {c['params_per_point']:.2f} | "
+            f"{c['fit_r2']['mean']:.4f}{flag} | "
             f"{c['closure_r2']['mean']:.6f} "
             f"[{c['closure_r2']['lo']:.6f}, {c['closure_r2']['hi']:.6f}] | "
             f"{c['null_closure_r2']['mean']:.6f} | {c['null_effect_size']['mean']:.4f} | "
             f"{fmt_ci(c['effect_trend_rho'])} |"
+        )
+    n_deg = sum(c["n_degenerate"] for c in agg["cells"].values())
+    if n_deg:
+        L.append(
+            f"\n⚠️ marks cells where the reference fit collapsed onto the mean "
+            f"predictor (fit R² < {float(cfg.closure_capacity.min_fit_r2)}). Their "
+            f"closure compares two near-constant functions and is not evidence of "
+            f"anything; they are excluded from the asymptote fit. "
+            f"{n_deg} cell-seeds affected."
         )
     L.append("")
     L.append("## Asymptote\n")

@@ -93,6 +93,15 @@ closure_capacity:      # experiments/closure_capacity.py: does closure -> 1 with
   strengths: [0.25, 0.55, 0.75, 0.95]
   omega: 2.0
   ref_epochs: 1200
+  # At a fixed lr of 0.01 the 128-wide cells collapse onto the mean predictor
+  # (fit_r2 = 0, loss frozen at var(y)) and their "closure" is two constants
+  # agreeing. At 0.003 the same cells reach fit_r2 0.70 and 0.94. The rate is
+  # therefore chosen per cell by a short pilot on the reference fit's training
+  # loss only, which never sees a warp or a closure value.
+  lr_ladder: [0.01, 0.003, 0.001, 0.0003]
+  pilot_epochs: 300    # the collapse is fully established by ~200 epochs
+  min_fit_r2: 0.05     # below this the reference never left the mean predictor;
+                       # the cell is reported but excluded from the asymptote
   refit_epochs: 6000   # the budget diagnostic's curve is flat past ~4000; the
                        # deepcopy fix and the GPU make this affordable per cell
   asymptote_boot: 400
