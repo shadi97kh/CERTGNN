@@ -33,15 +33,26 @@ corroboration: if closure goes to 1 the twin becomes undetectable and the
 trend of effect size against warp strength must vanish. A cell claiming
 closure while still showing a trend is inconsistent and is flagged.
 
+**Result: the structure is settled, the mechanism is not.** The gap is ordered
+by DEPTH, with width amplifying within a depth. No cell closes at depth 1 at
+any width; closure of 1.000000 is reached at depths 2 and 3 at width 128.
+
 **The interpolation confound, and why parameters per datapoint is reported.**
 A model with more parameters than datapoints can fit *any* target on those
 points, so closure would reach 1.000000 for a reason that says nothing about
 whether the model class is structurally closed under reparameterization. At
 500 sequences even a 32-wide, 2-deep map reaches exact closure, while at 4,000
-it does not. The sweep therefore runs on the FULL library, every cell reports
-parameters per datapoint, and the verdict distinguishes closure achieved below
-that ratio from closure achieved above it. A "yes" that only appears in the
-overparameterized regime is interpolation and is reported as such.
+it does not. The sweep therefore runs on the FULL library and every cell
+reports parameters per datapoint.
+
+That ratio turned out NOT to order this data, so it cannot carry the argument:
+128x1 sits at 1.22 parameters per datapoint and is four orders of magnitude
+short of closure, while 16x3 at 0.29 is comparable to it. Depth-dependent
+expressivity and interpolation both predict the observed pattern at the widest
+cells, and this experiment does not separate them. The verdict is therefore
+explicitly PENDING the shuffled-target control in `closure_shuffled.py`, which
+refits each cell to non-monotone targets and measures the dissociation
+directly. Neither branch of the question above is decided here.
 
 Scope. The sweep uses one warp family (sinusoid). The question here is
 capacity, and adding families multiplies cost without bearing on it; the
@@ -585,150 +596,149 @@ def main(argv: list[str] | None = None) -> int:
         }
     )
 
-    # Floors and corroboration.
+    # Structure, and an explicitly undecided mechanism.
     #
-    # The verdict is deliberately NON-PARAMETRIC. The power-law asymptote is
-    # misspecified on this data: the closure gap is not monotone in parameter
-    # count (16x3 has 1,153 parameters and a smaller gap than 64x1 with 2,433),
-    # because depth and width do not trade off along a single axis. Both fits
-    # return b pinned at its bound. Reading a six-figure asymptote off that fit
-    # would be false precision on the number that decides the paper, so the
-    # decision rests on what the cells actually reached.
-    #
+    # An earlier version of this verdict attributed the pattern to interpolation
+    # on the basis of parameters per datapoint. The table above contradicts that
+    # reading: 128x1 sits at 1.22 parameters per datapoint, above the boundary,
+    # and is four orders of magnitude short of closure. The gap is ordered by
+    # DEPTH, with width amplifying within depth, and the ratio cuts across both.
+    # The causal question is therefore deferred to the shuffled-target control
+    # rather than answered here from a ratio the data does not support.
+    cells_v = agg["cells"]
+
+    def gap_of(k: str) -> float:
+        return 1.0 - cells_v[k]["closure_r2"]["mean"]
+
     # The floor for a CLOSURE claim is the null control's CLOSURE, not its
-    # effect size: comparing a closure gap against an effect size compares two
-    # different quantities.
-    null_closure_gap = max(
-        1.0 - agg["cells"][k]["null_closure_r2"]["mean"] for k in agg["cells"]
-    )
-    null_effect_floor = max(
-        agg["cells"][k]["null_effect_size"]["mean"] for k in agg["cells"]
-    )
-    best_cell = max(agg["cells"], key=lambda k: agg["cells"][k]["closure_r2"]["mean"])
-    best = agg["cells"][best_cell]
+    # effect size: those are different quantities.
+    null_closure_gap = max(1.0 - cells_v[k]["null_closure_r2"]["mean"] for k in cells_v)
+    null_effect_floor = max(cells_v[k]["null_effect_size"]["mean"] for k in cells_v)
 
-    # "Reaches 1.000000" means rounding to 1.000000 at six decimals, and by a
-    # margin larger than the pipeline's own numerical floor.
-    def reaches_one(v: dict[str, Any]) -> bool:
-        gap = 1.0 - v["closure_r2"]["mean"]
-        return gap < 5e-7 and gap <= max(null_closure_gap, 0.0) + 5e-7
+    depths = sorted({v["depth"] for v in cells_v.values()})
+    widths = sorted({v["hidden"] for v in cells_v.values()})
 
-    under = {k: v for k, v in agg["cells"].items() if v["params_per_point"] < 1.0}
-    over = {k: v for k, v in agg["cells"].items() if v["params_per_point"] >= 1.0}
-    closed_under = [k for k, v in under.items() if reaches_one(v)]
-    closed_over = [k for k, v in over.items() if reaches_one(v)]
-    best_under = (
-        min(under, key=lambda k: 1.0 - under[k]["closure_r2"]["mean"])
-        if under
-        else None
-    )
-    best_over = (
-        min(over, key=lambda k: 1.0 - over[k]["closure_r2"]["mean"]) if over else None
-    )
-    gap_under = (
-        1.0 - under[best_under]["closure_r2"]["mean"] if best_under else float("nan")
-    )
-    gap_over = (
-        1.0 - over[best_over]["closure_r2"]["mean"] if best_over else float("nan")
-    )
-    trend_at_best = best["effect_trend_rho"]
-    trend_vanished = trend_at_best["lo"] <= 0.2
+    def reaches_one(k: str) -> bool:
+        """Rounds to 1.000000 at six decimals, above the pipeline's own floor."""
+        return gap_of(k) < 5e-7 and gap_of(k) <= max(null_closure_gap, 0.0) + 5e-7
 
-    fit_note = (
-        " The power-law asymptote is reported above but is NOT used for this "
-        "verdict: b is pinned at its bound in the fit, because the closure gap "
-        "is not monotone in parameter count. The verdict rests on what the "
-        "cells reached."
-        if agg["asymptote"].get("b_at_bound", True)
+    closed = sorted(k for k in cells_v if reaches_one(k))
+    closed_depths = sorted({cells_v[k]["depth"] for k in closed})
+    open_depths = [d for d in depths if d not in closed_depths]
+
+    best_by_depth = {d: min((k for k in cells_v if cells_v[k]["depth"] == d), key=gap_of) for d in depths}
+    fit_flag = agg["asymptote"].get("b_at_bound", True)
+
+    # Depth-1 sentence, built from the data rather than asserted.
+    d_open = open_depths[0] if open_depths else None
+    kb = best_by_depth[d_open] if d_open is not None else None
+    open_txt = (
+        f"No cell reaches closure of 1.000000 at depth {d_open}, at any width "
+        f"tested. The best is {kb} at {cells_v[kb]['closure_r2']['mean']:.6f}, a gap "
+        f"of {gap_of(kb):.1e}, and it sits at {cells_v[kb]['params_per_point']:.2f} "
+        f"parameters per datapoint -- above one, yet nowhere near closure."
+        if kb is not None
+        else "Closure of 1.000000 is reached at every depth tested."
+    )
+    closed_txt = (
+        "Closure of 1.000000 is reached at "
+        + " and ".join(f"depth {d}" for d in closed_depths)
+        + f" at width {max(cells_v[k]['hidden'] for k in closed)}"
+        + (
+            ", and approached to within "
+            + ", ".join(
+                f"{gap_of(k):.1e} at {k}"
+                for k in sorted(
+                    (
+                        k
+                        for k in cells_v
+                        if cells_v[k]["depth"] in closed_depths
+                        and cells_v[k]["hidden"] == 64
+                    ),
+                    key=gap_of,
+                )
+            )
+            + "."
+            if any(cells_v[k]["hidden"] == 64 for k in cells_v)
+            else "."
+        )
+        if closed
+        else "No cell reaches closure of 1.000000 at any depth or width tested."
+    )
+
+    # The competing mechanisms, and what each predicts.
+    over_one = [k for k in cells_v if cells_v[k]["params_per_point"] >= 1.0]
+    over_one_open = sorted(
+        (k for k in over_one if not reaches_one(k)), key=gap_of
+    )
+    ratio_txt = (
+        "The parameters-per-datapoint reading is additionally contradicted by the "
+        "table: it predicts that every cell above one parameter per datapoint "
+        f"should close, and {', '.join(over_one_open)} "
+        f"{'does' if len(over_one_open) == 1 else 'do'} not "
+        f"(gap {', '.join(f'{gap_of(k):.1e}' for k in over_one_open)})."
+        if over_one_open
         else ""
     )
-    floor_note = (
-        f" The pipeline's numerical floor is the null control's closure, which "
-        f"is 1.000000 in every cell (largest null gap {null_closure_gap:.2e}), "
-        f"so a shortfall above that floor is real. (The null EFFECT size reaches "
-        f"{null_effect_floor:.4f}, which is why effect size is not used as the "
-        f"closure floor here.)"
-    )
 
-    if closed_under:
-        verdict = (
-            f"**Closure reaches 1.000000 in the underparameterized regime.** "
-            f"{len(closed_under)} of {len(under)} cells with FEWER parameters than "
-            f"datapoints reach it ({', '.join(sorted(closed_under))}); the best is "
-            f"{best_under} at a gap of {gap_under:.2e}. A sufficiently flexible G-P "
-            "map IS closed under monotone reparameterization on real MPSA data, and "
-            "because this happens where the map cannot simply interpolate the "
-            "observed points, it is a property of the model class. The twin is then "
-            "a legitimate alternative fit that predicts identically and no sample "
-            "size separates it, so the two global-epistasis mechanisms are provably "
-            "confusable at that capacity. **This kills the mechanism-discrimination "
-            "direction and restores the strong identifiability claim.**"
-            + floor_note
-            + fit_note
-            + (
-                f" Corroboration: at {best_cell} the effect-versus-strength Spearman "
-                f"is {trend_at_best['mean']:+.3f} [{trend_at_best['lo']:+.3f}, "
-                f"{trend_at_best['hi']:+.3f}], consistent with an undetectable twin."
-                if trend_vanished
-                else f" INCONSISTENT: at {best_cell} the effect still trends with "
-                f"strength ({trend_at_best['mean']:+.3f} [{trend_at_best['lo']:+.3f}, "
-                f"{trend_at_best['hi']:+.3f}]), which should not happen if the twin "
-                "is undetectable. Resolve before using this result."
-            )
+    verdict = (
+        "**Verdict pending. This experiment establishes the structure but does not "
+        "determine the mechanism, and neither branch of the original question is "
+        "decided by it.**"
+        f" {open_txt} {closed_txt}"
+        " The gap is ordered by depth, with width amplifying within depth; see the "
+        "gap table above."
+        "\n\n"
+        "**Two mechanisms predict this pattern and this experiment does not separate "
+        "them.** *Depth-dependent expressivity*: composing more layers may make the "
+        "class genuinely closed under monotone reparameterization, because a deeper "
+        "map can absorb a warp into its own hidden layers, in which case closure at "
+        "the 128-wide cells is structural. *Interpolation*: those same cells hold "
+        "more parameters than datapoints and can fit an arbitrary target on the "
+        "observed points, in which case their closure carries no information about "
+        "the model class. Both predict exactly what the table shows for the widest "
+        f"cells. {ratio_txt}"
+        "\n\n"
+        "**The discriminating experiment is the shuffled-target control** "
+        "(`experiments/closure_shuffled.py`, table `paper/tables/closure_shuffled.md`). "
+        "It refits each cell to a random permutation of the fitted latent and to "
+        "Gaussian noise, under this experiment's protocol. A class that is closed "
+        "through expressivity re-represents monotone warps and fails the "
+        "non-monotone targets; a map that interpolates re-represents all of them. "
+        "Until that dissociation is measured, whether a sufficiently flexible G-P "
+        "map is closed on real MPSA data -- and therefore whether the strong "
+        "identifiability claim holds or the mechanism test remains viable -- is "
+        "**open**."
+        f" The pipeline's numerical floor is the null control's closure, 1.000000 in "
+        f"every cell (largest null gap {null_closure_gap:.2e}), so the shortfalls "
+        f"above that floor are real. (The null EFFECT size reaches "
+        f"{null_effect_floor:.4f}; effect size is a different quantity and is not "
+        "used as the closure floor.)"
+        + (
+            " The power-law asymptote is reported above but is NOT used: b is pinned "
+            "at its bound, because the closure gap is not monotone in parameter "
+            "count -- depth and width do not trade off along a single axis."
+            if fit_flag
+            else ""
         )
-    elif closed_over:
-        verdict = (
-            f"**Closure reaches 1.000000 ONLY by interpolation.** No cell with fewer "
-            f"parameters than datapoints reaches it: the best such cell is "
-            f"{best_under} at closure "
-            f"{under[best_under]['closure_r2']['mean']:.6f} (gap {gap_under:.2e}). "
-            f"Closure appears only once the map is overparameterized "
-            f"({', '.join(sorted(closed_over))}; best {best_over} at gap "
-            f"{gap_over:.2e}), where it can fit ANY target on the observed points, so "
-            "reaching 1 there says nothing about whether the model class is closed "
-            "under reparameterization. **The strong identifiability claim does NOT "
-            "follow.** On the evidence that is not interpolation, the classes remain "
-            "separable on real data, the mechanism test is viable, and the "
-            "identifiability claim is the weaker practical one."
-            + floor_note
-            + fit_note
-            + (
-                f" Note that at {best_cell} the effect-versus-strength Spearman is "
-                f"{trend_at_best['mean']:+.3f} [{trend_at_best['lo']:+.3f}, "
-                f"{trend_at_best['hi']:+.3f}]: the twin is still detectable in a cell "
-                "reporting closure of 1.000000, which is itself inconsistent with "
-                "genuine closure and corroborates the interpolation reading."
-                if not trend_vanished
-                else ""
-            )
-        )
-    else:
-        verdict = (
-            f"**Closure does NOT reach 1.000000 at any capacity tested.** The best "
-            f"cell is {best_cell} at {best['closure_r2']['mean']:.6f} "
-            f"({best['n_params']:,} parameters, "
-            f"{best['params_per_point']:.2f} per datapoint), a residual gap of "
-            f"{1.0 - best['closure_r2']['mean']:.2e} that does not close as width and "
-            f"depth grow; the best underparameterized cell is {best_under} at gap "
-            f"{gap_under:.2e}. **The G-P map classes are separable on real data, the "
-            "mechanism test is viable, and the identifiability claim is the weaker "
-            "practical one, not the strong claim.** The twin is detectable at "
-            "sufficient sample size and the two global-epistasis mechanisms are not "
-            "provably confusable." + floor_note + fit_note
-        )
+    )
     agg["closure_reached"] = {
-        "underparameterized": sorted(closed_under),
-        "overparameterized": sorted(closed_over),
-        "best_underparameterized": best_under,
-        "best_underparameterized_gap": gap_under,
-        "best_overparameterized": best_over,
-        "best_overparameterized_gap": gap_over,
+        "closed_cells": closed,
+        "closed_depths": closed_depths,
+        "open_depths": open_depths,
+        "best_per_depth": {str(d): best_by_depth[d] for d in depths},
+        "gap_per_depth_best": {str(d): gap_of(best_by_depth[d]) for d in depths},
+        "overparameterized_not_closed": over_one_open,
         "null_closure_gap": null_closure_gap,
+        "mechanism": "undetermined; pending experiments/closure_shuffled.py",
+    }
+    agg["gap_by_depth_width"] = {
+        f"depth{d}": {f"w{w}": gap_of(f"{w}x{d}") for w in widths} for d in depths
     }
     agg["verdict"] = verdict
     agg["null_floor_effect_size"] = null_effect_floor
     agg["null_floor_closure_gap"] = null_closure_gap
-    agg["best_cell"] = best_cell
+    agg["best_cell"] = min(cells_v, key=gap_of)
 
     L = ["# Does closure converge to 1.000000 as G-P map capacity grows?\n"]
     L.append(
@@ -771,6 +781,23 @@ def main(argv: list[str] | None = None) -> int:
             f"{n_deg} cell-seeds affected."
         )
     L.append("")
+    L.append("## Closure gap by depth and width\n")
+    L.append(
+        "The gap `1 - R²` at s=0.95, arranged the way the data is actually "
+        "ordered. Depth sets what is reachable and width amplifies within a "
+        "depth; parameters per datapoint cuts across both, which is why it does "
+        "not order this table.\n"
+    )
+    L.append("| | " + " | ".join(f"width {w}" for w in widths) + " |")
+    L.append("|---|" + "---|" * len(widths))
+    for dp_ in depths:
+        row = [f"**depth {dp_}**"]
+        for w in widths:
+            g_ = 1.0 - agg["cells"][f"{w}x{dp_}"]["closure_r2"]["mean"]
+            row.append(f"{g_:.2e}" + (" **←1.000000**" if g_ < 5e-7 else ""))
+        L.append("| " + " | ".join(row) + " |")
+    L.append("")
+
     L.append("## Asymptote\n")
     A, U = agg["asymptote"], agg["asymptote_underparam"]
     L.append(
@@ -783,15 +810,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     if np.isfinite(U.get("gap_inf", float("nan"))):
         L.append(
-            f"That fit is dominated by the widest cells, which are the ones able to "
-            f"interpolate any target on the observed points. Restricted to the "
-            f"{U['n_cells']} cells with FEWER parameters than datapoints "
-            f"({', '.join(U['cells'])}), the same fit gives `g_inf` = "
+            f"Restricted to the {U['n_cells']} cells with fewer parameters than "
+            f"datapoints ({', '.join(U['cells'])}), the same fit gives `g_inf` = "
             f"{U['gap_inf']:.3e} [{U['gap_inf_lo']:.3e}, {U['gap_inf_hi']:.3e}], "
             f"i.e. closure tends to **{U['closure_inf']:.6f}** "
-            f"[{U['closure_inf_lo']:.6f}, {U['closure_inf_hi']:.6f}]. This is the "
-            f"fit that bears on structural closure; the unrestricted one cannot "
-            f"separate closure from interpolation.\n"
+            f"[{U['closure_inf_lo']:.6f}, {U['closure_inf_hi']:.6f}].\n\n"
+            f"**Neither fit is used, and neither number should be quoted.** Both "
+            f"have b pinned at the bound, because the gap is not monotone in "
+            f"parameter count. The split above is by parameters per datapoint, and "
+            f"the gap table shows that ratio does not order the cells either: "
+            f"128x1 is above it and far from closure while 16x3 is below it and "
+            f"comparable. Both fits are retained only to document that a power law "
+            f"in parameter count fails on this data.\n"
         )
     else:
         L.append(

@@ -539,18 +539,56 @@
   "n_boot": 400
  },
  "closure_reached": {
-  "underparameterized": [],
-  "overparameterized": [
+  "closed_cells": [
    "128x2",
    "128x3"
   ],
-  "best_underparameterized": "16x3",
-  "best_underparameterized_gap": 0.00026458043229860007,
-  "best_overparameterized": "128x3",
-  "best_overparameterized_gap": 2.5779289813954165e-10,
-  "null_closure_gap": 0.0
+  "closed_depths": [
+   2,
+   3
+  ],
+  "open_depths": [
+   1
+  ],
+  "best_per_depth": {
+   "1": "128x1",
+   "2": "128x2",
+   "3": "128x3"
+  },
+  "gap_per_depth_best": {
+   "1": 0.00011777866371465162,
+   "2": 1.2450858788426444e-08,
+   "3": 2.5779289813954165e-10
+  },
+  "overparameterized_not_closed": [
+   "64x2",
+   "64x3",
+   "128x1"
+  ],
+  "null_closure_gap": 0.0,
+  "mechanism": "undetermined; pending experiments/closure_shuffled.py"
  },
- "verdict": "**Closure reaches 1.000000 ONLY by interpolation.** No cell with fewer parameters than datapoints reaches it: the best such cell is 16x3 at closure 0.999735 (gap 2.65e-04). Closure appears only once the map is overparameterized (128x2, 128x3; best 128x3 at gap 2.58e-10), where it can fit ANY target on the observed points, so reaching 1 there says nothing about whether the model class is closed under reparameterization. **The strong identifiability claim does NOT follow.** On the evidence that is not interpolation, the classes remain separable on real data, the mechanism test is viable, and the identifiability claim is the weaker practical one. The pipeline's numerical floor is the null control's closure, which is 1.000000 in every cell (largest null gap 0.00e+00), so a shortfall above that floor is real. (The null EFFECT size reaches 0.0756, which is why effect size is not used as the closure floor here.) The power-law asymptote is reported above but is NOT used for this verdict: b is pinned at its bound in the fit, because the closure gap is not monotone in parameter count. The verdict rests on what the cells reached.",
+ "gap_by_depth_width": {
+  "depth1": {
+   "w16": 0.012093688815962622,
+   "w32": 0.006238871641128796,
+   "w64": 0.0012274005322556736,
+   "w128": 0.00011777866371465162
+  },
+  "depth2": {
+   "w16": 0.0007179689155446534,
+   "w32": 0.0025624718814579728,
+   "w64": 2.704533543562704e-06,
+   "w128": 1.2450858788426444e-08
+  },
+  "depth3": {
+   "w16": 0.00026458043229860007,
+   "w32": 0.00047529806696533505,
+   "w64": 2.777671221920741e-06,
+   "w128": 2.5779289813954165e-10
+  }
+ },
+ "verdict": "**Verdict pending. This experiment establishes the structure but does not determine the mechanism, and neither branch of the original question is decided by it.** No cell reaches closure of 1.000000 at depth 1, at any width tested. The best is 128x1 at 0.999882, a gap of 1.2e-04, and it sits at 1.22 parameters per datapoint -- above one, yet nowhere near closure. Closure of 1.000000 is reached at depth 2 and depth 3 at width 128, and approached to within 2.7e-06 at 64x2, 2.8e-06 at 64x3. The gap is ordered by depth, with width amplifying within depth; see the gap table above.\n\n**Two mechanisms predict this pattern and this experiment does not separate them.** *Depth-dependent expressivity*: composing more layers may make the class genuinely closed under monotone reparameterization, because a deeper map can absorb a warp into its own hidden layers, in which case closure at the 128-wide cells is structural. *Interpolation*: those same cells hold more parameters than datapoints and can fit an arbitrary target on the observed points, in which case their closure carries no information about the model class. Both predict exactly what the table shows for the widest cells. The parameters-per-datapoint reading is additionally contradicted by the table: it predicts that every cell above one parameter per datapoint should close, and 64x2, 64x3, 128x1 do not (gap 2.7e-06, 2.8e-06, 1.2e-04).\n\n**The discriminating experiment is the shuffled-target control** (`experiments/closure_shuffled.py`, table `paper/tables/closure_shuffled.md`). It refits each cell to a random permutation of the fitted latent and to Gaussian noise, under this experiment's protocol. A class that is closed through expressivity re-represents monotone warps and fails the non-monotone targets; a map that interpolates re-represents all of them. Until that dissociation is measured, whether a sufficiently flexible G-P map is closed on real MPSA data -- and therefore whether the strong identifiability claim holds or the mechanism test remains viable -- is **open**. The pipeline's numerical floor is the null control's closure, 1.000000 in every cell (largest null gap 0.00e+00), so the shortfalls above that floor are real. (The null EFFECT size reaches 0.0756; effect size is a different quantity and is not used as the closure floor.) The power-law asymptote is reported above but is NOT used: b is pinned at its bound, because the closure gap is not monotone in parameter count -- depth and width do not trade off along a single axis.",
  "null_floor_effect_size": 0.07558611225362903,
  "null_floor_closure_gap": 0.0,
  "best_cell": "128x3"
