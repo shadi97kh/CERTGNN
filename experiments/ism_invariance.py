@@ -302,6 +302,38 @@ def make_table(agg: dict[str, Any], cfg: Any, meta: dict[str, Any]) -> str:
             )
         L.append("")
 
+    L.append("## ISM within-locus RATIO invariance error\n")
+    L.append(
+        "Median |log of the ratio-of-ratios| over mutation pairs at one locus, which is exactly "
+        "|log(psi'(xi_j) / psi'(xi_k))|. Zero iff the two mutations share a multiplier. Ranking "
+        "asks which mutation matters more; the ratio asks how much more, and they can come apart.\n"
+    )
+    for fam in agg["families"]:
+        L.append(f"### {fam}\n")
+        L.append(
+            "| effect-size bin | median effect | "
+            + " | ".join(f"s={s_:g}" for s_ in agg["strengths"])
+            + " |"
+        )
+        L.append("|---" * (len(agg["strengths"]) + 2) + "|")
+        for b in sorted(agg["bins"].get(fam, {})):
+            lo, hi = BIN_EDGES[b], BIN_EDGES[b + 1]
+            label = f"{lo:g}-{hi:g}" if np.isfinite(hi) else f">{lo:g}"
+            cells, med = [], None
+            for s_ in agg["strengths"]:
+                e = agg["bins"][fam][b].get(s_)
+                if e:
+                    med = e["median_effect"]
+                    cells.append(f"{e['ism_ratio_error']['mean']:.3f}")
+                else:
+                    cells.append("n/a")
+            L.append(
+                f"| {label} | {(med if med is not None else float('nan')):.3f} | "
+                + " | ".join(cells)
+                + " |"
+            )
+        L.append("")
+
     L.append("## Headline: where within-locus ISM ranking breaks\n")
     L.append(
         f"Effect size (latent units) at which the binned within-locus Spearman drops below {im.cut:g}:\n"
@@ -436,6 +468,23 @@ def main(argv: list[str] | None = None) -> int:
         if np.isfinite(c["grad_spearman"]["lo"])
     )
     finite = [t for t in threshold.values() if np.isfinite(t)]
+    worst_ratio = 0.0
+    worst_ratio_fam = ""
+    for fam in fams:
+        for binmap in bins[fam].values():
+            for s_, e in binmap.items():
+                if e["ism_ratio_error"]["mean"] > worst_ratio:
+                    worst_ratio = float(e["ism_ratio_error"]["mean"])
+                    worst_ratio_fam = f"{fam} at s={s_:g}"
+    ratio_note = (
+        f"\n\n**But ratio invariance does NOT survive.** The within-locus ratio error reaches "
+        f"{worst_ratio:.3f} in log units ({worst_ratio_fam}), a factor of "
+        f"{np.exp(worst_ratio):.2f} distortion in how much more one mutation matters than "
+        f"another at the same locus, against exactly 0.000 for the autograd control. Ranking "
+        f'and ratio come apart: a rule that licenses "position j matters more than k here" '
+        f'survives the move to ISM; a rule that licenses "j has twice the effect of k" does '
+        f"not."
+    )
     q = agg["spread_quantiles"]
     if not ctrl_ok:
         verdict = (
@@ -449,7 +498,7 @@ def main(argv: list[str] | None = None) -> int:
             f"above {cut:g} in every effect-size bin, at every warp strength and family tested. On "
             "this evidence the constructive rule survives the move from gradients to in-silico "
             "mutagenesis, and the per-mutation multiplier of the mean value theorem is too weak to "
-            "reorder mutations at a locus."
+            "reorder mutations at a locus." + ratio_note
         )
     else:
         worst = min(finite)
