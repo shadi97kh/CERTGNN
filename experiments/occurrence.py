@@ -91,12 +91,15 @@ from experiments.closure_capacity import (
 from experiments.closure_heldout import split_indices
 from experiments.identifiability_probe import affine_r2
 from experiments.separation import (
+    attribution_concentration,
     ism_by_position_per_instance,
     ism_by_substitution,
     load_counts,
     noise_sd_standardized,
     per_instance_rho,
+    per_instance_rho_topk,
     phenotype_slope,
+    top_k_agreement,
 )
 
 
@@ -117,11 +120,22 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
     counts = load_counts(cfg, seed)
     sd_ho = noise_sd_standardized(counts, phenotype_slope(counts))[ho_np]
 
-    # n_separate uses the same test and thresholds as separation.py.
-    z_a = float(norm.ppf(1.0 - float(cfg.separation.alpha) / 2.0))
+    # One alpha drives both the performance filter and the reported resolution
+    # of that filter, so they cannot drift apart. n_separate is meant to be
+    # comparable with separation.py, so equality with its alpha is asserted
+    # rather than assumed: if either config moves, this fails loudly instead of
+    # silently reporting a resolution for a different test than the one run.
+    filt_alpha = float(oc.alpha)
+    sep_alpha = float(cfg.separation.alpha)
+    if abs(filt_alpha - sep_alpha) > 1e-12:
+        raise RuntimeError(
+            f"occurrence.alpha ({filt_alpha}) must equal separation.alpha "
+            f"({sep_alpha}): the filter's reported resolution and n_separate would "
+            "otherwise describe different tests"
+        )
+    z_a = float(norm.ppf(1.0 - filt_alpha / 2.0))
     z_b = float(norm.ppf(float(cfg.separation.power)))
     crit = (z_a + z_b) ** 2
-    filt_alpha = float(oc.alpha)
     K = int(oc.n_models)
     n_ism = min(int(oc.ism_instances), int(ho_idx.numel()))
     ism_idx = ho_idx[:n_ism]
@@ -194,6 +208,9 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                 )
                 rho = spearmanr(attrs[i], attrs[j]).statistic
                 pi = per_instance_rho(per_inst[i], per_inst[j])
+                tk = top_k_agreement(per_inst[i], per_inst[j])
+                tkr = per_instance_rho_topk(per_inst[i], per_inst[j])
+                conc = attribution_concentration(per_inst[i])
                 ok_sub = np.isfinite(subs[i]) & np.isfinite(subs[j])
                 r_sub = (
                     spearmanr(subs[i][ok_sub], subs[j][ok_sub]).statistic
@@ -223,6 +240,10 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                         "pi_p10": pi["p10"],
                         "pi_p90": pi["p90"],
                         "pi_frac_below_05": pi["frac_below_05"],
+                        "conc_top3": conc["top3_mass_median"],
+                        "eff_pos": conc["effective_positions_median"],
+                        **{f"tk_{k}": v for k, v in tk.items()},
+                        **{f"tk_{k}": v for k, v in tkr.items()},
                         "mde_r2": float(mde_mse / sst_mean)
                         if sst_mean > 0
                         else float("nan"),
@@ -385,6 +406,14 @@ def main(argv: list[str] | None = None) -> int:
             ("pi_frac_below_05", "pi_frac_below_05"),
             ("attr_rho_sub", "attr_rho_sub"),
             ("mde_r2", "mde_r2"),
+            ("conc_top3", "conc_top3"),
+            ("eff_pos", "eff_pos"),
+            ("tk_j1", "tk_jaccard_top1_median"),
+            ("tk_j2", "tk_jaccard_top2_median"),
+            ("tk_j3", "tk_jaccard_top3_median"),
+            ("tk_ex1", "tk_top1_exact_frac"),
+            ("tk_rho", "tk_topk_rho_median"),
+            ("tk_union", "tk_topk_union_median"),
         ):
             vv = [p[key] for c in sel for p in c["pairs"] if np.isfinite(p.get(key, np.nan))]
             entry[f"pooled_{nm}"] = float(np.median(vv)) if vv else float("nan")
@@ -452,6 +481,29 @@ def main(argv: list[str] | None = None) -> int:
         "resolution**, they **are separable as functions** with the stated number of "
         "measurements, and they **attribute differently**.\n"
     )
+    L.append(
+        "**Is the tail degenerate?** If attribution concentrates in a few positions, "
+        "a low all-position ρ may only be reporting the order of positions that carry "
+        "no mass. `top-3 mass` is the median fraction of a sequence's total |Δ| in its "
+        "three strongest positions; `eff. positions` is exp(entropy) of the "
+        f"normalized magnitudes, where {agg['seq_len']:.1f} means all contribute "
+        "equally and 1.0 means one dominates. `Jaccard` is the median overlap of the "
+        "two models' top-k position SETS — what a reader actually uses.\n"
+    )
+    L.append(
+        "| width | depth | top-3 mass | eff. positions | Jaccard top1 / top2 / top3 "
+        "| top-1 exact | ρ on top-3 union |"
+    )
+    L.append("|---|---|---|---|---|---|---|")
+    for h, dp in keys:
+        c = agg["cells"][f"{h}x{dp}"]
+        L.append(
+            f"| {h} | {dp} | {c['pooled_conc_top3']:.3f} | {c['pooled_eff_pos']:.2f} | "
+            f"{c['pooled_tk_j1']:.2f} / {c['pooled_tk_j2']:.2f} / "
+            f"**{c['pooled_tk_j3']:.2f}** | {c['pooled_tk_ex1'] * 100:.0f}% | "
+            f"{c['pooled_tk_rho']:+.3f} (n≈{c['pooled_tk_union']:.1f}) |"
+        )
+    L.append("")
     L.append(
         "| width | depth | ρ over position averages (n="
         + str(agg["seq_len"])
@@ -580,18 +632,78 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
         pif = {k: v["pooled_pi_frac_below_05"] for k, v in usable.items()}
         w_pi = min(pim, key=lambda k: pim[k])
         w_f = max(pif, key=lambda k: pif[k])
+        j3 = {k: v["pooled_tk_j3"] for k, v in usable.items()}
+        ex1 = {k: v["pooled_tk_ex1"] for k, v in usable.items()}
+        mass = float(np.median([v["pooled_conc_top3"] for v in usable.values()]))
+        effp = float(np.median([v["pooled_eff_pos"] for v in usable.values()]))
+        thr = float(cfg.separation.jaccard_agree)
+        w_j = min(j3, key=lambda k: j3[k])
         parts.append(
-            "**And they attribute differently.** Measured per instance -- for a given "
-            "splice site, do the two models rank ITS positions the same way -- the "
-            f"median agreement is {pim[w_pi]:+.3f} in the worst cell ({w_pi}), and in "
-            f"{w_f} {pif[w_f] * 100:.0f}% of held-out sites the two rankings agree at "
-            "ρ below 0.5. Averaging attributions across instances before comparing, "
-            "as an earlier version did, discards exactly this variation. **This is "
-            "the occurrence result.** It needs no constructed twin, no "
-            "reparameterization and no refit, so it is immune to the search and "
-            "warm-start confounds `paper/tables/closure_search.md` found in the "
-            "warp-based route."
+            "**And they attribute differently -- measured per instance.** For a given "
+            "splice site, do the two models rank ITS positions the same way? Median "
+            f"agreement is {pim[w_pi]:+.3f} in the worst cell ({w_pi}), and in {w_f} "
+            f"{pif[w_f] * 100:.0f}% of held-out sites the two rankings agree at ρ "
+            "below 0.5. Averaging attributions across instances first, as an earlier "
+            "version did, discards exactly this variation."
         )
+        agree = sorted(k for k in j3 if j3[k] >= thr)
+        disagree = sorted(k for k in j3 if k not in agree)
+        if agree and disagree:
+            parts.append(
+                "**Which reading this supports: it depends on the cell, and both are "
+                f"stated.** Attribution is concentrated — a median {mass:.0%} of each "
+                f"sequence's |Δ| mass in three positions, an effective {effp:.2f} "
+                f"contributing positions of {agg['seq_len']} — so the top-3 set is the "
+                "part carrying signal. In "
+                + ", ".join(agree)
+                + " the models AGREE on which positions those are (median top-3 "
+                f"Jaccard at least {min(j3[k] for k in agree):.2f}), so there the "
+                "full-rank disagreement is tail ordering, the low per-instance ρ is "
+                "NOT the headline, and the supported claim is the narrow one: tied on "
+                "accuracy, they agree about what matters and differ on the ordering "
+                "of what does not. In "
+                + ", ".join(disagree)
+                + f" they do NOT agree — median top-3 Jaccard down to {j3[w_j]:.2f}, "
+                f"strongest position matching exactly in only {ex1[w_j] * 100:.0f}% of "
+                "sequences, and median rank agreement on the top-3 union of "
+                f"{usable[w_j]['pooled_tk_rho']:+.3f}. There the models differ about "
+                "WHICH positions matter and the occurrence claim stands as written. "
+                "**Top-k set overlap is the statistic to lead with either way**: it is "
+                "what gets used downstream and it is what separates these readings."
+            )
+        elif not disagree:
+            parts.append(
+                f"**But the disagreement is mostly in the tail, and the claim must "
+                f"narrow to say so.** Attribution is concentrated: a median {mass:.0%} "
+                f"of each sequence's |Δ| mass sits in three positions, an effective "
+                f"{effp:.2f} contributing positions of {agg['seq_len']}. And the "
+                "models agree on WHICH those are — median top-3 Jaccard at least "
+                f"{min(j3.values()):.2f} in every cell, with the single strongest "
+                f"position matching exactly in {min(ex1.values()) * 100:.0f}% to "
+                f"{max(ex1.values()) * 100:.0f}% of sequences. **The low per-instance "
+                "ρ is therefore NOT the headline: it largely reflects the ordering of "
+                "positions carrying little mass.** The supported claim is the narrow "
+                "one: models tied on accuracy agree about which positions matter and "
+                "disagree about the ordering of those that do not."
+            )
+        else:
+            parts.append(
+                f"**And the disagreement is about which positions matter, not about "
+                f"an irrelevant tail.** Attribution is concentrated — a median "
+                f"{mass:.0%} of |Δ| mass in three positions, an effective {effp:.2f} "
+                f"contributing positions of {agg['seq_len']} — yet the models differ "
+                f"on which those are: median top-3 Jaccard falls to {j3[w_j]:.2f} "
+                f"({w_j}) and the single strongest position matches exactly in only "
+                f"{ex1[w_j] * 100:.0f}% of sequences there. Restricted to the union "
+                "of the two top-3 sets, the positions that carry the signal, median "
+                f"rank agreement is {usable[w_j]['pooled_tk_rho']:+.3f}. **This is "
+                "the occurrence result, and top-k set overlap is the statistic to "
+                "lead with**, since a reader asks which positions matter for a site, "
+                "not how the bottom of the list is ordered. It needs no constructed "
+                "twin, no reparameterization and no refit, so it is immune to the "
+                "search and warm-start confounds `paper/tables/closure_search.md` "
+                "found in the warp-based route."
+            )
 
     parts.append(
         "Per cell, the median number of held-out measurements needed to separate an "

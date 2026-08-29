@@ -311,6 +311,91 @@ def per_instance_rho(a: np.ndarray, b: np.ndarray) -> dict[str, float]:
     }
 
 
+def attribution_concentration(pi: np.ndarray, k: int = 3) -> dict[str, float]:
+    """How concentrated is one model's attribution, per instance?
+
+    The BRCA2 5' splice-site library is NNN/GYNNNN, so a handful of positions
+    may carry nearly all the signal with a near-zero tail. If so, a rank
+    correlation over all positions is largely comparing the ORDER OF THE TAIL,
+    which is noise in both models, and a low value would say nothing about
+    whether the models disagree on what matters. This reports the fraction of
+    total attribution mass in the top k positions and the effective number of
+    contributing positions, exp of the entropy of the normalized magnitudes:
+    9.0 means all positions contribute equally, near 1.0 means one dominates.
+    """
+    m = np.abs(np.asarray(pi, dtype=float))
+    tot = m.sum(axis=1, keepdims=True)
+    tot = np.where(tot <= 0, np.nan, tot)
+    q = m / tot
+    srt = np.sort(q, axis=1)[:, ::-1]
+    topk = srt[:, :k].sum(axis=1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ent = -np.nansum(np.where(q > 0, q * np.log(q), 0.0), axis=1)
+    return {
+        f"top{k}_mass_median": float(np.nanmedian(topk)),
+        "effective_positions_median": float(np.nanmedian(np.exp(ent))),
+    }
+
+
+def top_k_agreement(
+    a: np.ndarray, b: np.ndarray, ks: tuple[int, ...] = (1, 2, 3)
+) -> dict[str, float]:
+    """Do two models pick the same top positions, per instance?
+
+    Jaccard overlap of the top-k position SETS, which is what actually gets used
+    downstream: a reader asks which positions matter for this splice site, not
+    how positions seven through nine are ordered. Reported as the median over
+    instances, plus the fraction of instances whose single top position matches
+    exactly.
+    """
+    out: dict[str, float] = {}
+    A = np.abs(np.asarray(a, dtype=float))
+    B = np.abs(np.asarray(b, dtype=float))
+    for k in ks:
+        ia = np.argsort(-A, axis=1)[:, :k]
+        ib = np.argsort(-B, axis=1)[:, :k]
+        jac = np.empty(A.shape[0], dtype=float)
+        for r in range(A.shape[0]):
+            sa, sb = set(ia[r].tolist()), set(ib[r].tolist())
+            jac[r] = len(sa & sb) / len(sa | sb)
+        out[f"jaccard_top{k}_median"] = float(np.median(jac))
+        if k == 1:
+            out["top1_exact_frac"] = float(np.mean(jac >= 1.0))
+    return out
+
+
+def per_instance_rho_topk(a: np.ndarray, b: np.ndarray, k: int = 3) -> dict[str, float]:
+    """Per-instance rank agreement restricted to the positions that carry mass.
+
+    The rank correlation is taken over the UNION of the two models' top-k
+    positions, so it asks whether they order the important positions the same
+    way rather than whether they order the irrelevant ones the same way. The
+    union holds between k and 2k items, which is coarser still than the full
+    vector, so the median union size is reported alongside and this number is
+    read together with the top-k set overlap rather than on its own.
+    """
+    A = np.abs(np.asarray(a, dtype=float))
+    B = np.abs(np.asarray(b, dtype=float))
+    rhos, sizes = [], []
+    for r in range(A.shape[0]):
+        idx = sorted(
+            set(np.argsort(-A[r])[:k].tolist()) | set(np.argsort(-B[r])[:k].tolist())
+        )
+        sizes.append(len(idx))
+        if len(idx) < 3:
+            continue
+        rr = spearmanr(a[r][idx], b[r][idx]).statistic
+        if np.isfinite(rr):
+            rhos.append(float(rr))
+    if not rhos:
+        return {"topk_rho_median": float("nan"), "topk_union_median": float("nan")}
+    return {
+        "topk_rho_median": float(np.median(rhos)),
+        "topk_rho_p10": float(np.percentile(rhos, 10)),
+        "topk_union_median": float(np.median(sizes)),
+    }
+
+
 def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
     cc, ip = cfg.closure_capacity, cfg.identifiability
     sp = cfg.separation
@@ -422,6 +507,13 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
             pi_ref = ism_by_position_per_instance(pred_ref, x, seq_len, ism_idx)
             pi_twin = ism_by_position_per_instance(pred_twin, x, seq_len, ism_idx)
             pi = per_instance_rho(pi_ref, pi_twin)
+            # Is the tail near-degenerate? If attribution is concentrated in a
+            # few positions, a low all-9 rho may only reflect the ordering of
+            # positions that carry no mass.
+            conc_r = attribution_concentration(pi_ref)
+            conc_t = attribution_concentration(pi_twin)
+            tk = top_k_agreement(pi_ref, pi_twin)
+            tkr = per_instance_rho_topk(pi_ref, pi_twin)
 
             # Substitution level: same comparison with seq_len*4 items instead
             # of seq_len, so the rank correlation is less granular.
@@ -448,6 +540,12 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     "pi_p10": pi["p10"],
                     "pi_p90": pi["p90"],
                     "pi_frac_below_05": pi["frac_below_05"],
+                    "conc_top3_ref": conc_r["top3_mass_median"],
+                    "conc_top3_twin": conc_t["top3_mass_median"],
+                    "eff_pos_ref": conc_r["effective_positions_median"],
+                    "eff_pos_twin": conc_t["effective_positions_median"],
+                    **{f"tk_{k}": v for k, v in tk.items()},
+                    **{f"tk_{k}": v for k, v in tkr.items()},
                     "n_separate": z_stat,
                     "rms_pred_diff": float(np.sqrt(np.mean(diff[fin] ** 2)))
                     if fin.any()
@@ -548,6 +646,15 @@ def main(argv: list[str] | None = None) -> int:
             "pi_frac_below_05": mean_ci(
                 [c["pi_frac_below_05"] for c in sel], n_boot=nb
             ),
+            **{
+                f: mean_ci([c[f] for c in sel], n_boot=nb)
+                for f in (
+                    "conc_top3_ref", "conc_top3_twin", "eff_pos_ref", "eff_pos_twin",
+                    "tk_jaccard_top1_median", "tk_jaccard_top2_median",
+                    "tk_jaccard_top3_median", "tk_top1_exact_frac",
+                    "tk_topk_rho_median", "tk_topk_union_median",
+                )
+            },
             "n_separate": mean_ci([c["n_separate"] for c in sel], n_boot=nb),
             "rms_pred_diff": mean_ci([c["rms_pred_diff"] for c in sel], n_boot=nb),
             "mean_snr2": mean_ci([c["mean_snr2"] for c in sel], n_boot=nb),
@@ -601,6 +708,34 @@ def main(argv: list[str] | None = None) -> int:
         "discards exactly the variation the claim is about: the question is whether "
         "two fits rank the positions of a GIVEN splice site the same way.\n"
     )
+    L.append(
+        "**Is the tail degenerate?** If attribution concentrates in a few "
+        "positions, a low all-position ρ may only be reporting the order of "
+        "positions that carry no mass. `top-3 mass` is the median fraction of "
+        "total |Δ| in a sequence's three strongest positions; `eff. positions` is "
+        "exp(entropy) of the normalized magnitudes, where "
+        f"{agg['seq_len']:.1f} means all positions contribute equally and 1.0 means "
+        "one dominates. `Jaccard` is the median overlap of the two fits' top-k "
+        "position SETS — the quantity a reader actually uses.\n"
+    )
+    L.append(
+        "| width | depth | top-3 mass | eff. positions | Jaccard top1 / top2 / top3 "
+        "| top-1 exact | ρ on top-3 union |"
+    )
+    L.append("|---|---|---|---|---|---|---|")
+    for h, dp in keys:
+        c = agg["cells"][f"{h}x{dp}"]
+        L.append(
+            f"| {h} | {dp} | {c['conc_top3_ref']['mean']:.3f} | "
+            f"{c['eff_pos_ref']['mean']:.2f} | "
+            f"{c['tk_jaccard_top1_median']['mean']:.2f} / "
+            f"{c['tk_jaccard_top2_median']['mean']:.2f} / "
+            f"**{c['tk_jaccard_top3_median']['mean']:.2f}** | "
+            f"{c['tk_top1_exact_frac']['mean'] * 100:.0f}% | "
+            f"{c['tk_topk_rho_median']['mean']:+.3f} "
+            f"(n≈{c['tk_topk_union_median']['mean']:.1f}) |"
+        )
+    L.append("")
     L.append(
         "| width | depth | ρ over position averages (n="
         + str(agg["seq_len"])
@@ -723,6 +858,71 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
         f"carry a claim: its standard error under independence is about "
         f"{1.0 / (max(agg['seq_len'] - 1, 1) ** 0.5):.2f}."
     )
+
+    # Which reading does the per-instance number support? A low all-position rho
+    # is ambiguous between "the fits disagree about what matters" and "they agree
+    # about what matters and order the irrelevant tail independently". The top-k
+    # set overlap separates those, so the verdict is stated conditionally on it.
+    j3 = {k: v["tk_jaccard_top3_median"]["mean"] for k, v in cells.items()}
+    ex1 = {k: v["tk_top1_exact_frac"]["mean"] for k, v in cells.items()}
+    mass = {k: v["conc_top3_ref"]["mean"] for k, v in cells.items()}
+    effp = {k: v["eff_pos_ref"]["mean"] for k, v in cells.items()}
+    thr = float(cfg.separation.jaccard_agree)
+    worst_j = min(j3, key=lambda k: j3[k])
+    concentrated = float(np.median(list(mass.values())))
+    agree = sorted(k for k in j3 if j3[k] >= thr)
+    disagree = sorted(k for k in j3 if k not in agree)
+    if agree and disagree:
+        parts.append(
+            f"**Which reading this supports: it depends on the cell, and both must be "
+            f"stated.** Attribution is concentrated ({concentrated:.0%} of each "
+            f"sequence's |Δ| mass in three positions, an effective "
+            f"{float(np.median(list(effp.values()))):.2f} contributing positions of "
+            f"{agg['seq_len']}), so the top-3 set is the part that carries signal. In "
+            + ", ".join(agree)
+            + f" the two fits AGREE on which positions those are (median top-3 Jaccard "
+            f"at least {min(j3[k] for k in agree):.2f}), so there the full-rank "
+            "disagreement is tail ordering and the low per-instance ρ is NOT the "
+            "headline; the honest claim for those cells is the narrow one. In "
+            + ", ".join(disagree)
+            + f" they do NOT agree (median top-3 Jaccard down to {j3[worst_j]:.2f}, "
+            f"strongest position matching exactly in only {ex1[worst_j] * 100:.0f}% of "
+            "sequences), so there the models differ about what matters and the claim "
+            "stands as written. **Top-k set overlap is the statistic to lead with "
+            "either way**, because it is what gets used downstream and it is the one "
+            "that separates these two readings."
+        )
+    elif not disagree:
+        parts.append(
+            f"**Which reading this supports: the narrower one.** Attribution is "
+            f"concentrated — a median {concentrated:.0%} of each sequence's total |Δ| "
+            f"sits in three positions, an effective "
+            f"{float(np.median(list(effp.values()))):.2f} contributing positions of "
+            f"{agg['seq_len']} — and the two fits agree on WHICH positions those are: "
+            f"the median top-3 Jaccard is at least {min(j3.values()):.2f} in every "
+            f"cell and the single strongest position matches exactly in "
+            f"{min(ex1.values()) * 100:.0f}% to {max(ex1.values()) * 100:.0f}% of "
+            "sequences. **The full-rank disagreement is therefore mostly in the tail, "
+            "among positions carrying little attribution mass, and the low "
+            "per-instance ρ must NOT be read as the headline.** The honest claim is "
+            "narrower: the two fits agree on which positions matter and disagree "
+            "about the ordering of those that do not."
+        )
+    else:
+        parts.append(
+            f"**Which reading this supports: the claim as written.** The disagreement "
+            f"is not confined to an irrelevant tail. The two fits differ on WHICH "
+            f"positions matter: the median top-3 Jaccard falls to {j3[worst_j]:.2f} "
+            f"({worst_j}) and the single strongest position matches exactly in only "
+            f"{ex1[worst_j] * 100:.0f}% of sequences there. Restricted to the union "
+            "of the two top-3 sets — the positions that actually carry mass — the "
+            f"median rank agreement is {cells[worst_j]['tk_topk_rho_median']['mean']:+.3f}. "
+            f"Attribution is concentrated ({concentrated:.0%} of mass in three "
+            "positions), so this is disagreement about the part that carries the "
+            "signal. **Top-k set overlap is the better statistic to lead with**, "
+            "because a reader asks which positions matter for a given site, not how "
+            "the bottom of the list is ordered."
+        )
     parts.append(
         "This triple holds regardless of how the containment question in "
         "`paper/tables/closure_search.md` resolves. It describes the two fits "

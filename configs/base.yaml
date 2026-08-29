@@ -142,6 +142,9 @@ separation:            # experiments/separation.py: the quantitative claim
   power: 0.8
   ism_instances: 400   # held-out sequences used for the per-locus attribution
   library_size: 30483  # the full BRCA2 5'ss library, for "is Z reachable today?"
+  jaccard_agree: 0.8   # median top-3 set overlap at/above this in every cell
+                       # means the fits agree on WHICH positions matter, and
+                       # the full-rank disagreement is tail ordering only
 
 occurrence:            # experiments/occurrence.py: the claim without a twin
   n_fit: 3000
