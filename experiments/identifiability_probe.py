@@ -550,6 +550,7 @@ def radius_sweep(
                                 "cross_instance_magnitude_spearman"
                             ],
                             "effect_size": ind["effect_size"],
+                            "effect_size_vs_original": ind_vs_orig["effect_size"],
                             "attr_magnitude_cv_ref": float(
                                 mag_ref.std() / max(abs(mag_ref.mean()), 1e-12)
                             ),
