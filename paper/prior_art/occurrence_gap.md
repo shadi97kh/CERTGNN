@@ -23,8 +23,8 @@ three warp families and seven strengths (`paper/tables/identifiability_radius.md
 
 | G-P map | sinusoid | spline | sigmoid mixture |
 |---|---|---|---|
-| linear | 0.960648 | 0.962380 | 0.951439 |
-| pairwise | 0.961711 | 0.962605 | 0.930564 |
+| linear | 0.960657 | 0.962382 | 0.953941 |
+| pairwise | 0.961745 | 0.962684 | 0.934484 |
 | **neural** | **1.000000** | **1.000000** | **1.000000** |
 
 The neural class is closed to six significant figures under every family
@@ -55,9 +55,9 @@ as a function of warp strength:
 
 | s | 0.10 | 0.25 | 0.40 | 0.55 | 0.70 | 0.85 | 0.95 |
 |---|---|---|---|---|---|---|---|
-| sinusoid | 0.994 | 0.977 | 0.952 | 0.923 | 0.893 | 0.862 | 0.842 |
-| spline | 0.996 | 0.986 | 0.969 | 0.945 | 0.914 | 0.877 | 0.849 |
-| sigmoid mixture | 0.995 | 0.982 | 0.962 | 0.936 | 0.908 | 0.877 | 0.856 |
+| sinusoid | 0.994 | 0.977 | 0.953 | 0.924 | 0.895 | 0.866 | 0.846 |
+| spline | 0.996 | 0.987 | 0.971 | 0.949 | 0.920 | 0.883 | 0.856 |
+| sigmoid mixture | 0.996 | 0.988 | 0.974 | 0.954 | 0.928 | 0.894 | 0.866 |
 
 This is the quantity the interpretability claim turns on, and it degrades
 monotonically across a range over which the model's predictions are
@@ -70,13 +70,12 @@ a per-instance positive scalar, so its within-instance attribution direction is
 preserved *exactly*. The *in-class representative* -- the member of the model
 class that actually realizes the twin, which is what a fitted model would be --
 agrees with the warped latent in value at closure `R^2 = 1.000000` but **not in
-gradient**: its within-instance cosine falls from 0.997 at `s = 0.10` to 0.906
-at `s = 0.95`. Value-level closure does not imply gradient-level closure, and
+gradient**: its within-instance cosine falls to 0.930 at `s = 0.95`. Value-level closure does not imply gradient-level closure, and
 attributions are gradients.
 
 So the honest form of (E3) is: within-instance direction degrades slowly
-(cosine 0.997 to 0.906) while cross-instance ranking degrades faster (Spearman
-0.994 to 0.842). The dissociation is between predictions and attributions, and
+(cosine to 0.930) while cross-instance ranking degrades faster (Spearman
+0.994 to 0.846). The dissociation is between predictions and attributions, and
 between within- and cross-instance comparison in degree rather than in kind.
 Saying "within-instance direction is preserved" without the qualifier is an
 overclaim and appears in `paper/tables/identifiability_radius.md`, which should
@@ -128,6 +127,37 @@ representative -- which would make occurrence empirically absent -- that choice
 is made by the estimator and not by the data, so the quantity has no
 data-grounded interpretation. **The claim is about what the reported quantity
 means.**
+
+**(E4) The move to in-silico mutagenesis splits the rule in two.** The field's
+primitive is a finite difference, not a gradient, and the mean value theorem
+puts the warp multiplier at `psi'(xi_j)` for a point between `phi(x)` and
+`phi(x'_j)`, hence per-mutation rather than per-instance. Measured over 10
+seeds (`paper/tables/ism_invariance.md`), with the autograd control exact at
+Spearman 1.000 and ratio error 0.000:
+
+- **Within-locus ranking survives.** ISM Spearman never drops below 0.95 in any
+  effect-size bin from 0.28 to 3.3 latent units, at any warp strength, for any
+  family. The per-mutation multiplier is too weak to reorder mutations at a
+  locus.
+- **Within-locus ratio invariance does not.** The ratio error reaches 0.523 in
+  log units, a factor of 1.69 distortion in how much more one mutation matters
+  than another at the same locus, against exactly 0.000 for gradients.
+
+So "position j matters more than k at this locus" survives the move to ISM;
+"j has twice the effect of k" does not. Any constructive rule must be stated at
+the ordinal level.
+
+**A withdrawn result, recorded because it shaped an earlier draft.** The first
+ISM run reported that within-locus ranking collapses for the sigmoid-mixture
+family at 0.28 latent units, which would have killed the rule. It was an
+artifact: that warp standardized its sum of sigmoids against the passed array,
+so `psi(z)` depended on what else was in the batch and the same input inside
+two different arrays differed by 2.31. It was not a function. The tell was that
+its column ran backwards from the mean value theorem, worst at the smallest
+effects where the theory predicts near-exactness. Fixed by normalizing against
+a fixed grid, with a regression test asserting every family is a function of
+its input alone and round-trips through its inverse. All numbers above are from
+the corrected runs; the sinusoid and spline families were never affected.
 
 ---
 
@@ -241,7 +271,7 @@ Verbatim intent, to be carried into the paper:
    chosen for an earlier experiment rather than calibrated to MPSA
    measurements. The radius conclusion is a function of that sigma.
 5. Within-instance direction is preserved *exactly* only for the analytic
-   twin. The in-class representative that realizes it degrades to cosine 0.906
+   twin. The in-class representative that realizes it degrades to cosine 0.930
    at the largest warp tested, so value-level closure does not imply
    gradient-level closure. Any statement of the form "within-instance
    attributions are safe" must name which of the two objects it means.
