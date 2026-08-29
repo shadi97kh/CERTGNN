@@ -135,6 +135,14 @@ closure_search:        # experiments/closure_search.py: can the refit FIND a mem
   rise_margin: 0.01    # arm-2 improvement whose CI lower bound must exceed this
                        # for the larger class to count as recovering the twin
 
+separation:            # experiments/separation.py: the quantitative claim
+  n_fit: 3000
+  strength: 0.95
+  alpha: 0.05          # two-sided significance for the separation test
+  power: 0.8
+  ism_instances: 400   # held-out sequences used for the per-locus attribution
+  library_size: 30483  # the full BRCA2 5'ss library, for "is Z reachable today?"
+
 identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
   path: data/raw/mpsa_data.csv.gz
   n_max: 4000          # sequences per seed; the full library is 30,483
