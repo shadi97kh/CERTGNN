@@ -468,13 +468,16 @@ def main(argv: list[str] | None = None) -> int:
         )
     L.append("")
     L.append(
-        f"Noise is not assumed. The phenotype is affine in log₁₀ of the inclusion "
-        f"fraction (slope {agg['phenotype_slope']['mean']:.3f} on this library), and "
-        f"the counts are binomial, so per-sequence noise follows by the delta method: "
-        f"median {agg['median_noise_sd']['mean']:.4f} in the standardized units the "
-        "models see. This counts sequencing noise only; library preparation and "
-        "biological variation add more. **Z is therefore a lower bound** — at least "
-        "this many measurements, likely more.\n"
+        f"Noise is not assumed. The phenotype is affine in log₁₀ of the count ratio "
+        f"ex_ct/tot_ct (slope {agg['phenotype_slope']['mean']:.3f} on this library). "
+        "Those are two independent count pools rather than a proportion — ex_ct "
+        "exceeds tot_ct in 4.9% of rows — so both are treated as Poisson and the "
+        "delta method applied to the log ratio, giving "
+        "`sd = |a|·sqrt(1/ex + 1/tot)/ln10`: median "
+        f"{agg['median_noise_sd']['mean']:.4f} in the standardized units the models "
+        "see. This counts sequencing noise only; library preparation and biological "
+        "variation add more. **Z is therefore a lower bound** — at least this many "
+        "measurements, likely more.\n"
     )
     L.append("## Verdict\n")
     L.append(agg["verdict"])

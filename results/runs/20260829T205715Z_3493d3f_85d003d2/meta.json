@@ -1,0 +1,27 @@
+{
+  "experiment": "separation",
+  "git_sha": "3493d3f",
+  "git_dirty": false,
+  "allow_dirty": false,
+  "config_hash": "85d003d2",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "timestamp_utc": "20260829T205715Z",
+  "argv": [
+    "/home/shadi/certgnn/experiments/separation.py",
+    "--config",
+    "configs/base.yaml"
+  ],
+  "run_id": null,
+  "sweep": null
+}
