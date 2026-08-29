@@ -266,27 +266,33 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
             spread = delta.abs().max(dim=1).values.numpy()
             z_mut = (phi_mut - mu) / sd
             ism: list[dict[str, Any]] = []
+            n_ism = min(int(im.ism_max), x.shape[0])
+            # Sweep omega alongside family and strength. The ratio error is
+            # partly a property of the warp's shape, so one omega gives a point
+            # estimate of something that has to be a range -- the same defect
+            # that made the indistinguishability radius unusable.
             for family in list(ip.radius.families):
                 for strength in list(ip.radius.strengths):
-                    om = float(im.omega)
-                    if not is_monotone(family, float(strength), om, seed):
-                        continue
-                    w_ref = warp(z_ref, family, float(strength), om, seed)
-                    w_mut = warp(
-                        z_mut.reshape(-1), family, float(strength), om, seed
-                    ).reshape(z_mut.shape)
-                    dtw = (w_mut - w_ref[:, None, None]).reshape(x.shape[0], -1)
-                    a_np, b_np = delta.abs().numpy(), dtw.abs().numpy()
-                    for i in range(x.shape[0]):
-                        ism.append(
-                            {
-                                "family": family,
-                                "strength": float(strength),
-                                "spread": float(spread[i]),
-                                "ism_spearman": _within_locus(a_np[i], b_np[i]),
-                                "ism_ratio_error": _ratio_err(a_np[i], b_np[i]),
-                            }
-                        )
+                    for om in [float(o) for o in im.omegas]:
+                        if not is_monotone(family, float(strength), om, seed):
+                            continue
+                        w_ref = warp(z_ref, family, float(strength), om, seed)
+                        w_mut = warp(
+                            z_mut.reshape(-1), family, float(strength), om, seed
+                        ).reshape(z_mut.shape)
+                        dtw = (w_mut - w_ref[:, None, None]).reshape(x.shape[0], -1)
+                        a_np, b_np = delta.abs().numpy(), dtw.abs().numpy()
+                        for i in range(n_ism):
+                            ism.append(
+                                {
+                                    "family": family,
+                                    "strength": float(strength),
+                                    "omega": om,
+                                    "spread": float(spread[i]),
+                                    "ism_spearman": _within_locus(a_np[i], b_np[i]),
+                                    "ism_ratio_error": _ratio_err(a_np[i], b_np[i]),
+                                }
+                            )
             out["ism"] = ism
             out["effect_quantiles"] = {
                 str(q): float(np.quantile(spread, q))
@@ -351,14 +357,25 @@ def make_table(agg: dict[str, Any], cfg: Any, meta: dict[str, Any]) -> str:
         + ", ".join(f"{q}={v:.3f}" for q, v in agg["effect_quantiles"].items())
         + ".\n"
     )
-    L.append("| effect-size bin | median effect | ranking Spearman | ratio error |")
-    L.append("|---|---|---|---|")
+    L.append(
+        "Reported as a RANGE over warp family, shape parameter omega in "
+        + ", ".join(f"{o:g}" for o in agg.get("ism_omegas", []))
+        + ", and strength, never as a point estimate: the ratio error is partly a property of "
+        "the warp's shape, and quoting one cell would repeat the defect that made the "
+        "indistinguishability radius unusable.\n"
+    )
+    L.append(
+        "| effect-size bin | median effect | ranking Spearman (min-max) | "
+        "ratio error (min-max) | worst ratio cell |"
+    )
+    L.append("|---|---|---|---|---|")
     for b in sorted(agg["ism_bins"]):
         e = agg["ism_bins"][b]
         lo, hi = BIN_EDGES[b], BIN_EDGES[b + 1]
         lab = f"{lo:g}-{hi:g}" if np.isfinite(hi) else f">{lo:g}"
         L.append(
-            f"| {lab} | {e['median_effect']:.3f} | {fmt_ci(e['ism_spearman'])} | {fmt_ci(e['ism_ratio_error'])} |"
+            f"| {lab} | {e['median_effect']:.3f} | {e['rank_min']:.4f}-{e['rank_max']:.4f} | "
+            f"{e['ratio_min']:.3f}-{e['ratio_max']:.3f} | {e['ratio_worst_cell']} |"
         )
     L.append("")
     L.append("## Verdict\n")
@@ -452,14 +469,41 @@ def main(argv: list[str] | None = None) -> int:
     bins: dict[int, Any] = {}
     for b in range(len(BIN_EDGES) - 1):
         sel = [w for w in ism_all if bin_index(w["spread"]) == b]
-        if len(sel) >= 20:
-            bins[b] = {
-                "median_effect": float(np.median([w["spread"] for w in sel])),
-                "ism_spearman": mean_ci([w["ism_spearman"] for w in sel], n_boot=nb),
-                "ism_ratio_error": mean_ci(
-                    [w["ism_ratio_error"] for w in sel], n_boot=nb
-                ),
-            }
+        if len(sel) < 20:
+            continue
+        cells: dict[tuple[str, float, float], dict[str, list[float]]] = {}
+        for w in sel:
+            ck = (w["family"], float(w.get("omega", 2.0)), w["strength"])
+            c2 = cells.setdefault(ck, {"rank": [], "ratio": []})
+            v = w["ism_spearman"]
+            if v is not None and np.isfinite(v):
+                c2["rank"].append(float(v))
+            v = w["ism_ratio_error"]
+            if v is not None and np.isfinite(v):
+                c2["ratio"].append(float(v))
+        rank_m = {kk: float(np.mean(v["rank"])) for kk, v in cells.items() if v["rank"]}
+        ratio_m = {
+            k: float(np.mean(v["ratio"])) for k, v in cells.items() if v["ratio"]
+        }
+        if not rank_m or not ratio_m:
+            continue
+        wr_k = min(rank_m, key=lambda kk: rank_m[kk])
+        wt_k = max(ratio_m, key=lambda kk: ratio_m[kk])
+        bins[b] = {
+            "median_effect": float(np.median([w["spread"] for w in sel])),
+            "ism_spearman": mean_ci([w["ism_spearman"] for w in sel], n_boot=nb),
+            "ism_ratio_error": mean_ci([w["ism_ratio_error"] for w in sel], n_boot=nb),
+            "rank_min": min(rank_m.values()),
+            "rank_max": max(rank_m.values()),
+            "rank_worst_cell": f"{wr_k[0]}, omega={wr_k[1]:g}, s={wr_k[2]:g}",
+            "ratio_min": min(ratio_m.values()),
+            "ratio_max": max(ratio_m.values()),
+            "ratio_worst_cell": f"{wt_k[0]}, omega={wt_k[1]:g}, s={wt_k[2]:g}",
+            "n_cells": len(rank_m),
+        }
+    agg["ism_omegas"] = (
+        sorted({float(w.get("omega", 2.0)) for w in ism_all}) if ism_all else []
+    )
     agg["ism_bins"] = bins
     agg["effect_quantiles"] = per_seed[0]["effect_quantiles"]
 
@@ -499,13 +543,6 @@ def main(argv: list[str] | None = None) -> int:
     cross_lo = min(
         neu["cross"][f][str(smax)]["mean"] for f in fams if str(smax) in neu["cross"][f]
     )
-    ism_min = min(
-        (e["ism_spearman"]["mean"] for e in bins.values()), default=float("nan")
-    )
-    ratio_max = max(
-        (e["ism_ratio_error"]["mean"] for e in bins.values()), default=float("nan")
-    )
-
     parts = []
     if closed:
         parts.append(
@@ -542,12 +579,18 @@ def main(argv: list[str] | None = None) -> int:
             else "; effect does increase with strength, so the radius is measurable here."
         )
     )
-    if np.isfinite(ism_min):
+    if bins:
+        wr = min(e["rank_min"] for e in bins.values())
+        wratio = max(e["ratio_max"] for e in bins.values())
+        wcell = max(bins.values(), key=lambda e: e["ratio_max"])["ratio_worst_cell"]
         parts.append(
-            f"On this library's own single-mutation effect sizes, within-locus ISM ranking stays "
-            f"at {ism_min:.3f} at worst while the ratio error reaches {ratio_max:.3f} log units "
-            f"(a factor of {np.exp(ratio_max):.2f}). Ranking survives the move to finite "
-            "differences; ratios do not."
+            "**The constructive rule, with its real-data support.** Over every warp family, "
+            "shape parameter and strength tested, and at every effect size this library "
+            f"produces, within-locus ISM ranking never falls below **{wr:.4f}**, while ratio "
+            f"comparisons degrade by up to **{wratio:.3f} log units, a factor of "
+            f"{np.exp(wratio):.2f}** (worst cell: {wcell}). **Rank within a locus; never "
+            "compare magnitudes across loci on a nonlinear latent.** Both numbers are worst "
+            "cases over the warp grid, not point estimates at one shape."
         )
     agg["verdict"] = " ".join(parts)
 

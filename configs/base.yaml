@@ -86,7 +86,9 @@ identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MP
   n_max: 4000          # sequences per seed; the full library is 30,483
   restarts: 3          # keep the best fit as the reference
   epochs: 1200
-  omega: 2.0
+  omegas: [1.0, 2.0, 4.0]   # ISM ratio error is partly a warp-shape property; sweep it
+  omega: 2.0                # closure/attribution refits stay at one omega (cost)
+  ism_max: 600              # instances per ISM cell; the grid is 3 x 7 x 3 cells
 
 identifiability:       # experiments/identifiability_probe.py
   topology: {kind: nested_bubbles, n_branches: 2, depth: 2, n_distractors: 3}
