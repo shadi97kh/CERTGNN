@@ -113,6 +113,8 @@ closure_shuffled:      # experiments/closure_shuffled.py: closure or interpolati
   strength: 0.95       # same warp strength the capacity sweep reported on
   interpolating_r2: 0.90   # shuffled target re-represented this well = interpolating
   selective_r2: 0.50       # shuffled target no better than this = selective
+  selectivity_margin: 0.05 # warp must beat the non-monotone targets by this
+                           # much for a cell to count as selective at all
 
 identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
   path: data/raw/mpsa_data.csv.gz

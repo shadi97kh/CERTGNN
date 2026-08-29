@@ -206,21 +206,39 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
 def governing_variable(agg: dict[str, Any]) -> dict[str, Any]:
     """Which capacity variable orders the closure gap: depth, width, or ratio?
 
-    Reported as Spearman correlation against log10 of the warp-target gap. A
-    variable that governs should be strongly negative: more of it, less gap.
+    Two measures, because Spearman alone is unfair here. Depth takes 3 distinct
+    values and width 4, while parameters per datapoint takes a different value
+    in all 12 cells; Spearman penalises ties, so the finest-grained variable
+    wins by construction rather than by governing anything.
+
+    The primary measure is therefore the DISCORDANCE RATE: over all cell pairs
+    that the variable actually distinguishes (ties excluded, so granularity
+    costs nothing), the fraction where more capacity goes with a LARGER gap. A
+    variable that governs has a discordance near 0. Spearman is still reported
+    alongside, with its bias stated.
     """
     cells = list(agg["cells"].values())
     gap = np.array([max(1.0 - c["r2_warp"]["mean"], 1e-12) for c in cells])
     lg = np.log10(gap)
-    out: dict[str, Any] = {}
-    for name, v in (
-        ("depth", np.array([c["depth"] for c in cells], dtype=float)),
-        ("width", np.array([c["hidden"] for c in cells], dtype=float)),
-        ("params_per_point", np.array([c["params_per_point"] for c in cells])),
-    ):
+    variables = {
+        "depth": np.array([c["depth"] for c in cells], dtype=float),
+        "width": np.array([c["hidden"] for c in cells], dtype=float),
+        "params_per_point": np.array([c["params_per_point"] for c in cells]),
+    }
+    out: dict[str, Any] = {"spearman": {}, "discordance": {}, "n_pairs": {}}
+    for name, v in variables.items():
         r = spearmanr(v, lg).statistic
-        out[name] = float(r) if np.isfinite(r) else float("nan")
-    # Minimum gap reachable at each depth, the clearest single view.
+        out["spearman"][name] = float(r) if np.isfinite(r) else float("nan")
+        disc = tot = 0
+        for i in range(len(v)):
+            for j in range(len(v)):
+                if v[i] < v[j]:
+                    tot += 1
+                    if gap[i] < gap[j]:  # more capacity, larger gap
+                        disc += 1
+        out["discordance"][name] = disc / tot if tot else float("nan")
+        out["n_pairs"][name] = tot
+
     out["min_gap_by_depth"] = {
         str(d): float(min(1.0 - c["r2_warp"]["mean"] for c in cells if c["depth"] == d))
         for d in sorted({c["depth"] for c in cells})
@@ -231,14 +249,19 @@ def governing_variable(agg: dict[str, Any]) -> dict[str, Any]:
         )
         for w in sorted({c["hidden"] for c in cells})
     }
-    ranked = sorted(
-        ("depth", "width", "params_per_point"),
-        key=lambda k: out[k] if np.isfinite(out[k]) else 0.0,
-    )
+
+    def monotone(d: dict[str, float]) -> bool:
+        vals = [d[k] for k in sorted(d, key=float)]
+        return all(b <= a for a, b in zip(vals, vals[1:]))
+
+    out["min_monotone_in_depth"] = monotone(out["min_gap_by_depth"])
+    out["min_monotone_in_width"] = monotone(out["min_gap_by_width"])
+
+    ranked = sorted(variables, key=lambda k: out["discordance"][k])
     out["strongest"] = ranked[0]
-    out["clean"] = bool(
-        abs(out[ranked[0]]) >= 0.7 and abs(out[ranked[0]]) - abs(out[ranked[1]]) >= 0.1
-    )
+    best, second = out["discordance"][ranked[0]], out["discordance"][ranked[1]]
+    # "Clean" means few violations AND a clear margin over the runner-up.
+    out["clean"] = bool(best <= 0.10 and (second - best) >= 0.05)
     return out
 
 
@@ -377,11 +400,25 @@ def main(argv: list[str] | None = None) -> int:
     g = agg["governing"]
     L.append("## Which variable governs closure\n")
     L.append(
-        f"Spearman correlation against log₁₀ of the warp-target gap, over all "
-        f"{len(keys)} cells (strongly negative means the variable governs): "
-        f"**depth {g['depth']:+.3f}**, width {g['width']:+.3f}, "
-        f"params/point {g['params_per_point']:+.3f}.\n"
+        "Two measures over all "
+        + str(len(keys))
+        + " cells. **Discordance** is the fraction of cell pairs the variable "
+        "distinguishes in which MORE capacity goes with a LARGER gap; near 0 means "
+        "the variable governs. Ties are excluded, so a coarse variable is not "
+        "penalised. Spearman against log₁₀ of the gap is shown alongside, but it "
+        "penalises ties and so favours the finest-grained variable "
+        "(depth has 3 distinct values, width 4, params/point 12) and should not be "
+        "used to rank them.\n"
     )
+    L.append("| variable | discordance | pairs | Spearman |")
+    L.append("|---|---|---|---|")
+    for nm in ("depth", "width", "params_per_point"):
+        L.append(
+            f"| {'params/point' if nm == 'params_per_point' else nm} | "
+            f"{g['discordance'][nm]:.3f} | "
+            f"{g['n_pairs'][nm]} | {g['spearman'][nm]:+.3f} |"
+        )
+    L.append("")
     L.append(
         "Smallest warp gap reachable at each depth: "
         + ", ".join(f"depth {k} → {v:.2e}" for k, v in g["min_gap_by_depth"].items())
@@ -491,27 +528,85 @@ def verdict_text(agg: dict[str, Any], cfg: Any, hi: float, lo: float) -> str:
             )
 
     strongest = g["strongest"]
+    LABELS = {"depth": "depth", "width": "width", "params_per_point": "params/point"}
     label = {
         "depth": "**Depth governs closure.**",
         "width": "**Width governs closure.**",
         "params_per_point": "**Parameters per datapoint governs closure.**",
     }[strongest]
+    d = g["discordance"]
     parts.append(
-        f"{label} Against log₁₀ of the warp gap the Spearman correlations are depth "
-        f"{g['depth']:+.3f}, width {g['width']:+.3f}, params/point "
-        f"{g['params_per_point']:+.3f}"
-        + (
-            f", so {strongest.replace('_', '/')} is the cleanest single ordering."
+        (
+            label
+            + f" Discordance -- the fraction of distinguished cell pairs in which more "
+            f"capacity goes with a larger gap -- is depth {d['depth']:.3f}, width "
+            f"{d['width']:.3f}, params/point {d['params_per_point']:.3f}"
             if g["clean"]
-            else ", and no single variable orders the cells cleanly: the strongest is "
-            f"{strongest.replace('_', '/')} but it does not separate from the next by "
-            "a clear margin. Closure is governed by depth and width jointly rather "
-            "than by any one of them."
+            else "**No single variable governs closure cleanly.** Discordance is depth "
+            f"{d['depth']:.3f}, width {d['width']:.3f}, params/point "
+            f"{d['params_per_point']:.3f}; the lowest is "
+            f"{LABELS[strongest]}, but not by a clear margin, so closure is "
+            "set by depth and width jointly rather than by any one of them"
         )
-        + " Smallest warp gap by depth: "
+        + ". (Spearman is reported in the table but not used to rank: it penalises "
+        "ties and so favours params/point, which takes a distinct value in every "
+        "cell, over depth, which takes three.)"
+        + " The smallest gap reachable at each depth is "
         + ", ".join(f"depth {k} → {v:.2e}" for k, v in g["min_gap_by_depth"].items())
-        + "."
+        + (
+            ", monotone in depth"
+            if g["min_monotone_in_depth"]
+            else ", not monotone in depth"
+        )
+        + "; at each width "
+        + ", ".join(f"{k} → {v:.2e}" for k, v in g["min_gap_by_width"].items())
+        + (
+            ", monotone in width."
+            if g["min_monotone_in_width"]
+            else ", not monotone in width."
+        )
     )
+
+    # The crispest single statement the grid supports: is there ANY cell that is
+    # both closed and selective? Structural closure requires both at once -- a
+    # cell must re-represent the monotone warp essentially exactly AND fail the
+    # non-monotone targets. A grid where the two never co-occur has not exhibited
+    # structural closure anywhere, whatever the individual columns look like.
+    margin = float(cfg.closure_shuffled.selectivity_margin)
+    both = sorted(
+        k
+        for k, v in agg["cells"].items()
+        if 1.0 - v["r2_warp"]["mean"] < 5e-7 and v["selectivity"]["mean"] >= margin
+    )
+    sel_any = sorted(
+        k for k, v in agg["cells"].items() if v["selectivity"]["mean"] >= margin
+    )
+    closed_any = sorted(
+        k for k, v in agg["cells"].items() if 1.0 - v["r2_warp"]["mean"] < 5e-7
+    )
+    agg["closed_and_selective"] = both
+    if both:
+        parts.append(
+            f"**{', '.join(both)} {'is' if len(both) == 1 else 'are'} both closed and "
+            f"selective** (selectivity at least {margin}), which is what structural "
+            "closure requires: the monotone warp re-represented essentially exactly "
+            "while the non-monotone targets are not."
+        )
+    elif closed_any and sel_any:
+        parts.append(
+            f"**No cell is both closed and selective.** Closure of 1.000000 occurs at "
+            f"{', '.join(closed_any)}, and selectivity of at least {margin} occurs at "
+            f"{', '.join(sel_any)}, and these sets do not intersect. Structural "
+            "closure requires both at once, so it is not exhibited anywhere in this "
+            "grid: every cell that re-represents a monotone warp exactly also "
+            "re-represents a random permutation of the same values."
+        )
+    elif closed_any:
+        parts.append(
+            f"**No cell is selective at all** (none reaches selectivity {margin}), "
+            f"while {', '.join(closed_any)} reach closure. Every cell that closes "
+            "also fits arbitrary targets."
+        )
 
     floor = max(1.0 - agg["cells"][k]["r2_null"]["mean"] for k in agg["cells"])
     parts.append(
