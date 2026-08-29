@@ -1,7 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
-data/raw/
+data/raw/*
 !data/raw/PROVENANCE.md
 data/cache/
 results/runs/
