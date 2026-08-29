@@ -220,6 +220,97 @@ def ism_by_position(
     return out
 
 
+def ism_by_position_per_instance(
+    predict: Any, x: torch.Tensor, seq_len: int, idx: torch.Tensor
+) -> np.ndarray:
+    """Per-locus attribution magnitude WITHOUT averaging over instances.
+
+    Returns [n_instances, seq_len]. `ism_by_position` averages over instances
+    before anything else looks at the numbers, which discards exactly the
+    variation the identifiability claim is about: the question a biologist asks
+    is whether two models rank the positions of a GIVEN splice site the same
+    way, not whether they agree about the library on average.
+    """
+    xs = x[idx]
+    with torch.no_grad():
+        base = predict(xs).reshape(-1)
+    out = np.zeros((xs.shape[0], seq_len), dtype=float)
+    for j in range(seq_len):
+        block = slice(4 * j, 4 * j + 4)
+        acc = torch.zeros_like(base)
+        for k in range(4):
+            mut = xs.clone()
+            mut[:, block] = 0.0
+            mut[:, 4 * j + k] = 1.0
+            with torch.no_grad():
+                acc = acc + (predict(mut).reshape(-1) - base).abs()
+        # Divide by 3: the substitution matching the original contributes zero.
+        out[:, j] = (acc / 3.0).cpu().numpy()
+    return out
+
+
+def ism_by_substitution(
+    predict: Any, x: torch.Tensor, seq_len: int, idx: torch.Tensor
+) -> np.ndarray:
+    """Mean |change in prediction| for each (position, base), length seq_len*4.
+
+    A finer view than the seq_len position averages, giving a rank correlation
+    more items to work with. Each entry averages only over the instances for
+    which that base is an actual substitution -- the instances already carrying
+    it contribute a structural zero and are excluded, since including them would
+    measure how often a base appears rather than what changing to it does.
+
+    Note this is 4 bases per position, not 3. A fixed 27-element vector would
+    need the reference base to be the same in every sequence, and in a
+    randomized library it is not, so the three "alternatives" are not a
+    well-defined set across instances.
+    """
+    xs = x[idx]
+    with torch.no_grad():
+        base = predict(xs).reshape(-1)
+    out = np.zeros(seq_len * 4, dtype=float)
+    for j in range(seq_len):
+        block = slice(4 * j, 4 * j + 4)
+        for k in range(4):
+            is_ref = xs[:, 4 * j + k] > 0.5
+            mut = xs.clone()
+            mut[:, block] = 0.0
+            mut[:, 4 * j + k] = 1.0
+            with torch.no_grad():
+                delta = (predict(mut).reshape(-1) - base).abs()
+            keep = ~is_ref
+            out[4 * j + k] = (
+                float(delta[keep].mean()) if bool(keep.any()) else float("nan")
+            )
+    return out
+
+
+def per_instance_rho(a: np.ndarray, b: np.ndarray) -> dict[str, float]:
+    """Distribution of per-instance rank agreement between two attribution maps.
+
+    Each instance contributes one Spearman over the seq_len positions. A single
+    such value is coarse -- with 9 positions the statistic takes few distinct
+    values -- but the DISTRIBUTION over hundreds of instances is well determined,
+    which is why the summary below is percentiles and an exceedance fraction
+    rather than a mean with a confidence interval.
+    """
+    rhos = []
+    for i in range(a.shape[0]):
+        r = spearmanr(a[i], b[i]).statistic
+        if np.isfinite(r):
+            rhos.append(float(r))
+    if not rhos:
+        return {k: float("nan") for k in ("median", "p10", "p90", "frac_below_05")}
+    v = np.asarray(rhos)
+    return {
+        "median": float(np.median(v)),
+        "p10": float(np.percentile(v, 10)),
+        "p90": float(np.percentile(v, 90)),
+        "frac_below_05": float(np.mean(v < 0.5)),
+        "n_instances": int(v.size),
+    }
+
+
 def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
     cc, ip = cfg.closure_capacity, cfg.identifiability
     sp = cfg.separation
@@ -324,6 +415,25 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
             rho = spearmanr(attr_ref, attr_twin).statistic
             y_stat = float(rho) if np.isfinite(rho) else float("nan")
 
+            # Per-instance: the biologically meaningful question, and the one
+            # with enough samples to summarise. Each instance's rho is over
+            # seq_len positions and so is coarse on its own; the distribution
+            # over instances is what is reported.
+            pi_ref = ism_by_position_per_instance(pred_ref, x, seq_len, ism_idx)
+            pi_twin = ism_by_position_per_instance(pred_twin, x, seq_len, ism_idx)
+            pi = per_instance_rho(pi_ref, pi_twin)
+
+            # Substitution level: same comparison with seq_len*4 items instead
+            # of seq_len, so the rank correlation is less granular.
+            sub_ref = ism_by_substitution(pred_ref, x, seq_len, ism_idx)
+            sub_twin = ism_by_substitution(pred_twin, x, seq_len, ism_idx)
+            ok_sub = np.isfinite(sub_ref) & np.isfinite(sub_twin)
+            r_sub = (
+                spearmanr(sub_ref[ok_sub], sub_twin[ok_sub]).statistic
+                if ok_sub.sum() > 2
+                else float("nan")
+            )
+
             cells.append(
                 {
                     "hidden": hidden,
@@ -332,6 +442,12 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     "lr": lr,
                     "heldout_r2": x_stat,
                     "attr_spearman": y_stat,
+                    "attr_rho_sub": float(r_sub) if np.isfinite(r_sub) else float("nan"),
+                    "n_sub_items": int(ok_sub.sum()),
+                    "pi_median": pi["median"],
+                    "pi_p10": pi["p10"],
+                    "pi_p90": pi["p90"],
+                    "pi_frac_below_05": pi["frac_below_05"],
                     "n_separate": z_stat,
                     "rms_pred_diff": float(np.sqrt(np.mean(diff[fin] ** 2)))
                     if fin.any()
@@ -404,6 +520,7 @@ def main(argv: list[str] | None = None) -> int:
         "n": per_seed[0]["n"],
         "n_fit": per_seed[0]["n_fit"],
         "n_heldout": per_seed[0]["n_heldout"],
+        "seq_len": per_seed[0]["seq_len"],
         "phenotype_slope": mean_ci([r["phenotype_slope"] for r in per_seed], n_boot=nb),
         "median_noise_sd": mean_ci([r["median_noise_sd"] for r in per_seed], n_boot=nb),
         "alpha": float(cfg.separation.alpha),
@@ -421,8 +538,16 @@ def main(argv: list[str] | None = None) -> int:
             "hidden": h,
             "depth": dp,
             "n_params": sel[0]["n_params"],
+            "n_sub_items": sel[0]["n_sub_items"],
             "heldout_r2": mean_ci([c["heldout_r2"] for c in sel], n_boot=nb),
             "attr_spearman": mean_ci([c["attr_spearman"] for c in sel], n_boot=nb),
+            "attr_rho_sub": mean_ci([c["attr_rho_sub"] for c in sel], n_boot=nb),
+            "pi_median": mean_ci([c["pi_median"] for c in sel], n_boot=nb),
+            "pi_p10": mean_ci([c["pi_p10"] for c in sel], n_boot=nb),
+            "pi_p90": mean_ci([c["pi_p90"] for c in sel], n_boot=nb),
+            "pi_frac_below_05": mean_ci(
+                [c["pi_frac_below_05"] for c in sel], n_boot=nb
+            ),
             "n_separate": mean_ci([c["n_separate"] for c in sel], n_boot=nb),
             "rms_pred_diff": mean_ci([c["rms_pred_diff"] for c in sel], n_boot=nb),
             "mean_snr2": mean_ci([c["mean_snr2"] for c in sel], n_boot=nb),
@@ -450,23 +575,60 @@ def main(argv: list[str] | None = None) -> int:
         "two fits are the same function, at two-sided α = "
         f"{agg['alpha']} with power {agg['power']}.\n"
     )
+    nsub = agg["cells"][f"{keys[0][0]}x{keys[0][1]}"]["n_sub_items"]
+    se9 = 1.0 / math.sqrt(max(agg["seq_len"] - 1, 1))
     L.append(
-        "| width | depth | params | **X** held-out R² | **Y** attribution ρ | "
-        "**Z** n to separate | RMS pred. diff |"
+        "| width | depth | **X** held-out R² | **Y** per-instance ρ "
+        "(p10 / median / p90) | frac ρ<0.5 | **Z** n to separate |"
     )
-    L.append("|---|---|---|---|---|---|---|")
+    L.append("|---|---|---|---|---|---|")
     for h, dp in keys:
         c = agg["cells"][f"{h}x{dp}"]
         z = c["n_separate"]
         L.append(
-            f"| {h} | {dp} | {c['n_params']:,} | "
-            f"**{c['heldout_r2']['mean']:.6f}** | "
-            f"**{c['attr_spearman']['mean']:+.3f}** "
-            f"[{c['attr_spearman']['lo']:+.3f}, {c['attr_spearman']['hi']:+.3f}] | "
-            f"**{z['mean']:,.0f}** [{z['lo']:,.0f}, {z['hi']:,.0f}] | "
-            f"{c['rms_pred_diff']['mean']:.4f} |"
+            f"| {h} | {dp} | **{c['heldout_r2']['mean']:.6f}** | "
+            f"{c['pi_p10']['mean']:+.3f} / **{c['pi_median']['mean']:+.3f}** / "
+            f"{c['pi_p90']['mean']:+.3f} | "
+            f"**{c['pi_frac_below_05']['mean'] * 100:.0f}%** | "
+            f"**{z['mean']:,.0f}** [{z['lo']:,.0f}, {z['hi']:,.0f}] |"
         )
     L.append("")
+    L.append(
+        f"**Y is now per instance.** For each held-out sequence, the two fits' "
+        f"{agg["seq_len"]} per-position attribution magnitudes are rank-correlated, and the "
+        "table reports the distribution of those correlations over instances. "
+        "Averaging attributions across instances first, as an earlier version did, "
+        "discards exactly the variation the claim is about: the question is whether "
+        "two fits rank the positions of a GIVEN splice site the same way.\n"
+    )
+    L.append(
+        "| width | depth | ρ over position averages (n="
+        + str(agg["seq_len"])
+        + ") | ρ over substitutions (n="
+        + str(nsub)
+        + ") |"
+    )
+    L.append("|---|---|---|---|")
+    for h, dp in keys:
+        c = agg["cells"][f"{h}x{dp}"]
+        L.append(
+            f"| {h} | {dp} | {c['attr_spearman']['mean']:+.3f} | "
+            f"{c['attr_rho_sub']['mean']:+.3f} |"
+        )
+    L.append("")
+    L.append(
+        f"**These two columns are coarse and are retained only for continuity.** A "
+        f"Spearman over {agg["seq_len"]} items has an approximate standard error of "
+        f"1/sqrt({agg["seq_len"]}-1) = {se9:.2f} under independence, so a value of +0.37 is "
+        f"about one standard error from zero and even +0.9 is not precise. The "
+        f"substitution view uses {nsub} items and is correspondingly less granular. "
+        "The bracketed intervals elsewhere in this table are bootstrap intervals "
+        "over SEEDS and do not include the rank correlation's own granularity, so "
+        "neither column should be read as a precise quantity. The per-instance "
+        "distribution above is the one the verdict uses, because it is summarised "
+        "by percentiles over hundreds of instances rather than by a single coarse "
+        "statistic.\n"
+    )
     L.append(
         f"Noise is not assumed. The phenotype is affine in log₁₀ of the count ratio "
         f"ex_ct/tot_ct (slope {agg['phenotype_slope']['mean']:.3f} on this library). "
@@ -515,8 +677,6 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
     z_hi_cell = max(zs, key=lambda k: zs[k])
     z_lo_cell = min(zs, key=lambda k: zs[k])
     lib = int(cfg.separation.library_size)
-    rhos = {k: v["attr_spearman"]["mean"] for k, v in cells.items()}
-    worst_rho_cell = min(rhos, key=lambda k: rhos[k])
 
     reach = [k for k in zs if zs[k] <= lib]
     parts = [
@@ -543,14 +703,25 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
             f"library's {lib:,} sequences; the rest would need a larger experiment."
         )
     )
+    pim = {k: v["pi_median"]["mean"] for k, v in cells.items()}
+    pif = {k: v["pi_frac_below_05"]["mean"] for k, v in cells.items()}
+    worst_pi = min(pim, key=lambda k: pim[k])
+    most_disagree = max(pif, key=lambda k: pif[k])
     parts.append(
         "**The attribution consequence is what makes this practical rather than "
-        f"philosophical.** Two fits agreeing this closely still rank the loci "
-        f"differently: Spearman {rhos[worst_rho_cell]:+.3f} at the worst cell "
-        f"({worst_rho_cell}) and {rhos[best]:+.3f} at {best}. A reader who ranks "
-        "positions by attribution magnitude is reading a quantity that the data "
-        "does not pin down at the sample sizes above, which is the failure mode "
-        "the certificates in this project are meant to prevent."
+        "philosophical, and it is measured per instance.** For a given splice site, "
+        "the two fits' rankings of its "
+        f"{agg['seq_len']} positions agree at a median Spearman of "
+        f"{pim[worst_pi]:+.3f} in the worst cell ({worst_pi}) and "
+        f"{pim[best]:+.3f} at {best}; in {most_disagree} "
+        f"{pif[most_disagree] * 100:.0f}% of held-out sites the two rankings agree "
+        f"at ρ below 0.5. A reader who ranks positions by attribution magnitude for a "
+        "particular sequence is therefore reading a quantity the data does not pin "
+        "down, which is the failure mode the certificates in this project are meant "
+        "to prevent. The per-instance distribution is used here rather than the "
+        f"single ρ over {agg['seq_len']} position-averages, which is too coarse to "
+        f"carry a claim: its standard error under independence is about "
+        f"{1.0 / (max(agg['seq_len'] - 1, 1) ** 0.5):.2f}."
     )
     parts.append(
         "This triple holds regardless of how the containment question in "

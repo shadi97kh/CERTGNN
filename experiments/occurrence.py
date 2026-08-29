@@ -91,9 +91,11 @@ from experiments.closure_capacity import (
 from experiments.closure_heldout import split_indices
 from experiments.identifiability_probe import affine_r2
 from experiments.separation import (
-    ism_by_position,
+    ism_by_position_per_instance,
+    ism_by_substitution,
     load_counts,
     noise_sd_standardized,
+    per_instance_rho,
     phenotype_slope,
 )
 
@@ -145,6 +147,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
             )
 
             preds, lats, attrs, r2s, sq_errs = [], [], [], [], []
+            per_inst, subs = [], []
             for k in range(K):
                 gk, tk = base_gen + 7_919_000 * (k + 1), base_torch + 104_729 * (k + 1)
                 gen = torch.Generator().manual_seed(gk)
@@ -163,7 +166,12 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     with torch.no_grad():
                         return _m(xx).detach()
 
-                attrs.append(ism_by_position(predict, x, seq_len, ism_idx))
+                # Per-instance is the primary measure; the position-average is
+                # exactly its mean over instances, so it costs no extra passes.
+                pi_m = ism_by_position_per_instance(predict, x, seq_len, ism_idx)
+                per_inst.append(pi_m)
+                attrs.append(pi_m.mean(axis=0))
+                subs.append(ism_by_substitution(predict, x, seq_len, ism_idx))
                 preds.append(p_ho.cpu().numpy())
                 lats.append(l_ho.cpu().numpy())
                 sq_errs.append(se)
@@ -185,6 +193,19 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     float(np.mean((diff[fin] / sd_ho[fin]) ** 2)) if fin.any() else 0.0
                 )
                 rho = spearmanr(attrs[i], attrs[j]).statistic
+                pi = per_instance_rho(per_inst[i], per_inst[j])
+                ok_sub = np.isfinite(subs[i]) & np.isfinite(subs[j])
+                r_sub = (
+                    spearmanr(subs[i][ok_sub], subs[j][ok_sub]).statistic
+                    if ok_sub.sum() > 2
+                    else float("nan")
+                )
+                # Resolution of the performance filter: the smallest held-out R2
+                # difference this pair's test could detect at 80% power. Stating
+                # it stops "not significant" being read as "identical".
+                dse = sq_errs[i] - sq_errs[j]
+                mde_mse = (z_a + z_b) * float(np.std(dse, ddof=1)) / np.sqrt(dse.size)
+                sst_mean = float(((y_ho - y_ho.mean()) ** 2).mean())
                 pairs.append(
                     {
                         "i": i,
@@ -194,6 +215,16 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                         "latent_r2": affine_r2(lats[i], lats[j]),
                         "attr_spearman": float(rho)
                         if np.isfinite(rho)
+                        else float("nan"),
+                        "attr_rho_sub": float(r_sub)
+                        if np.isfinite(r_sub)
+                        else float("nan"),
+                        "pi_median": pi["median"],
+                        "pi_p10": pi["p10"],
+                        "pi_p90": pi["p90"],
+                        "pi_frac_below_05": pi["frac_below_05"],
+                        "mde_r2": float(mde_mse / sst_mean)
+                        if sst_mean > 0
                         else float("nan"),
                         "n_separate": float(crit / snr2) if snr2 > 0 else float("inf"),
                         "rms_pred_diff": float(np.sqrt(np.mean(diff[fin] ** 2)))
@@ -297,6 +328,7 @@ def main(argv: list[str] | None = None) -> int:
         "n_fit": per_seed[0]["n_fit"],
         "n_heldout": per_seed[0]["n_heldout"],
         "n_models": per_seed[0]["cells"][0]["n_models"],
+        "seq_len": per_seed[0]["seq_len"],
         "filter_alpha": float(cfg.occurrence.alpha),
         "cells": {},
     }
@@ -347,6 +379,15 @@ def main(argv: list[str] | None = None) -> int:
         entry["pooled_rho_max"] = float(np.max(allr)) if allr else float("nan")
         entry["pooled_rho_median"] = float(np.median(allr)) if allr else float("nan")
         entry["pooled_nsep_median"] = float(np.median(alln)) if alln else float("nan")
+        for nm, key in (
+            ("pi_median", "pi_median"),
+            ("pi_p10", "pi_p10"),
+            ("pi_frac_below_05", "pi_frac_below_05"),
+            ("attr_rho_sub", "attr_rho_sub"),
+            ("mde_r2", "mde_r2"),
+        ):
+            vv = [p[key] for c in sel for p in c["pairs"] if np.isfinite(p.get(key, np.nan))]
+            entry[f"pooled_{nm}"] = float(np.median(vv)) if vv else float("nan")
         # Fractions of the surviving pairs below given agreement levels. The
         # min alone is one pair; these say how common the disagreement is.
         for t in (0.9, 0.8, 0.7):
@@ -382,8 +423,9 @@ def main(argv: list[str] | None = None) -> int:
         "survive.\n"
     )
     L.append(
-        "| width | depth | params | held-out R² | indist. pairs | attribution ρ "
-        "(min–median–max) | median n to separate | latent R² |"
+        "| width | depth | held-out R² | accuracy-tied pairs | filter resolution "
+        "(min. detectable ΔR²) | **n to separate as functions** | per-instance ρ "
+        "(p10 / median) | frac ρ<0.5 |"
     )
     L.append("|---|---|---|---|---|---|---|---|")
     for h, dp in keys:
@@ -391,15 +433,49 @@ def main(argv: list[str] | None = None) -> int:
         ip_ = c.get("n_pairs_indistinguishable", {}).get("mean", float("nan"))
         tp = c.get("n_pairs_total", {}).get("mean", float("nan"))
         L.append(
-            f"| {h} | {dp} | {c['n_params']:,} | "
-            f"{c['heldout_r2_mean']['mean']:.4f} | "
-            f"{ip_:.1f}/{tp:.0f} | "
-            f"**{c['pooled_rho_min']:+.3f} – {c['pooled_rho_median']:+.3f} – "
-            f"{c['pooled_rho_max']:+.3f}** | "
-            f"{c['pooled_nsep_median']:,.0f} | "
-            f"{c['latent_r2_median']['mean']:.4f} |"
+            f"| {h} | {dp} | {c['heldout_r2_mean']['mean']:.4f} | "
+            f"{ip_:.0f}/{tp:.0f} | {c['pooled_mde_r2']:.4f} | "
+            f"**{c['pooled_nsep_median']:,.0f}** | "
+            f"{c['pooled_pi_p10']:+.3f} / **{c['pooled_pi_median']:+.3f}** | "
+            f"**{c['pooled_pi_frac_below_05'] * 100:.0f}%** |"
         )
     L.append("")
+    L.append(
+        "**Accuracy-tied** means a paired two-sided t-test on per-point held-out "
+        f"squared errors does not reject at α = {agg['filter_alpha']}. That is a "
+        "failure to reject, NOT evidence of equivalence, and its resolution is "
+        "finite: the *filter resolution* column gives the smallest held-out R² "
+        "difference the test could detect at 80% power with "
+        f"{agg['n_heldout']} held-out points, so differences below it would not have "
+        "been seen. The claim made here does not rest on accepting that null. It is "
+        "the conjunction: these pairs are **not separable by accuracy at this "
+        "resolution**, they **are separable as functions** with the stated number of "
+        "measurements, and they **attribute differently**.\n"
+    )
+    L.append(
+        "| width | depth | ρ over position averages (n="
+        + str(agg["seq_len"])
+        + ") | ρ over substitutions |"
+    )
+    L.append("|---|---|---|---|")
+    for h, dp in keys:
+        c = agg["cells"][f"{h}x{dp}"]
+        L.append(
+            f"| {h} | {dp} | {c['pooled_rho_median']:+.3f} | "
+            f"{c['pooled_attr_rho_sub']:+.3f} |"
+        )
+    L.append("")
+    L.append(
+        f"**The n={agg['seq_len']} column is coarse and is retained only for "
+        f"continuity.** A Spearman over {agg['seq_len']} items has an approximate "
+        f"standard error of {1.0 / max(agg['seq_len'] - 1, 1) ** 0.5:.2f} under "
+        "independence, so single values near ±0.4 are barely distinguishable from "
+        "zero and even ±0.9 is imprecise. Bootstrap intervals elsewhere are over "
+        "SEEDS and do not capture that granularity. The per-instance distribution in "
+        "the main table is what the verdict uses: each instance contributes one "
+        f"correlation over its own {agg['seq_len']} positions, and hundreds of "
+        "instances determine the percentiles.\n"
+    )
     L.append(
         "The ρ column pools every surviving pair across all seeds, so it is the "
         "distribution the claim is about rather than a mean of per-seed summaries. "
@@ -457,18 +533,32 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
     surv = sum(v["n_pairs_indistinguishable"]["mean"] for v in usable.values())
     tot = sum(v["n_pairs_total"]["mean"] for v in usable.values())
     worst = min(usable, key=lambda k: usable[k]["pooled_rho_min"])
-    med_of_med = float(np.median([v["pooled_rho_median"] for v in usable.values()]))
     # "in every cell" needs the MINIMUM of the per-cell medians. Using the
     # maximum here asserted the best cell's median as a bound holding
     # everywhere, which is false whenever the cells disagree.
     all_low = min(v["pooled_rho_median"] for v in usable.values())
 
+    mde = float(np.median([v["pooled_mde_r2"] for v in usable.values()]))
+    nsep = float(np.median([v["pooled_nsep_median"] for v in usable.values()]))
     parts.append(
-        f"**{surv:.0f} of {tot:.0f} pairs are indistinguishable on held-out "
-        f"performance** (paired t-test, α = {agg['filter_alpha']}, uncorrected and "
-        "therefore strict). These are pairs of models the data cannot choose "
-        "between: same architecture, same fit split, same budget, differing only in "
-        "initialization seed."
+        f"**{surv:.0f} of {tot:.0f} pairs are not separable by predictive accuracy** "
+        f"at the resolution this held-out set provides (paired t-test, α = "
+        f"{agg['filter_alpha']}, uncorrected and therefore strict). This is a failure "
+        "to reject, not a demonstration of equivalence, and its resolution is stated "
+        f"rather than implied: with {agg['n_heldout']} held-out points the test could "
+        f"detect a held-out R² difference of about {mde:.4f} at 80% power, so smaller "
+        "differences in accuracy would not have been seen. Nothing below depends on "
+        "accepting that null."
+    )
+    parts.append(
+        "**The claim is the conjunction, and each part is measured.** These pairs "
+        "share an architecture, a fit split, a budget and a learning-rate selection, "
+        "differing only in initialization seed. Their predictive ACCURACY is not "
+        "separable at the resolution above. Their identity as FUNCTIONS is separable, "
+        f"and cheaply: the median pair needs about {nsep:,.0f} held-out measurements "
+        "to reject that the two are the same function under the Poisson log-ratio "
+        "noise model. So these are not near-identical models -- they are models that "
+        "predict differently while scoring the same."
     )
 
     if all_low >= near_one:
@@ -486,16 +576,21 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
             "a locus ordering is more stable than the fit it comes from."
         )
     else:
+        pim = {k: v["pooled_pi_median"] for k, v in usable.items()}
+        pif = {k: v["pooled_pi_frac_below_05"] for k, v in usable.items()}
+        w_pi = min(pim, key=lambda k: pim[k])
+        w_f = max(pif, key=lambda k: pif[k])
         parts.append(
-            f"**Models the data cannot tell apart rank the loci differently.** Among "
-            f"the indistinguishable pairs the per-locus attribution Spearman runs "
-            f"down to {usable[worst]['pooled_rho_min']:+.3f} ({worst}), with a "
-            f"typical cell median of {med_of_med:+.3f}. The disagreement is not "
-            "between a good fit and a bad one: these pairs are exactly the ones the "
-            "held-out data cannot choose between. **This is the occurrence result.** "
-            "It needs no constructed twin, no reparameterization and no refit, so it "
-            "is immune to the search and warm-start confounds that "
-            "`paper/tables/closure_search.md` found in the warp-based route."
+            "**And they attribute differently.** Measured per instance -- for a given "
+            "splice site, do the two models rank ITS positions the same way -- the "
+            f"median agreement is {pim[w_pi]:+.3f} in the worst cell ({w_pi}), and in "
+            f"{w_f} {pif[w_f] * 100:.0f}% of held-out sites the two rankings agree at "
+            "ρ below 0.5. Averaging attributions across instances before comparing, "
+            "as an earlier version did, discards exactly this variation. **This is "
+            "the occurrence result.** It needs no constructed twin, no "
+            "reparameterization and no refit, so it is immune to the search and "
+            "warm-start confounds `paper/tables/closure_search.md` found in the "
+            "warp-based route."
         )
 
     parts.append(
