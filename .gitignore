@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 data/raw/
+!data/raw/PROVENANCE.md
 data/cache/
 results/runs/
 results/checkpoints/
