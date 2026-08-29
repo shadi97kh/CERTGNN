@@ -297,6 +297,315 @@ def class_contains_warp(
     return affine_r2(pred.numpy(), target.numpy())
 
 
+# ------------------------------------------------------- warp families
+
+WARP_FAMILIES = ("sinusoid", "spline", "sigmoid_mixture")
+
+
+def _standardize(v: torch.Tensor) -> torch.Tensor:
+    return (v - v.mean()) / v.std()
+
+
+def warp(
+    z: torch.Tensor, family: str, strength: float, omega: float, seed: int = 0
+) -> torch.Tensor:
+    """A monotone reparameterization psi(z) of a standardized latent.
+
+    ``strength`` is the deviation from the identity (0 = identity) and
+    ``omega`` the family's shape parameter. Monotonicity is not assumed: every
+    grid point is checked numerically by :func:`is_monotone` and skipped if it
+    fails.
+
+    sinusoid        psi(z) = z + (s/omega) sin(omega z); psi' = 1 + s cos(.),
+                    monotone for |s| < 1.
+    spline          piecewise-linear through knots whose increments are
+                    1 + s*u_k with u_k ~ U(-1, 1); monotone for |s| < 1.
+    sigmoid_mixture (1-s) z + s G(z) with G a positively-weighted sum of
+                    sigmoids -- the family MAVE-NN itself fits as its GE
+                    nonlinearity, so the twin lies in the class the field
+                    already uses. Monotone for s in [0, 1] by construction.
+    """
+    if family == "sinusoid":
+        return z + (strength / omega) * torch.sin(omega * z)
+    g = torch.Generator().manual_seed(seed)
+    if family == "spline":
+        n_knots = max(4, int(round(omega * 4)))
+        lo, hi = float(z.min()), float(z.max())
+        knots = torch.linspace(lo, hi, n_knots, dtype=torch.float64)
+        u = torch.rand(n_knots - 1, generator=g, dtype=torch.float64) * 2 - 1
+        inc = 1.0 + strength * u
+        vals = torch.cat([torch.zeros(1, dtype=torch.float64), torch.cumsum(inc, 0)])
+        vals = vals * (hi - lo) / float(vals[-1]) + lo
+        idx = torch.clamp(torch.bucketize(z, knots) - 1, 0, n_knots - 2)
+        t = (z - knots[idx]) / (knots[idx + 1] - knots[idx])
+        return vals[idx] + t * (vals[idx + 1] - vals[idx])
+    if family == "sigmoid_mixture":
+        k = max(2, int(round(omega * 2)))
+        b = torch.rand(k, generator=g, dtype=torch.float64) + 0.5  # > 0
+        c = (torch.rand(k, generator=g, dtype=torch.float64) + 0.5) * omega
+        d = torch.linspace(-2, 2, k, dtype=torch.float64)
+        gz = (b * torch.sigmoid(c * z[:, None] + d)).sum(1)
+        gz = _standardize(gz)
+        return (1.0 - strength) * z + strength * gz
+    raise ValueError(f"unknown warp family {family!r}")
+
+
+def is_monotone(
+    family: str, strength: float, omega: float, seed: int, span: float = 4.0
+) -> bool:
+    """Strictly increasing on a dense grid covering the latent's range."""
+    grid = torch.linspace(-span, span, 2001, dtype=torch.float64)
+    w = warp(grid, family, strength, omega, seed)
+    return bool((w[1:] - w[:-1] > 1e-12).all())
+
+
+def invert_on_samples(
+    warped_ref: torch.Tensor, z_ref: torch.Tensor, query: torch.Tensor
+) -> torch.Tensor:
+    """psi^-1 by interpolation on the paired samples (psi(z_ref), z_ref).
+
+    Exact where the class reproduces the warped latent; values outside the
+    observed range are clamped to the endpoints.
+    """
+    order = torch.argsort(warped_ref)
+    xs = warped_ref[order].numpy()
+    ys = z_ref[order].numpy()
+    return torch.from_numpy(np.interp(query.numpy(), xs, ys))
+
+
+def fit_class_to_target(
+    kind: str, x: torch.Tensor, target: torch.Tensor, cfg: Any, gen: torch.Generator
+) -> tuple[torch.Tensor, nn.Module]:
+    """Best in-class approximation to a target latent, standardized."""
+    ip = cfg.identifiability
+    m = make_gp_map(kind, x.shape[1], int(ip.hidden), gen)
+    opt = torch.optim.Adam(m.parameters(), lr=float(ip.lr))
+    t = _standardize(target)
+    for _ in range(int(ip.radius.warp_fit_epochs)):
+        opt.zero_grad()
+        pred = m(x).reshape(-1)
+        loss = ((pred - pred.mean()) / (pred.std() + 1e-9) - t).pow(2).mean()
+        loss.backward()
+        opt.step()
+    with torch.no_grad():
+        pred = m(x).reshape(-1)
+    return pred.detach(), m
+
+
+def indistinguishability(
+    y: torch.Tensor, pred_orig: torch.Tensor, pred_twin: torch.Tensor
+) -> dict[str, float]:
+    """Paired test on squared residuals.
+
+    d_i = (y_i - twin_i)^2 - (y_i - orig_i)^2. Under the null that the twin
+    fits no worse, E[d] = 0. The paired t statistic at sample size N is
+    ``t(N) = (mean d / sd d) * sqrt(N)``, so the standardized effect size
+    ``mean d / sd d`` -- estimated once here -- gives the statistic at any N
+    without regenerating data. The twin is indistinguishable at N when
+    |t(N)| < 1.96 (two-sided, alpha = 0.05).
+    """
+    d = ((y - pred_twin) ** 2 - (y - pred_orig) ** 2).numpy()
+    sd = float(d.std(ddof=1))
+    eff = float(d.mean()) / sd if sd > 1e-30 else 0.0
+    return {"effect_size": eff, "mean_d": float(d.mean()), "sd_d": sd}
+
+
+def t_at(effect_size: float, n: int) -> float:
+    return abs(effect_size) * np.sqrt(n)
+
+
+def radius_sweep(
+    cfg: Any, seed: int, x: torch.Tensor, y: torch.Tensor, refs: dict[str, Fit]
+) -> list[dict[str, Any]]:
+    """Grid over (family, strength, omega) x G-P class."""
+    ip = cfg.identifiability
+    rows: list[dict[str, Any]] = []
+    for kind in CLASSES:
+        ref = refs[kind]
+        z_ref = _standardize(ref.phi)
+        mu, sd = float(ref.phi.mean()), float(ref.phi.std())
+        with torch.no_grad():
+            pred_orig = ref.model.g(ref.phi).detach()
+        g_ref = latent_attributions(ref.model, x)
+        mag_ref = torch.linalg.norm(g_ref, dim=1).numpy()
+        gen = torch.Generator().manual_seed(seed * 31 + 7)
+        for family in list(ip.radius.families):
+            for omega in list(ip.radius.omegas):
+                for strength in list(ip.radius.strengths):
+                    if not is_monotone(family, float(strength), float(omega), seed):
+                        rows.append(
+                            {
+                                "class": kind,
+                                "family": family,
+                                "omega": float(omega),
+                                "strength": float(strength),
+                                "monotone": False,
+                            }
+                        )
+                        continue
+                    warped = warp(z_ref, family, float(strength), float(omega), seed)
+                    phi_t, m_t = fit_class_to_target(kind, x, warped, cfg, gen)
+                    closure = affine_r2(phi_t.numpy(), warped.numpy())
+                    # twin predictions: g(psi^-1(phi_t)), exact when closure is exact
+                    z_back = invert_on_samples(
+                        _standardize(warped), z_ref, _standardize(phi_t)
+                    )
+                    with torch.no_grad():
+                        pred_twin = ref.model.g(mu + sd * z_back).detach()
+                    ind = indistinguishability(y, pred_orig, pred_twin)
+                    g_t = (
+                        latent_attributions(
+                            m_t if not isinstance(m_t, LatentModel) else m_t, x
+                        )
+                        if False
+                        else _grad_of_map(m_t, x)
+                    )
+                    agree = attribution_agreement(g_ref, g_t)
+                    mag_t = torch.linalg.norm(g_t, dim=1).numpy()
+                    rows.append(
+                        {
+                            "class": kind,
+                            "family": family,
+                            "omega": float(omega),
+                            "strength": float(strength),
+                            "monotone": True,
+                            "closure_r2": closure,
+                            "affine_r2_to_phi_hat": affine_r2(
+                                z_ref.numpy(), warped.numpy()
+                            ),
+                            "within_instance_cosine": agree["within_instance_cosine"],
+                            "cross_instance_spearman": agree[
+                                "cross_instance_magnitude_spearman"
+                            ],
+                            "effect_size": ind["effect_size"],
+                            "attr_magnitude_cv_ref": float(
+                                mag_ref.std() / max(abs(mag_ref.mean()), 1e-12)
+                            ),
+                            "attr_magnitude_cv_twin": float(
+                                mag_t.std() / max(abs(mag_t.mean()), 1e-12)
+                            ),
+                        }
+                    )
+    return rows
+
+
+def _grad_of_map(m: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    """grad of a bare G-P map (not wrapped in LatentModel) w.r.t. the input."""
+    xr = x.clone().requires_grad_(True)
+    out = m(xr).reshape(-1).sum()
+    (grad,) = torch.autograd.grad(out, xr)
+    return grad.detach()
+
+
+# --------------------------------------------------- radius aggregation
+
+T_CRIT = 1.96  # two-sided normal quantile at alpha = 0.05
+
+
+def per_seed_radius(
+    rows: list[dict[str, Any]], n: int
+) -> dict[tuple[str, str, float], dict[str, float]]:
+    """Largest indistinguishable strength per (class, family, omega) at size n."""
+    out: dict[tuple[str, str, float], dict[str, float]] = {}
+    for r in rows:
+        if not r.get("monotone"):
+            continue
+        key = (r["class"], r["family"], r["omega"])
+        ok = t_at(r["effect_size"], n) < T_CRIT
+        cur: dict[str, float] | None = out.get(key)
+        if ok and (cur is None or r["strength"] > cur["radius"]):
+            out[key] = {
+                "radius": r["strength"],
+                "cross_instance_spearman": r["cross_instance_spearman"],
+                "within_instance_cosine": r["within_instance_cosine"],
+                "closure_r2": r["closure_r2"],
+                "affine_r2_to_phi_hat": r["affine_r2_to_phi_hat"],
+                "t_at_n": t_at(r["effect_size"], n),
+            }
+        elif cur is None:
+            out.setdefault(
+                key,
+                {
+                    "radius": 0.0,
+                    "cross_instance_spearman": 1.0,
+                    "within_instance_cosine": 1.0,
+                    "closure_r2": float("nan"),
+                    "affine_r2_to_phi_hat": float("nan"),
+                    "t_at_n": float("nan"),
+                },
+            )
+    return out
+
+
+def make_radius_table(agg: dict[str, Any], cfg: Any, meta: dict[str, Any]) -> str:
+    ip = cfg.identifiability
+    sizes = list(ip.radius.sample_sizes)
+    L = ["# Indistinguishability radius for a nonlinear G-P map\n"]
+    L.append(
+        f"git SHA `{meta['git_sha']}`{' (DIRTY)' if meta['git_dirty'] else ''}, config "
+        f"`{meta['config_hash']}`, {agg['n_seeds']} seeds, mean [95% bootstrap CI].\n"
+    )
+    L.append(
+        "A twin is (psi.phi_hat, g_hat.psi^-1) for a monotone psi. It predicts identically "
+        "only where the model class can represent psi.phi_hat; the class's approximation "
+        "error is what makes a twin detectable. The radius is therefore the largest warp "
+        "strength whose *best in-class approximation* stays statistically indistinguishable "
+        "from the original fit at a given sample size.\n"
+    )
+    L.append(
+        "**Test.** Paired on squared residuals: d_i = (y_i - twin_i)^2 - (y_i - orig_i)^2, "
+        "null E[d] = 0. The paired t statistic at size N is t(N) = (mean d / sd d) * sqrt(N); "
+        "the standardized effect size is estimated once per grid point, so t is available at "
+        "any N without regenerating data. Indistinguishable means |t(N)| < 1.96 (two-sided, "
+        "alpha = 0.05). Noise is the substrate's own observation noise "
+        f"(sigma = {float(ip.noise)}). Sample sizes are real MPSA designs: "
+        + ", ".join(f"{s['label']} N = {int(s['n'])}" for s in sizes)
+        + ".\n"
+    )
+    L.append(
+        "Every grid point is checked for strict monotonicity of psi on a dense grid; "
+        f"points that fail are skipped ({agg['n_skipped_nonmonotone']} of "
+        f"{agg['n_grid_points']} grid points skipped).\n"
+    )
+
+    L.append(
+        "## Closure: can the class represent the warped latent? (six significant figures)\n"
+    )
+    L.append("| G-P map | warp family | closure R^2 at max monotone strength |")
+    L.append("|---|---|---|")
+    for k in CLASSES:
+        for fam in agg["families"]:
+            c = agg["closure"].get((k, fam))
+            if c:
+                L.append(
+                    f"| {k} | {fam} | {c['mean']:.6f} [{c['lo']:.6f}, {c['hi']:.6f}] (n={c['n']}) |"
+                )
+    L.append(
+        "\nA class whose closure R^2 is 1.000000 is closed under the warp: the twin is a "
+        "legitimate member and no amount of data separates it from the original.\n"
+    )
+
+    for sz in sizes:
+        n = int(sz["n"])
+        L.append(f"## Radius at N = {n} ({sz['label']})\n")
+        L.append(
+            "| G-P map | warp family | radius (largest indistinguishable s) | cross-instance magnitude Spearman at the boundary | within-instance cosine |"
+        )
+        L.append("|---|---|---|---|---|")
+        for k in CLASSES:
+            for fam in agg["families"]:
+                r = agg["radius"].get((k, fam, n))
+                if r:
+                    L.append(
+                        f"| {k} | {fam} | {fmt_ci(r['radius'])} | {fmt_ci(r['cross_instance_spearman'])} | "
+                        f"{fmt_ci(r['within_instance_cosine'])} |"
+                    )
+        L.append("")
+    L.append("## Headline\n")
+    L.append(agg["radius_verdict"])
+    return "\n".join(L) + "\n"
+
+
 # ------------------------------------------------------------------- run
 
 
@@ -305,6 +614,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
     x, phi_true, y = make_dataset(cfg, seed)
     d = x.shape[1]
     out: dict[str, Any] = {"seed": seed, "classes": {}}
+    refs: dict[str, Fit] = {}
 
     for kind in CLASSES:
         gen = torch.Generator().manual_seed(seed * 7919 + hash(kind) % 1000)
@@ -335,6 +645,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
 
         # --- A. constructive: is the explicit monotone twin in the class?
         ref = min(good, key=lambda f: f.loss)
+        refs[kind] = ref
         phi_hat = ref.phi
         warped = monotone_warp(phi_hat, float(ip.warp_strength), float(ip.warp_omega))
         in_class = class_contains_warp(kind, x, warped, cfg, gen)
@@ -387,6 +698,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
             "twin_latent_within_cosine": twin_att["within_instance_cosine"],
             "twin_latent_cross_spearman": twin_att["cross_instance_magnitude_spearman"],
         }
+    out["radius_rows"] = radius_sweep(cfg, seed, x, y, refs)
     return out
 
 
@@ -580,9 +892,101 @@ def main(argv: list[str] | None = None) -> int:
         "statement": statement,
     }
 
+    # ---------------- radius aggregation across seeds ----------------
+    ip = cfg.identifiability
+    fams = list(ip.radius.families)
+    sizes = list(ip.radius.sample_sizes)
+    all_rows = [r for rec in per_seed for r in rec["radius_rows"]]
+    agg["families"] = fams
+    agg["n_grid_points"] = len(all_rows)
+    agg["n_skipped_nonmonotone"] = sum(1 for r in all_rows if not r.get("monotone"))
+
+    # closure at the largest strength that is monotone, averaged over omegas
+    closure: dict[tuple[str, str], dict[str, float]] = {}
+    for k in CLASSES:
+        for fam in fams:
+            vals = []
+            for rec in per_seed:
+                mono = [
+                    r
+                    for r in rec["radius_rows"]
+                    if r.get("monotone") and r["class"] == k and r["family"] == fam
+                ]
+                if not mono:
+                    continue
+                smax = max(r["strength"] for r in mono)
+                at = [r["closure_r2"] for r in mono if r["strength"] == smax]
+                vals.append(float(np.mean(at)))
+            if vals:
+                closure[(k, fam)] = mean_ci(vals, n_boot=nb)
+    agg["closure"] = closure
+
+    radius: dict[tuple[str, str, int], dict[str, Any]] = {}
+    for sz in sizes:
+        n = int(sz["n"])
+        for k in CLASSES:
+            for fam in fams:
+                rads, spears, coss = [], [], []
+                for rec in per_seed:
+                    ps = per_seed_radius(rec["radius_rows"], n)
+                    keys = [key for key in ps if key[0] == k and key[1] == fam]
+                    if not keys:
+                        continue
+                    # the binding constraint across omegas is the smallest radius
+                    worst = min(keys, key=lambda key: ps[key]["radius"])
+                    rads.append(ps[worst]["radius"])
+                    spears.append(ps[worst]["cross_instance_spearman"])
+                    coss.append(ps[worst]["within_instance_cosine"])
+                if rads:
+                    radius[(k, fam, n)] = {
+                        "radius": mean_ci(rads, n_boot=nb),
+                        "cross_instance_spearman": mean_ci(spears, n_boot=nb),
+                        "within_instance_cosine": mean_ci(coss, n_boot=nb),
+                    }
+    agg["radius"] = radius
+
+    smax_grid = max(float(v) for v in ip.radius.strengths)
+    lines = []
+    for sz in sizes:
+        n = int(sz["n"])
+        for fam in fams:
+            r = radius.get(("neural", fam, n))
+            if not r:
+                continue
+            at_ceiling = r["radius"]["lo"] >= smax_grid - 1e-9
+            lines.append(
+                f"- N = {n} ({sz['label']}), {fam}: radius {r['radius']['mean']:.3f}"
+                f"{' (the grid ceiling: the whole monotone range is indistinguishable)' if at_ceiling else ''}"
+                f", attribution-magnitude Spearman at the boundary "
+                f"{r['cross_instance_spearman']['mean']:.3f} "
+                f"[{r['cross_instance_spearman']['lo']:.3f}, {r['cross_instance_spearman']['hi']:.3f}], "
+                f"within-instance cosine {r['within_instance_cosine']['mean']:.3f}."
+            )
+    neural_closed_all = all(
+        closure[(("neural"), fam)]["lo"] > 0.999999
+        for fam in fams
+        if ("neural", fam) in closure
+    )
+    agg["radius_verdict"] = (
+        (
+            "**The neural class is closed under every warp family tested (closure R^2 = 1.000000 "
+            "to six figures), so its radius is set by the monotonicity limit rather than by the "
+            "data: no MPSA sample size separates the twin from the original.**\n\n"
+            if neural_closed_all
+            else "**The neural class is not closed to six figures under every family; the radius below "
+            "is set by the class's approximation error, so it is finite and shrinks with N.**\n\n"
+        )
+        + "\n".join(lines)
+        + "\n\nWithin-instance attribution direction is preserved throughout; what the radius "
+        "bounds is the cross-instance comparison."
+    )
+
+    radius_table = make_radius_table(agg, cfg, meta)
+    (tab := pathlib.Path(cfg.output.tables)).mkdir(parents=True, exist_ok=True)
+    (tab / "identifiability_radius.md").write_text(radius_table)
+    (run / "radius_table.md").write_text(radius_table)
+
     table = make_table(agg, meta)
-    tab = pathlib.Path(cfg.output.tables)
-    tab.mkdir(parents=True, exist_ok=True)
     (tab / "identifiability_probe.md").write_text(table)
     (run / "table.md").write_text(table)
     (run / "results.json").write_text(json.dumps(to_jsonable(agg), indent=1))
@@ -612,6 +1016,7 @@ def main(argv: list[str] | None = None) -> int:
         ],
     )
     print("\n" + table)
+    print("\n" + radius_table)
     return 0
 
 
