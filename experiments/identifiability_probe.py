@@ -950,17 +950,17 @@ def main(argv: list[str] | None = None) -> int:
     for sz in sizes:
         n = int(sz["n"])
         for fam in fams:
-            r = radius.get(("neural", fam, n))
-            if not r:
+            entry = radius.get(("neural", fam, n))
+            if not entry:
                 continue
-            at_ceiling = r["radius"]["lo"] >= smax_grid - 1e-9
+            at_ceiling = entry["radius"]["lo"] >= smax_grid - 1e-9
             lines.append(
-                f"- N = {n} ({sz['label']}), {fam}: radius {r['radius']['mean']:.3f}"
+                f"- N = {n} ({sz['label']}), {fam}: radius {entry['radius']['mean']:.3f}"
                 f"{' (the grid ceiling: the whole monotone range is indistinguishable)' if at_ceiling else ''}"
                 f", attribution-magnitude Spearman at the boundary "
-                f"{r['cross_instance_spearman']['mean']:.3f} "
-                f"[{r['cross_instance_spearman']['lo']:.3f}, {r['cross_instance_spearman']['hi']:.3f}], "
-                f"within-instance cosine {r['within_instance_cosine']['mean']:.3f}."
+                f"{entry['cross_instance_spearman']['mean']:.3f} "
+                f"[{entry['cross_instance_spearman']['lo']:.3f}, {entry['cross_instance_spearman']['hi']:.3f}], "
+                f"within-instance cosine {entry['within_instance_cosine']['mean']:.3f}."
             )
     neural_closed_all = all(
         closure[(("neural"), fam)]["lo"] > 0.999999
