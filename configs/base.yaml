@@ -85,8 +85,10 @@ closure_capacity:      # experiments/closure_capacity.py: does closure -> 1 with
   n_max: 4000          # matches the budget diagnostic; brackets params/n = 1
   device: cuda:1       # GPU 0 is occupied by another job; float64 is 18x slower
                        # than float32 on these TITAN RTX, so this is not free speed
-  hidden: [16, 32, 64, 128, 256]   # 256x3 is already 35 params/point; 512 adds
-                                   # cost inside the interpolation regime, not information
+  hidden: [16, 32, 64, 128]        # spans 0.06 to 9.4 params/point at n=4000, so it
+                                   # brackets params/n = 1 between 64x1 (0.59) and
+                                   # 128x1 (1.18). Wider cells sit far inside the
+                                   # interpolation regime and cost hours for no evidence.
   depth: [1, 2, 3]
   strengths: [0.25, 0.55, 0.75, 0.95]
   omega: 2.0
