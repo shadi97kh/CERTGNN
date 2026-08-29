@@ -114,6 +114,15 @@ rank_reversal_std:     # ABLATIONS 1.8 third arm (experiments/rank_reversal_stan
   baseline_pairs: [[0.5, 0.9], [0.5, 0.95], [0.5, 0.99]]
   n_per_baseline: 100  # scores are per-node, so each instance costs n_nodes solves
 
+splice:                # certgnn/substrates/splice (MFASS)
+  window: 10           # tiling width in nt; one node per window
+
+gate2_splice:          # experiments/gate2_splice.py: row 1.9 on real data
+  max_per_split: 4000  # cap per split to keep a 10-seed sweep tractable
+  explanation_ball_fraction: 0.5
+  min_test_r2: 0.02    # below this the model has not learned and the arm is
+                       # reported as uninformative rather than as evidence
+
 tier0:                 # ABLATIONS 0.6, 0.7, 0.8 (experiments/tier0_controls.py)
   substrates: [splice, connectome, synthetic]
   run_bqn_on: [connectome]        # 0.8 is a brain-substrate row
