@@ -456,7 +456,8 @@ def make_table(
         rows = {
             "gnn": "reference",
             "shuffled": "0.6 degree-preserving shuffle",
-            "mlp": "0.7 edge-free MLP",
+            "mlp": "0.7 edge-free MLP (target readout)",
+            "mlp_mean": "0.7b edge-free MLP (mean pool)",
             "bqn": "0.8 Hadamard/BQN",
         }
         for m in MODELS:
