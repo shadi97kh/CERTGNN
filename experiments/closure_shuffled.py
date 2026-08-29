@@ -33,20 +33,32 @@ same epoch budget:
 - **null**: the fitted latent itself, at zero warp. The pipeline's numerical
   floor, present in every cell.
 
-The logic is a dissociation, not a threshold. A structurally closed model class
-re-represents monotone warps of its own latent and nothing else, because a
-monotone warp is the only target that preserves the ordering its features
-encode. A map that merely interpolates re-represents all three equally, because
-it is fitting n arbitrary values at n points.
+What this measures, and what it does NOT. If a cell fits the shuffled and noise
+targets as well as the warp, then on the observed points it can fit essentially
+anything, and an in-sample closure number from that cell cannot distinguish a
+class that CONTAINS the reparameterized twin from one that memorizes n values
+at n points.
+
+**It does not follow that such a cell fails to be closed.** Closure under
+monotone reparameterization is a claim about what the function class contains.
+A universal approximator contains psi(phi) AND fits permutations; the second is
+not evidence against the first. So a cell that fits everything is uninformative
+here, not disconfirming, and a grid in which no cell is both closed and
+selective is the expected behaviour of a flexible neural class rather than a
+finding about closure. An earlier version of this file's verdict read the
+disjointness as evidence against closure, which was wrong.
 
 Decisive contrast: at 128x2 and 128x3, is the shuffled R2 near 1 or near 0?
 
-- **Near 1.** Those cells fit an arbitrary target, so their closure of 1.000000
-  carries no information about the model class and the strong identifiability
-  claim does not follow.
-- **Near 0, while the warp target still reaches 1e-10.** The class re-represents
-  monotone warps specifically. Closure there is structural, and the strong
-  identifiability claim is back in play.
+- **Near 1.** In-sample closure at those cells carries no information either
+  way, because the same fit succeeds on targets that cannot be learned at all.
+  The question moves to held-out generalization.
+- **Near 0, while the warp target still reaches 1e-10.** Their in-sample
+  closure is at least not explained by an ability to fit anything.
+
+Either way this experiment does not settle identifiability. Containment implies
+the twin predicts on points the refit never saw, and memorization does not, so
+the discriminating measurement is `experiments/closure_heldout.py`.
 
 128x1 is the counterexample that separates the readings, and is reported
 explicitly. It is above the parameters-per-datapoint boundary but far from
@@ -475,34 +487,47 @@ def verdict_text(agg: dict[str, Any], cfg: Any, hi: float, lo: float) -> str:
     wide_names = ", ".join(f"{c['hidden']}x{c['depth']}" for c in wide)
     if wide and wide_shuf >= hi:
         parts.append(
-            f"**The closed cells interpolate.** At {wide_names} the shuffled target "
-            f"is re-represented at R² up to {wide_shuf:.4f}, and a random permutation "
-            "of the latent carries no relation to the input whatsoever. A map that "
-            "fits that is fitting arbitrary values at arbitrary points, so its "
-            "closure of 1.000000 on the monotone warp is not evidence that the model "
-            "class is closed under reparameterization. **The strong identifiability "
-            "claim does NOT follow.** The classes remain separable on real data, the "
-            "mechanism test is viable, and the identifiability claim is the weaker "
-            "practical one."
+            f"**In-sample closure is uninformative at {wide_names}.** There the "
+            f"shuffled target is re-represented at R² up to {wide_shuf:.4f}: the "
+            "class can fit a random permutation of the latent, a target with no "
+            "relation to the input, on the observed points. Any measurement that "
+            "asks only whether a target can be fitted on those same points "
+            "therefore cannot distinguish a class that CONTAINS the "
+            "reparameterized twin from one that memorizes n values at n points, and "
+            "the closure of 1.000000 reported for these cells is such a "
+            "measurement.\n\n"
+            "**This does not refute closure, and must not be read as doing so.** "
+            "Closure under monotone reparameterization is a claim about what the "
+            "function class contains. A universal approximator contains ψ∘φ *and* "
+            "fits permutations; both are consequences of flexibility, and the second "
+            "does not deny the first. The dissociation this experiment set out to "
+            "find -- a class that re-represents warps while failing arbitrary "
+            "targets -- is not a property any sufficiently flexible neural class "
+            "would have, so its absence is expected and carries no evidence either "
+            "way. **The discriminating measurement is held-out generalization** "
+            "(`experiments/closure_heldout.py`, `paper/tables/closure_heldout.md`), "
+            "which refits on a subset and evaluates the warp target on points the "
+            "refit never saw. Containing the twin implies it predicts on unseen "
+            "points; memorizing does not. Until that is measured, neither branch of "
+            "the identifiability question is decided."
         )
     elif wide and wide_shuf <= lo:
         parts.append(
-            f"**The closed cells are selective, not interpolating.** At {wide_names} "
-            f"the monotone warp is re-represented essentially exactly while the "
-            f"shuffled target reaches only R² {wide_shuf:.4f}. The class "
-            "re-represents reparameterizations of its own latent and not arbitrary "
-            "targets, which is what structural closure means. **Closure there is "
-            "structural and the strong identifiability claim is back in play:** the "
-            "twin is a legitimate alternative fit that predicts identically, and the "
-            "two global-epistasis mechanisms are confusable at that capacity."
+            f"**The closed cells do not fit arbitrary targets.** At {wide_names} the "
+            f"monotone warp is re-represented essentially exactly while the shuffled "
+            f"target reaches only R² {wide_shuf:.4f}, so in-sample closure there is "
+            "not explained by an ability to fit anything on the observed points. "
+            "That removes the memorization reading as an explanation of these "
+            "numbers, but does not by itself establish closure out of sample; "
+            "`experiments/closure_heldout.py` is what tests that directly."
         )
     elif wide:
         parts.append(
-            f"**Ambiguous at the closed cells.** At {wide_names} the shuffled target "
-            f"reaches R² {wide_shuf:.4f}, which is neither near 1 (interpolation, "
-            f"threshold {hi}) nor near 0 (selectivity, threshold {lo}). The "
-            "dissociation this experiment was built to produce did not separate, and "
-            "neither reading is supported. Do not claim either."
+            f"**Intermediate at the closed cells.** At {wide_names} the shuffled "
+            f"target reaches R² {wide_shuf:.4f}, between the thresholds for fitting "
+            f"anything ({hi}) and for failing arbitrary targets ({lo}). No reading "
+            "is supported from this contrast alone; see "
+            "`experiments/closure_heldout.py`."
         )
 
     if c128x1 is not None:
@@ -567,11 +592,14 @@ def verdict_text(agg: dict[str, Any], cfg: Any, hi: float, lo: float) -> str:
         )
     )
 
-    # The crispest single statement the grid supports: is there ANY cell that is
-    # both closed and selective? Structural closure requires both at once -- a
-    # cell must re-represent the monotone warp essentially exactly AND fail the
-    # non-monotone targets. A grid where the two never co-occur has not exhibited
-    # structural closure anywhere, whatever the individual columns look like.
+    # Whether any cell is both closed and selective. This is reported as an
+    # observation about the grid, NOT as a test of closure. Closure under
+    # monotone reparameterization is a claim about what the class contains, and
+    # a universal approximator contains the reparameterized twin AND fits
+    # permutations; selectivity is therefore not a requirement of closure and
+    # its absence is the expected behaviour of a flexible neural class. An
+    # earlier version of this verdict treated the disjointness as evidence
+    # against closure, which was wrong.
     margin = float(cfg.closure_shuffled.selectivity_margin)
     both = sorted(
         k
@@ -588,18 +616,25 @@ def verdict_text(agg: dict[str, Any], cfg: Any, hi: float, lo: float) -> str:
     if both:
         parts.append(
             f"**{', '.join(both)} {'is' if len(both) == 1 else 'are'} both closed and "
-            f"selective** (selectivity at least {margin}), which is what structural "
-            "closure requires: the monotone warp re-represented essentially exactly "
-            "while the non-monotone targets are not."
+            f"selective** (selectivity at least {margin}): the monotone warp is "
+            "re-represented essentially exactly while the non-monotone targets are "
+            "not. In-sample closure at these cells is therefore not explained by an "
+            "ability to fit anything, though out-of-sample behaviour is still what "
+            "settles containment."
         )
     elif closed_any and sel_any:
         parts.append(
-            f"**No cell is both closed and selective.** Closure of 1.000000 occurs at "
-            f"{', '.join(closed_any)}, and selectivity of at least {margin} occurs at "
-            f"{', '.join(sel_any)}, and these sets do not intersect. Structural "
-            "closure requires both at once, so it is not exhibited anywhere in this "
-            "grid: every cell that re-represents a monotone warp exactly also "
-            "re-represents a random permutation of the same values."
+            f"**No cell is both closed and selective**: closure of 1.000000 occurs at "
+            f"{', '.join(closed_any)}, selectivity of at least {margin} at "
+            f"{', '.join(sel_any)}, and the sets are disjoint. This is reported as a "
+            "description of the grid and is **not** evidence against closure. A class "
+            "flexible enough to contain the reparameterized twin is generally also "
+            "flexible enough to fit a permutation, so selectivity is not a property "
+            "closure implies, and its absence at the closed cells is what any "
+            "sufficiently flexible neural class would show. What the disjointness "
+            "does establish is narrower and still useful: at exactly the cells where "
+            "closure reads 1.000000, an in-sample fit cannot distinguish containment "
+            "from memorization, which is why the held-out experiment exists."
         )
     elif closed_any:
         parts.append(

@@ -116,6 +116,15 @@ closure_shuffled:      # experiments/closure_shuffled.py: closure or interpolati
   selectivity_margin: 0.05 # warp must beat the non-monotone targets by this
                            # much for a cell to count as selective at all
 
+closure_heldout:       # experiments/closure_heldout.py: containment or memorization?
+  # Grid, epochs, lr ladder and pilot come from closure_capacity so the fit
+  # column here is directly comparable to the closure column there.
+  n_fit: 3000          # of closure_capacity.n_max = 4000; the rest is held out
+  strength: 0.95       # same warp strength the capacity sweep reported on
+  ceiling_min: 0.99    # null target held-out R2 below this = protocol broken
+  floor_max: 0.10      # shuffled target held-out R2 above this = split leaking
+  heldout_closed: 0.999999   # held-out warp R2 at or above this = contains the twin
+
 identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
   path: data/raw/mpsa_data.csv.gz
   n_max: 4000          # sequences per seed; the full library is 30,483
