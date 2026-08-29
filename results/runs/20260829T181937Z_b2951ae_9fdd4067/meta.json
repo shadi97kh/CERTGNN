@@ -1,0 +1,27 @@
+{
+  "experiment": "closure_heldout",
+  "git_sha": "b2951ae",
+  "git_dirty": false,
+  "allow_dirty": false,
+  "config_hash": "9fdd4067",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "timestamp_utc": "20260829T181937Z",
+  "argv": [
+    "/home/shadi/certgnn/experiments/closure_heldout.py",
+    "--config",
+    "configs/base.yaml"
+  ],
+  "run_id": null,
+  "sweep": null
+}
