@@ -348,9 +348,18 @@ def warp(
         b = torch.rand(k, generator=g, dtype=torch.float64) + 0.5  # > 0
         c = (torch.rand(k, generator=g, dtype=torch.float64) + 0.5) * omega
         d = torch.linspace(-2, 2, k, dtype=torch.float64)
-        gz = (b * torch.sigmoid(c * z[:, None] + d)).sum(1)
-        gz = _standardize(gz)
-        return (1.0 - strength) * z + strength * gz
+
+        def _mix(t: torch.Tensor) -> torch.Tensor:
+            return (b * torch.sigmoid(c * t[:, None] + d)).sum(1)
+
+        # Normalize against a FIXED reference grid, never the passed array.
+        # Standardizing on the input made psi depend on what else was in the
+        # batch, so it was not a function: the same z gave different psi(z)
+        # depending on its neighbours, and every result for this family was an
+        # artifact. Same failure mode as the spline's data-dependent knots.
+        ref = _mix(torch.linspace(-WARP_SPAN, WARP_SPAN, 4001, dtype=torch.float64))
+        mu, sd = ref.mean(), ref.std().clamp_min(1e-12)
+        return (1.0 - strength) * z + strength * ((_mix(z) - mu) / sd)
     raise ValueError(f"unknown warp family {family!r}")
 
 

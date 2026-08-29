@@ -271,3 +271,31 @@ def test_make_run_dir_never_reuses_a_directory(tmp_path, monkeypatch):
     assert len({d.name for d in dirs}) == 3
     for d in dirs:
         assert (d / "meta.json").exists() and (d / "config.yaml").exists()
+
+
+def test_every_warp_family_is_a_function_of_its_input_alone():
+    """psi(z) must not depend on what else is in the array.
+
+    Standardizing a warp on the passed batch made psi(z) change with its
+    neighbours, so the family was not a function and every number computed
+    with it was an artifact. Inverting such a "warp" is meaningless.
+    """
+    import torch
+
+    from experiments.identifiability_probe import WARP_FAMILIES, invert_warp, warp
+
+    common = torch.linspace(-1.0, 1.0, 11, dtype=torch.float64)
+    wide = torch.cat([common, torch.linspace(-3.0, 3.0, 200, dtype=torch.float64)])
+    narrow = torch.cat([common, torch.linspace(-0.5, 0.5, 200, dtype=torch.float64)])
+    for fam in WARP_FAMILIES:
+        for s in (0.25, 0.95):
+            a = warp(wide, fam, s, 2.0, 0)[:11]
+            b = warp(narrow, fam, s, 2.0, 0)[:11]
+            assert torch.allclose(
+                a, b, atol=1e-12
+            ), f"{fam} at s={s} is not a function of its input"
+            # and the exact inverse must round-trip
+            back = invert_warp(warp(common, fam, s, 2.0, 0), fam, s, 2.0, 0)
+            assert torch.allclose(
+                back, common, atol=1e-8
+            ), f"{fam} at s={s} does not round-trip"
