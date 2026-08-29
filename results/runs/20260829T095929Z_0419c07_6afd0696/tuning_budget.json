@@ -1,0 +1,98 @@
+[
+  {
+    "model": "neural_16x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_16x2",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_16x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_32x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_32x2",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_32x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_64x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_64x2",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_64x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_128x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_128x2",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  },
+  {
+    "model": "neural_128x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 2400,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], chosen per cell by a 300-epoch pilot; architecture is the sweep axis, not tuned",
+    "selection": "pilot picks lr by the REFERENCE fit's training loss only (never a warp, refit or closure value); then final iterate for the reference, best iterate for refits"
+  }
+]

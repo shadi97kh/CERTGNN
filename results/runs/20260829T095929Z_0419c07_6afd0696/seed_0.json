@@ -1,0 +1,414 @@
+{
+ "seed": 0,
+ "cells": [
+  {
+   "hidden": 16,
+   "depth": 1,
+   "n_params": 609,
+   "fit_r2": 0.6781065896401925,
+   "lr": 0.01,
+   "degenerate": false,
+   "closure_r2": 0.9883433249717973,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.003363894560411271,
+   "effect_trend_rho": 1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.998424297303865,
+     "effect_size": 0.11749202298068989
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9945514244646863,
+     "effect_size": 0.13037273027091753
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9915696990134539,
+     "effect_size": 0.15094155164238196
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9883433249717973,
+     "effect_size": 0.18301065856616378
+    }
+   ]
+  },
+  {
+   "hidden": 16,
+   "depth": 2,
+   "n_params": 881,
+   "fit_r2": 0.6919807862046212,
+   "lr": 0.01,
+   "degenerate": false,
+   "closure_r2": 0.999425697421673,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.0949154540771823,
+   "effect_trend_rho": 1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9998196577187765,
+     "effect_size": 0.0491897606355322
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9996645804679971,
+     "effect_size": 0.05170666750639433
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9995522942017319,
+     "effect_size": 0.06522135199049417
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.999425697421673,
+     "effect_size": 0.09013773468668196
+    }
+   ]
+  },
+  {
+   "hidden": 16,
+   "depth": 3,
+   "n_params": 1153,
+   "fit_r2": 0.7241062855295334,
+   "lr": 0.01,
+   "degenerate": false,
+   "closure_r2": 0.9998347482222959,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.0031928375827002015,
+   "effect_trend_rho": 0.7999999999999999,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9999538257611237,
+     "effect_size": 0.03203539608971553
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9999030209850321,
+     "effect_size": 0.04918309140432719
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9998817226894127,
+     "effect_size": 0.04458587999636829
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9998347482222959,
+     "effect_size": 0.06276963252884703
+    }
+   ]
+  },
+  {
+   "hidden": 32,
+   "depth": 1,
+   "n_params": 1217,
+   "fit_r2": 0.6900753376658094,
+   "lr": 0.01,
+   "degenerate": false,
+   "closure_r2": 0.9921720667667873,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.016112140846360246,
+   "effect_trend_rho": 1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.998908703804206,
+     "effect_size": 0.11973655567169947
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9962489906230222,
+     "effect_size": 0.1366132267865721
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9944240579487954,
+     "effect_size": 0.1643190086398797
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9921720667667873,
+     "effect_size": 0.19890398935294853
+    }
+   ]
+  },
+  {
+   "hidden": 32,
+   "depth": 2,
+   "n_params": 2273,
+   "fit_r2": 0.7684637153366711,
+   "lr": 0.01,
+   "degenerate": false,
+   "closure_r2": 0.997933727792687,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.05118398874366612,
+   "effect_trend_rho": 1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9994677143758881,
+     "effect_size": 0.06806787778648858
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.998934561581578,
+     "effect_size": 0.10592657951114384
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9983293754340348,
+     "effect_size": 0.1448225279072812
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.997933727792687,
+     "effect_size": 0.16867181896004557
+    }
+   ]
+  },
+  {
+   "hidden": 32,
+   "depth": 3,
+   "n_params": 3329,
+   "fit_r2": 0.8356721033009097,
+   "lr": 0.01,
+   "degenerate": false,
+   "closure_r2": 0.9989324435557722,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.07222527610288239,
+   "effect_trend_rho": 1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9997917147120732,
+     "effect_size": 0.005249535090288868
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9994855298929468,
+     "effect_size": 0.009725261173652017
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9992563458767225,
+     "effect_size": 0.031325778466647594
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9989324435557722,
+     "effect_size": 0.0945394022797491
+    }
+   ]
+  },
+  {
+   "hidden": 64,
+   "depth": 1,
+   "n_params": 2433,
+   "fit_r2": 0.6802068569192019,
+   "lr": 0.003,
+   "degenerate": false,
+   "closure_r2": 0.9992214328838924,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.011707703766866868,
+   "effect_trend_rho": 1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9998421000502659,
+     "effect_size": 0.016022458783747855
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9996096804250771,
+     "effect_size": 0.05985905858531792
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9994653279947959,
+     "effect_size": 0.11075288095192665
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9992214328838924,
+     "effect_size": 0.14603471009427296
+    }
+   ]
+  },
+  {
+   "hidden": 64,
+   "depth": 2,
+   "n_params": 6593,
+   "fit_r2": 0.7942067300036184,
+   "lr": 0.01,
+   "degenerate": false,
+   "closure_r2": 0.9999988529499012,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.02286803433451489,
+   "effect_trend_rho": 0.7999999999999999,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9999983373190706,
+     "effect_size": 0.013366008695302025
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9999988115031097,
+     "effect_size": 0.017829906006748282
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9999986959818815,
+     "effect_size": 0.04547628882012396
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9999988529499012,
+     "effect_size": 0.044738943875838134
+    }
+   ]
+  },
+  {
+   "hidden": 64,
+   "depth": 3,
+   "n_params": 10753,
+   "fit_r2": 0.9788912176912397,
+   "lr": 0.01,
+   "degenerate": false,
+   "closure_r2": 0.9999956217142799,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.015635555263629235,
+   "effect_trend_rho": -1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9999979776719482,
+     "effect_size": 0.09183026605991854
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9999980462238086,
+     "effect_size": 0.0634361486493475
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9999909286918607,
+     "effect_size": 0.05128938199242654
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9999956217142799,
+     "effect_size": 0.022325656717872806
+    }
+   ]
+  },
+  {
+   "hidden": 128,
+   "depth": 1,
+   "n_params": 4865,
+   "fit_r2": 0.6881972112223558,
+   "lr": 0.003,
+   "degenerate": false,
+   "closure_r2": 0.9998218053837452,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.003153817170872462,
+   "effect_trend_rho": 1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9999693589384294,
+     "effect_size": 0.025306976018691647
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9999160405906032,
+     "effect_size": 0.03921526105995355
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9998775576947602,
+     "effect_size": 0.11231733814782881
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9998218053837452,
+     "effect_size": 0.1345117066389042
+    }
+   ]
+  },
+  {
+   "hidden": 128,
+   "depth": 2,
+   "n_params": 21377,
+   "fit_r2": 0.6832249675007817,
+   "lr": 0.001,
+   "degenerate": false,
+   "closure_r2": 0.9999999990252706,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.020755891795739043,
+   "effect_trend_rho": 0.7999999999999999,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9999999982299309,
+     "effect_size": 0.01399230066770286
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9999999925512106,
+     "effect_size": 0.00201334223823372
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9999999995144572,
+     "effect_size": 0.015064107780822759
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9999999990252706,
+     "effect_size": 0.02852125868195993
+    }
+   ]
+  },
+  {
+   "hidden": 128,
+   "depth": 3,
+   "n_params": 37889,
+   "fit_r2": 0.9459413400992533,
+   "lr": 0.003,
+   "degenerate": false,
+   "closure_r2": 0.9999999995426896,
+   "null_closure_r2": 1.0,
+   "null_effect_size": 0.021244048285505534,
+   "effect_trend_rho": 1.0,
+   "per_strength": [
+    {
+     "strength": 0.25,
+     "closure_r2": 0.9999999999079681,
+     "effect_size": 0.014162432634879162
+    },
+    {
+     "strength": 0.55,
+     "closure_r2": 0.9999999999082688,
+     "effect_size": 0.019745719567478164
+    },
+    {
+     "strength": 0.75,
+     "closure_r2": 0.9999999998550695,
+     "effect_size": 0.03543183927676666
+    },
+    {
+     "strength": 0.95,
+     "closure_r2": 0.9999999995426896,
+     "effect_size": 0.04214116903189545
+    }
+   ]
+  }
+ ],
+ "n": 4000
+}

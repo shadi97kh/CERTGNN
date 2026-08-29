@@ -1,0 +1,557 @@
+{
+ "n_seeds": 10,
+ "n": 4000,
+ "cells": {
+  "16x1": {
+   "hidden": 16,
+   "depth": 1,
+   "n_params": 609,
+   "params_per_point": 0.15225,
+   "closure_r2": {
+    "mean": 0.9879063111840374,
+    "lo": 0.9858094189843886,
+    "hi": 0.9898846485086915,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.005686600494011126,
+    "lo": 0.0033658511172750933,
+    "hi": 0.008663286222030725,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.9800000000000001,
+    "lo": 0.9399999999999998,
+    "hi": 1.0,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.7144298793567905,
+    "lo": 0.7030569797175283,
+    "hi": 0.7248491416730014,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.01
+   ]
+  },
+  "16x2": {
+   "hidden": 16,
+   "depth": 2,
+   "n_params": 881,
+   "params_per_point": 0.22025,
+   "closure_r2": {
+    "mean": 0.9992820310844553,
+    "lo": 0.9988938013007096,
+    "hi": 0.999579474896062,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.02500407148562104,
+    "lo": 0.00807364521524725,
+    "hi": 0.04575004652512966,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.9800000000000001,
+    "lo": 0.9399999999999998,
+    "hi": 1.0,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.7287853989161014,
+    "lo": 0.7118225961206093,
+    "hi": 0.748054846329447,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.01
+   ]
+  },
+  "16x3": {
+   "hidden": 16,
+   "depth": 3,
+   "n_params": 1153,
+   "params_per_point": 0.28825,
+   "closure_r2": {
+    "mean": 0.9997354195677014,
+    "lo": 0.9994352608118461,
+    "hi": 0.9999188030177684,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.019877353116798075,
+    "lo": 0.009985345840004418,
+    "hi": 0.03294456632585372,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.6399999999999999,
+    "lo": 0.38,
+    "hi": 0.8800000000000001,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.7564921327818983,
+    "lo": 0.7311179347662602,
+    "hi": 0.7836985407934898,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.003,
+    0.01
+   ]
+  },
+  "32x1": {
+   "hidden": 32,
+   "depth": 1,
+   "n_params": 1217,
+   "params_per_point": 0.30425,
+   "closure_r2": {
+    "mean": 0.9937611283588712,
+    "lo": 0.992907355445,
+    "hi": 0.9945788436581389,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.011134123817773085,
+    "lo": 0.006863625497382587,
+    "hi": 0.015435863123050078,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.7209088184690924,
+    "lo": 0.7095257313460663,
+    "hi": 0.732837556698097,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.01
+   ]
+  },
+  "32x2": {
+   "hidden": 32,
+   "depth": 2,
+   "n_params": 2273,
+   "params_per_point": 0.56825,
+   "closure_r2": {
+    "mean": 0.997437528118542,
+    "lo": 0.9954134995392325,
+    "hi": 0.9990643756258116,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.023821455880581585,
+    "lo": 0.007941980189829818,
+    "hi": 0.048743724019592136,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.9399999999999998,
+    "lo": 0.8799999999999999,
+    "hi": 1.0,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.77061811824241,
+    "lo": 0.7390450941056336,
+    "hi": 0.8030134764661386,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.01
+   ]
+  },
+  "32x3": {
+   "hidden": 32,
+   "depth": 3,
+   "n_params": 3329,
+   "params_per_point": 0.83225,
+   "closure_r2": {
+    "mean": 0.9995247019330347,
+    "lo": 0.9991454899823408,
+    "hi": 0.9998192080509641,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.07558611225362903,
+    "lo": 0.03925145535283494,
+    "hi": 0.11121192549849425,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.4999999999999999,
+    "lo": 0.10000000000000002,
+    "hi": 0.8399999999999999,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.7915559220607578,
+    "lo": 0.7541962856839438,
+    "hi": 0.8278553603128492,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.01
+   ]
+  },
+  "64x1": {
+   "hidden": 64,
+   "depth": 1,
+   "n_params": 2433,
+   "params_per_point": 0.60825,
+   "closure_r2": {
+    "mean": 0.9987725994677443,
+    "lo": 0.9981516667049601,
+    "hi": 0.9992071477568494,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.01328970706598307,
+    "lo": 0.007824214346140512,
+    "hi": 0.019564284860390822,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.9800000000000001,
+    "lo": 0.9399999999999998,
+    "hi": 1.0,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.7130813508561875,
+    "lo": 0.7022116668901649,
+    "hi": 0.722014282191348,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.003,
+    0.01
+   ]
+  },
+  "64x2": {
+   "hidden": 64,
+   "depth": 2,
+   "n_params": 6593,
+   "params_per_point": 1.64825,
+   "closure_r2": {
+    "mean": 0.9999972954664564,
+    "lo": 0.9999955824396891,
+    "hi": 0.9999987080047817,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.052514697998389856,
+    "lo": 0.017684397514958355,
+    "hi": 0.09944702007246646,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.29999999999999993,
+    "lo": -0.14000000000000004,
+    "hi": 0.6599999999999999,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.8158749423716062,
+    "lo": 0.774456784838279,
+    "hi": 0.8587993246566353,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.01
+   ]
+  },
+  "64x3": {
+   "hidden": 64,
+   "depth": 3,
+   "n_params": 10753,
+   "params_per_point": 2.68825,
+   "closure_r2": {
+    "mean": 0.9999972223287781,
+    "lo": 0.9999952907390519,
+    "hi": 0.9999987416083316,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.04224392522162782,
+    "lo": 0.02139987206128526,
+    "hi": 0.06684160180218153,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.06000000000000002,
+    "lo": -0.4,
+    "hi": 0.4800000000000001,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.8796146315876248,
+    "lo": 0.8109949566491426,
+    "hi": 0.9402662655078073,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.01
+   ]
+  },
+  "128x1": {
+   "hidden": 128,
+   "depth": 1,
+   "n_params": 4865,
+   "params_per_point": 1.21625,
+   "closure_r2": {
+    "mean": 0.9998822213362853,
+    "lo": 0.9998657531858502,
+    "hi": 0.9998952547280433,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.005150104579705073,
+    "lo": 0.0019356925405308795,
+    "hi": 0.009329775964431254,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": 0.86,
+    "lo": 0.74,
+    "hi": 0.96,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.7118261918723128,
+    "lo": 0.7028988039475295,
+    "hi": 0.7205277216012705,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.003
+   ]
+  },
+  "128x2": {
+   "hidden": 128,
+   "depth": 2,
+   "n_params": 21377,
+   "params_per_point": 5.34425,
+   "closure_r2": {
+    "mean": 0.9999999875491412,
+    "lo": 0.9999999751796994,
+    "hi": 0.9999999977454148,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.022497358832580614,
+    "lo": 0.013075826195824933,
+    "hi": 0.034753259498390116,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": -0.16,
+    "lo": -0.52,
+    "hi": 0.21999999999999997,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.7476912392528664,
+    "lo": 0.7211669563779446,
+    "hi": 0.7774125717997288,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.001,
+    0.003
+   ]
+  },
+  "128x3": {
+   "hidden": 128,
+   "depth": 3,
+   "n_params": 37889,
+   "params_per_point": 9.47225,
+   "closure_r2": {
+    "mean": 0.9999999997422071,
+    "lo": 0.9999999995939145,
+    "hi": 0.9999999998721043,
+    "n": 10
+   },
+   "null_closure_r2": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 10
+   },
+   "null_effect_size": {
+    "mean": 0.020067556150140338,
+    "lo": 0.011978230199506563,
+    "hi": 0.028473551573366868,
+    "n": 10
+   },
+   "effect_trend_rho": {
+    "mean": -0.13999999999999999,
+    "lo": -0.5999999999999999,
+    "hi": 0.34,
+    "n": 10
+   },
+   "fit_r2": {
+    "mean": 0.8382581940185834,
+    "lo": 0.781308099870497,
+    "hi": 0.8974082617126485,
+    "n": 10
+   },
+   "n_degenerate": 0,
+   "lrs": [
+    0.001,
+    0.003
+   ]
+  }
+ },
+ "asymptote": {
+  "n_cells": 12,
+  "cells": [
+   "16x1",
+   "16x2",
+   "16x3",
+   "32x1",
+   "32x2",
+   "32x3",
+   "64x1",
+   "64x2",
+   "64x3",
+   "128x1",
+   "128x2",
+   "128x3"
+  ],
+  "gap_inf": 0.0008367790360655303,
+  "gap_inf_lo": 0.0006054888461363419,
+  "gap_inf_hi": 0.001058387755333542,
+  "closure_inf": 0.9991632209639345,
+  "closure_inf_lo": 0.9989416122446665,
+  "closure_inf_hi": 0.9993945111538637,
+  "power_a": 928258010837.629,
+  "power_b": 4.999999999605439,
+  "rmse": 0.0017472314403512057,
+  "b_at_bound": true,
+  "n_boot": 400
+ },
+ "asymptote_underparam": {
+  "n_cells": 7,
+  "cells": [
+   "16x1",
+   "16x2",
+   "16x3",
+   "32x1",
+   "32x2",
+   "32x3",
+   "64x1"
+  ],
+  "gap_inf": 0.0015723642050416576,
+  "gap_inf_lo": 0.0011847421614949618,
+  "gap_inf_hi": 0.0019958324451404023,
+  "closure_inf": 0.9984276357949583,
+  "closure_inf_lo": 0.9980041675548595,
+  "closure_inf_hi": 0.998815257838505,
+  "power_a": 854329608833.165,
+  "power_b": 4.999999999858302,
+  "rmse": 0.00208180524134464,
+  "b_at_bound": true,
+  "n_boot": 400
+ },
+ "closure_reached": {
+  "underparameterized": [],
+  "overparameterized": [
+   "128x2",
+   "128x3"
+  ],
+  "best_underparameterized": "16x3",
+  "best_underparameterized_gap": 0.00026458043229860007,
+  "best_overparameterized": "128x3",
+  "best_overparameterized_gap": 2.5779289813954165e-10,
+  "null_closure_gap": 0.0
+ },
+ "verdict": "**Closure reaches 1.000000 ONLY by interpolation.** No cell with fewer parameters than datapoints reaches it: the best such cell is 16x3 at closure 0.999735 (gap 2.65e-04). Closure appears only once the map is overparameterized (128x2, 128x3; best 128x3 at gap 2.58e-10), where it can fit ANY target on the observed points, so reaching 1 there says nothing about whether the model class is closed under reparameterization. **The strong identifiability claim does NOT follow.** On the evidence that is not interpolation, the classes remain separable on real data, the mechanism test is viable, and the identifiability claim is the weaker practical one. The pipeline's numerical floor is the null control's closure, which is 1.000000 in every cell (largest null gap 0.00e+00), so a shortfall above that floor is real. (The null EFFECT size reaches 0.0756, which is why effect size is not used as the closure floor here.) The power-law asymptote is reported above but is NOT used for this verdict: b is pinned at its bound in the fit, because the closure gap is not monotone in parameter count. The verdict rests on what the cells reached.",
+ "null_floor_effect_size": 0.07558611225362903,
+ "null_floor_closure_gap": 0.0,
+ "best_cell": "128x3"
+}

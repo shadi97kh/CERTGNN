@@ -1,0 +1,27 @@
+{
+  "experiment": "closure_capacity",
+  "git_sha": "0419c07",
+  "git_dirty": false,
+  "allow_dirty": false,
+  "config_hash": "6afd0696",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "timestamp_utc": "20260829T095929Z",
+  "argv": [
+    "/home/shadi/certgnn/experiments/closure_capacity.py",
+    "--config",
+    "configs/base.yaml"
+  ],
+  "run_id": null,
+  "sweep": null
+}
