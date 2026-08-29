@@ -76,6 +76,11 @@ benchmark:             # ABLATIONS C.5-C.8, experiments/benchmark_reeval.py
   explainer_epochs: 100
   aopc_k: 10           # perturbation-curve depth; null uses every candidate node
 
+ism:                   # experiments/ism_invariance.py
+  n_alt: 3             # alternative values per position, the analogue of 3 alternative bases
+  omega: 2.0           # warp shape parameter; strengths come from identifiability.radius
+  cut: 0.95            # the within-locus Spearman below which the rule is called broken
+
 identifiability:       # experiments/identifiability_probe.py
   topology: {kind: nested_bubbles, n_branches: 2, depth: 2, n_distractors: 3}
   n_instances: 800
