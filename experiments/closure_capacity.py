@@ -50,9 +50,14 @@ That ratio turned out NOT to order this data, so it cannot carry the argument:
 short of closure, while 16x3 at 0.29 is comparable to it. Depth-dependent
 expressivity and interpolation both predict the observed pattern at the widest
 cells, and this experiment does not separate them. The verdict is therefore
-explicitly PENDING the shuffled-target control in `closure_shuffled.py`, which
-refits each cell to non-monotone targets and measures the dissociation
-directly. Neither branch of the question above is decided here.
+explicitly PENDING. The shuffled-target control in `closure_shuffled.py` has
+since run and did not settle it: it tested selectivity, and closure does not
+imply selectivity, since a class flexible enough to contain the twin is
+generally also flexible enough to fit a permutation. What it did establish is
+that at these capacities an in-sample fit cannot tell containment from
+memorization. The discriminating experiment is therefore `closure_heldout.py`,
+which scores the warp target on points the refit never saw. Neither branch of
+the question above is decided here.
 
 Scope. The sweep uses one warp family (sinusoid). The question here is
 capacity, and adding families multiplies cost without bearing on it; the
@@ -700,16 +705,31 @@ def main(argv: list[str] | None = None) -> int:
         "the model class. Both predict exactly what the table shows for the widest "
         f"cells. {ratio_txt}"
         "\n\n"
-        "**The discriminating experiment is the shuffled-target control** "
-        "(`experiments/closure_shuffled.py`, table `paper/tables/closure_shuffled.md`). "
-        "It refits each cell to a random permutation of the fitted latent and to "
-        "Gaussian noise, under this experiment's protocol. A class that is closed "
-        "through expressivity re-represents monotone warps and fails the "
-        "non-monotone targets; a map that interpolates re-represents all of them. "
-        "Until that dissociation is measured, whether a sufficiently flexible G-P "
-        "map is closed on real MPSA data -- and therefore whether the strong "
-        "identifiability claim holds or the mechanism test remains viable -- is "
-        "**open**."
+        "**The shuffled-target control has run and did not settle this.** "
+        "(`experiments/closure_shuffled.py`, `paper/tables/closure_shuffled.md`.) It "
+        "asked whether the closed cells are SELECTIVE: whether they re-represent a "
+        "monotone warp while failing a random permutation and Gaussian noise. They "
+        "are not -- at 128x2 and 128x3 the permutation is re-represented at R2 "
+        "1.0000. But selectivity was the wrong instrument, because closure does not "
+        "imply it. Closure under monotone reparameterization is a claim about what "
+        "the function class CONTAINS, and a class flexible enough to contain the "
+        "reparameterized twin is generally also flexible enough to fit a "
+        "permutation. Failing the non-monotone targets is therefore not a property "
+        "a closed class must have, and its absence is what any sufficiently "
+        "flexible neural class would show. That control does establish something "
+        "narrower and important: at exactly the cells reading 1.000000, a fit "
+        "evaluated on the points it was fitted to cannot distinguish a class that "
+        "contains the twin from one that memorizes n values at n points.\n\n"
+        "**The discriminating experiment is the held-out control** "
+        "(`experiments/closure_heldout.py`, `paper/tables/closure_heldout.md`). "
+        "Every closure number in this table is in-sample: the refit is fitted on all "
+        "n points and scored on those same n points. The held-out control refits on "
+        "a subset and scores the warp target on points the refit never saw. "
+        "Containment implies the twin agrees there, because it is the same FUNCTION; "
+        "memorization does not. Until that is reported, whether a sufficiently "
+        "flexible G-P map is closed on real MPSA data -- and therefore whether the "
+        "strong identifiability claim holds or the mechanism test remains viable -- "
+        "is **open**."
         f" The pipeline's numerical floor is the null control's closure, 1.000000 in "
         f"every cell (largest null gap {null_closure_gap:.2e}), so the shortfalls "
         f"above that floor are real. (The null EFFECT size reaches "
