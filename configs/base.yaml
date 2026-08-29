@@ -97,7 +97,8 @@ identifiability:       # experiments/identifiability_probe.py
     families: [sinusoid, spline, sigmoid_mixture]
     strengths: [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 0.95]
     omegas: [1.0, 2.0, 4.0]
-    warp_fit_epochs: 800
+    warp_fit_epochs: 1200   # warm-started from the reference map, so this polishes rather than relearns
+    fit_tol: 1.0e-10        # stop once the in-class approximation is at machine level
     sample_sizes:      # real MPSA designs
       - {label: "FAS exon 6", n: 3072}
       - {label: "BRCA2 exon 17", n: 32768}

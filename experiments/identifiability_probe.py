@@ -374,19 +374,51 @@ def invert_on_samples(
 
 
 def fit_class_to_target(
-    kind: str, x: torch.Tensor, target: torch.Tensor, cfg: Any, gen: torch.Generator
+    kind: str,
+    x: torch.Tensor,
+    target: torch.Tensor,
+    cfg: Any,
+    gen: torch.Generator,
+    warm_start: nn.Module | None = None,
 ) -> tuple[torch.Tensor, nn.Module]:
-    """Best in-class approximation to a target latent, standardized."""
+    """Best in-class approximation to a target latent, standardized.
+
+    ``warm_start`` initializes from the reference G-P map's own weights. This
+    matters: at warp strength 0 the target *is* the reference latent, so a
+    cold-started refit measures optimization error rather than representational
+    limits, and that error dominates the indistinguishability test. Warm
+    starting makes the strength-0 refit exact by construction, which is what
+    the null control checks.
+    """
     ip = cfg.identifiability
     m = make_gp_map(kind, x.shape[1], int(ip.hidden), gen)
+    if warm_start is not None:
+        m.load_state_dict(warm_start.state_dict())
     opt = torch.optim.Adam(m.parameters(), lr=float(ip.lr))
     t = _standardize(target)
+
+    def normalized_loss() -> torch.Tensor:
+        pred = m(x).reshape(-1)
+        return ((pred - pred.mean()) / (pred.std() + 1e-9) - t).pow(2).mean()
+
+    # Keep the best iterate, not the last: warm-started at the exact solution,
+    # Adam wanders away from it, and that wandering -- not the warp -- then
+    # dominates the indistinguishability test.
+    import copy as _copy
+
+    best_loss = float(normalized_loss().detach())
+    best_state = _copy.deepcopy(m.state_dict())
     for _ in range(int(ip.radius.warp_fit_epochs)):
         opt.zero_grad()
-        pred = m(x).reshape(-1)
-        loss = ((pred - pred.mean()) / (pred.std() + 1e-9) - t).pow(2).mean()
+        loss = normalized_loss()
         loss.backward()
         opt.step()
+        cur = float(loss.detach())
+        if cur < best_loss:
+            best_loss, best_state = cur, _copy.deepcopy(m.state_dict())
+        if best_loss < float(ip.radius.fit_tol):
+            break
+    m.load_state_dict(best_state)
     with torch.no_grad():
         pred = m(x).reshape(-1)
     return pred.detach(), m
@@ -429,6 +461,39 @@ def radius_sweep(
         g_ref = latent_attributions(ref.model, x)
         mag_ref = torch.linalg.norm(g_ref, dim=1).numpy()
         gen = torch.Generator().manual_seed(seed * 31 + 7)
+        # Null control: strength 0 is the identity warp, so the refit target IS
+        # the reference latent and any detectable difference is refit error.
+        # Every radius below is only meaningful relative to this floor.
+        phi0, m0 = fit_class_to_target(
+            kind, x, z_ref, cfg, gen, warm_start=ref.model.phi
+        )
+        z_back0 = invert_on_samples(z_ref, z_ref, _standardize(phi0))
+        with torch.no_grad():
+            pred0 = ref.model.g(mu + sd * z_back0).detach()
+        null = indistinguishability(y, pred_orig, pred0)
+        rows.append(
+            {
+                "class": kind,
+                "family": "NULL(identity)",
+                "omega": 0.0,
+                "strength": 0.0,
+                "monotone": True,
+                "closure_r2": affine_r2(phi0.numpy(), z_ref.numpy()),
+                "affine_r2_to_phi_hat": 1.0,
+                "within_instance_cosine": attribution_agreement(
+                    g_ref, _grad_of_map(m0, x)
+                )["within_instance_cosine"],
+                "cross_instance_spearman": attribution_agreement(
+                    g_ref, _grad_of_map(m0, x)
+                )["cross_instance_magnitude_spearman"],
+                "effect_size": null["effect_size"],
+                "is_null_control": True,
+                "attr_magnitude_cv_ref": float(
+                    mag_ref.std() / max(abs(mag_ref.mean()), 1e-12)
+                ),
+                "attr_magnitude_cv_twin": float("nan"),
+            }
+        )
         for family in list(ip.radius.families):
             for omega in list(ip.radius.omegas):
                 for strength in list(ip.radius.strengths):
@@ -444,7 +509,9 @@ def radius_sweep(
                         )
                         continue
                     warped = warp(z_ref, family, float(strength), float(omega), seed)
-                    phi_t, m_t = fit_class_to_target(kind, x, warped, cfg, gen)
+                    phi_t, m_t = fit_class_to_target(
+                        kind, x, warped, cfg, gen, warm_start=ref.model.phi
+                    )
                     closure = affine_r2(phi_t.numpy(), warped.numpy())
                     # twin predictions: g(psi^-1(phi_t)), exact when closure is exact
                     z_back = invert_on_samples(
@@ -452,7 +519,12 @@ def radius_sweep(
                     )
                     with torch.no_grad():
                         pred_twin = ref.model.g(mu + sd * z_back).detach()
-                    ind = indistinguishability(y, pred_orig, pred_twin)
+                    # Baseline against the strength-0 refit, not the original
+                    # model: both twin and null go through the same refit and
+                    # numerical inversion, so their shared floor cancels and
+                    # what remains is the warp's own contribution.
+                    ind = indistinguishability(y, pred0, pred_twin)
+                    ind_vs_orig = indistinguishability(y, pred_orig, pred_twin)
                     g_t = (
                         latent_attributions(
                             m_t if not isinstance(m_t, LatentModel) else m_t, x
@@ -508,7 +580,7 @@ def per_seed_radius(
     """Largest indistinguishable strength per (class, family, omega) at size n."""
     out: dict[tuple[str, str, float], dict[str, float]] = {}
     for r in rows:
-        if not r.get("monotone"):
+        if not r.get("monotone") or r.get("is_null_control"):
             continue
         key = (r["class"], r["family"], r["omega"])
         ok = t_at(r["effect_size"], n) < T_CRIT
