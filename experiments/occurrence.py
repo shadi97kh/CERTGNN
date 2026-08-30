@@ -100,6 +100,7 @@ from experiments.separation import (
     per_instance_rho_topk,
     phenotype_slope,
     top_k_agreement,
+    top_k_agreement_conditioned,
 )
 
 
@@ -218,6 +219,10 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                 rho = spearmanr(attrs[i], attrs[j]).statistic
                 pi = per_instance_rho(per_inst[i], per_inst[j])
                 tk = top_k_agreement(per_inst[i], per_inst[j])
+                tkc = top_k_agreement_conditioned(
+                    per_inst[i], per_inst[j],
+                    float(cfg.separation.well_conditioned_mass),
+                )
                 tkr = per_instance_rho_topk(per_inst[i], per_inst[j])
                 # Symmetric in the pair: measuring only model i would report one
                 # arbitrary member's concentration as if it described both.
@@ -259,6 +264,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                         "eff_pos": conc["effective_positions_median"],
                         **{f"tk_{k}": v for k, v in tk.items()},
                         **{f"tk_{k}": v for k, v in tkr.items()},
+                        **{f"tk_{k}": v for k, v in tkc.items()},
                         "mde_r2": float(mde_mse / sst_mean)
                         if sst_mean > 0
                         else float("nan"),
@@ -440,6 +446,9 @@ def main(argv: list[str] | None = None) -> int:
             ("tk_j3", "tk_jaccard_top3_mean"),
             ("tk_ex1", "tk_exact_top1_frac"),
             ("tk_ex3", "tk_exact_top3_frac"),
+            ("tk_cj3", "tk_cond_jaccard_top3_mean"),
+            ("tk_cex3", "tk_cond_exact_top3_frac"),
+            ("tk_cfrac", "tk_cond_frac_instances"),
             ("tk_rho", "tk_topk_rho_median"),
             ("tk_union", "tk_topk_union_median"),
         ):
@@ -571,6 +580,30 @@ def main(argv: list[str] | None = None) -> int:
             f"{c['all_pair_r2_median']:.4f} → **{c['top_pair_r2_median']:.4f}** | "
             f"{c['pooled_tk_j3']:.2f} → **{c['top_tk_j3']:.2f}** | "
             f"{c['pooled_tk_ex3'] * 100:.0f}% → **{c['top_tk_ex3'] * 100:.0f}%** |"
+        )
+    L.append("")
+    L.append(
+        "**Conditioned on a top-3 existing.** Set overlap only means something where "
+        "the attribution profile has a well-defined top. A model spreading its "
+        f"magnitude near-uniformly over {agg['seq_len']} positions has an "
+        "ill-conditioned top-3, and two such models disagree for a reason unrelated "
+        "to which positions matter. These columns restrict to instances where BOTH "
+        f"models place at least {float(cfg.separation.well_conditioned_mass):.0%} of "
+        "their magnitude in their own top 3, and report what fraction of instances "
+        "qualify. Low agreement here cannot be blamed on a flat profile.\n"
+    )
+    L.append(
+        "| width | depth | eff. positions | instances qualifying | mean Jaccard top3 "
+        "(all → conditioned) | exact top-3 (all → conditioned) |"
+    )
+    L.append("|---|---|---|---|---|---|")
+    for h, dp in keys:
+        c = agg["cells"][f"{h}x{dp}"]
+        L.append(
+            f"| {h} | {dp} | {c['pooled_eff_pos']:.2f} | "
+            f"**{c['pooled_tk_cfrac'] * 100:.0f}%** | "
+            f"{c['pooled_tk_j3']:.2f} → **{c['pooled_tk_cj3']:.2f}** | "
+            f"{c['pooled_tk_ex3'] * 100:.0f}% → **{c['pooled_tk_cex3'] * 100:.0f}%** |"
         )
     L.append("")
     L.append(
@@ -858,6 +891,49 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
                 "one mechanism -- what the optimiser can reach in a deeper class -- "
                 "would produce both results."
             )
+        )
+
+    # Does the disagreement survive where a top-3 actually exists? Agreement
+    # tracks concentration across this grid, so without this the headline has an
+    # unresolved alternative reading: a flat profile has no top to agree about.
+    condc = {
+        k: v for k, v in usable.items() if np.isfinite(v.get("pooled_tk_cex3", np.nan))
+    }
+    if condc:
+        cf = {k: v["pooled_tk_cfrac"] for k, v in condc.items()}
+        ce = {k: v["pooled_tk_cex3"] for k, v in condc.items()}
+        cj = {k: v["pooled_tk_cj3"] for k, v in condc.items()}
+        ae = {k: v["pooled_tk_ex3"] for k, v in condc.items()}
+        ep = {k: v["pooled_eff_pos"] for k, v in condc.items()}
+        thin = sorted(k for k in cf if cf[k] < 0.10)
+        worst_c = min(ce, key=lambda k: ce[k])
+        parts.append(
+            "**Does the disagreement survive where a top-3 exists?** Agreement tracks "
+            "concentration across this grid — cells with few effective positions agree "
+            f"most — so a flat attribution profile is a live alternative explanation. "
+            f"Effective positions range {min(ep.values()):.2f} to {max(ep.values()):.2f} "
+            f"of {agg['seq_len']}. Restricting to instances where both models put at "
+            f"least {float(cfg.separation.well_conditioned_mass):.0%} of their "
+            "magnitude in their own top 3, exact top-3 agreement moves from "
+            f"{min(ae.values()) * 100:.0f}–{max(ae.values()) * 100:.0f}% to "
+            f"{min(ce.values()) * 100:.0f}–{max(ce.values()) * 100:.0f}% "
+            f"(mean Jaccard up to {max(cj.values()):.2f}), with "
+            f"{min(cf.values()) * 100:.0f}–{max(cf.values()) * 100:.0f}% of instances "
+            "qualifying."
+            + (
+                " **Read the cells where few instances qualify with care**: "
+                + ", ".join(thin)
+                + " retain under 10% of instances, so their conditioned numbers rest "
+                "on a small and self-selected subset, and a flat profile remains the "
+                "better description of what those models produce than a disagreement "
+                "about which positions matter."
+                if thin
+                else " Enough instances qualify in every cell for the conditioned "
+                "numbers to stand on their own, so the disagreement is not an artifact "
+                "of comparing tops that do not exist."
+            )
+            + f" At {worst_c} the conditioned exact agreement is still only "
+            f"{ce[worst_c] * 100:.0f}%."
         )
 
     parts.append(

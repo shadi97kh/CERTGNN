@@ -146,6 +146,11 @@ separation:            # experiments/separation.py: the quantitative claim
   # MEDIAN threshold anywhere in (0.5, 1] selects the same partition and only
   # looks calibrated. The branch uses the exact-set-match FRACTION instead,
   # which is continuous in the instances.
+  # Set overlap only means something where a top-3 exists. Instances where a
+  # model spreads its magnitude near-uniformly have an ill-conditioned top-3
+  # and are excluded from the conditioned columns.
+  well_conditioned_mass: 0.8   # both models must put this much of their total
+                               # magnitude in their own top 3
   exact_top3_agree: 0.8  # this fraction of instances with identical top-3 sets,
                          # in every cell, means the fits agree on WHICH positions
                          # matter and the full-rank gap is tail ordering only

@@ -369,6 +369,52 @@ def top_k_agreement(
     return out
 
 
+def top_k_agreement_conditioned(
+    a: np.ndarray, b: np.ndarray, mass_thresh: float, k: int = 3
+) -> dict[str, float]:
+    """Top-k set agreement restricted to instances where a top-k EXISTS.
+
+    Set overlap is only meaningful where the attribution profile has a
+    well-defined top. If a model spreads its magnitude almost uniformly over the
+    positions -- which the depth-3 cells do, at roughly 8 effective positions out
+    of 9 -- then its "top 3" is chosen among near-equal values, the choice is
+    ill-conditioned, and two models will disagree for a reason that has nothing
+    to do with disagreeing about which positions matter biologically.
+
+    This restricts to instances where BOTH models place at least `mass_thresh`
+    of their total magnitude in their own top k, so a top-k genuinely exists for
+    both, and reports what fraction of instances qualify. Low agreement here
+    cannot be explained by a flat profile.
+    """
+    A = np.abs(np.asarray(a, dtype=float))
+    B = np.abs(np.asarray(b, dtype=float))
+
+    def _mass(M: np.ndarray) -> np.ndarray:
+        tot = M.sum(axis=1)
+        tot = np.where(tot <= 0, np.nan, tot)
+        return np.sort(M, axis=1)[:, ::-1][:, :k].sum(axis=1) / tot
+
+    keep = (_mass(A) >= mass_thresh) & (_mass(B) >= mass_thresh)
+    frac = float(np.mean(keep)) if keep.size else float("nan")
+    if not bool(keep.any()):
+        return {
+            f"cond_jaccard_top{k}_mean": float("nan"),
+            f"cond_exact_top{k}_frac": float("nan"),
+            "cond_frac_instances": frac,
+        }
+    ia = np.argsort(-A[keep], axis=1)[:, :k]
+    ib = np.argsort(-B[keep], axis=1)[:, :k]
+    jac = np.empty(ia.shape[0], dtype=float)
+    for r in range(ia.shape[0]):
+        sa, sb = set(ia[r].tolist()), set(ib[r].tolist())
+        jac[r] = len(sa & sb) / len(sa | sb)
+    return {
+        f"cond_jaccard_top{k}_mean": float(np.mean(jac)),
+        f"cond_exact_top{k}_frac": float(np.mean(jac >= 1.0)),
+        "cond_frac_instances": frac,
+    }
+
+
 def per_instance_rho_topk(a: np.ndarray, b: np.ndarray, k: int = 3) -> dict[str, float]:
     """Per-instance rank agreement restricted to the positions that carry mass.
 
@@ -518,6 +564,9 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
             conc_r = attribution_concentration(pi_ref)
             conc_t = attribution_concentration(pi_twin)
             tk = top_k_agreement(pi_ref, pi_twin)
+            tkc = top_k_agreement_conditioned(
+                pi_ref, pi_twin, float(cfg.separation.well_conditioned_mass)
+            )
             tkr = per_instance_rho_topk(pi_ref, pi_twin)
 
             # Substitution level: same comparison with seq_len*4 items instead
@@ -551,6 +600,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     "eff_pos_twin": conc_t["effective_positions_median"],
                     **{f"tk_{k}": v for k, v in tk.items()},
                     **{f"tk_{k}": v for k, v in tkr.items()},
+                    **{f"tk_{k}": v for k, v in tkc.items()},
                     "n_separate": z_stat,
                     "rms_pred_diff": float(np.sqrt(np.mean(diff[fin] ** 2)))
                     if fin.any()
@@ -658,6 +708,8 @@ def main(argv: list[str] | None = None) -> int:
                     "tk_jaccard_top1_mean", "tk_jaccard_top2_mean",
                     "tk_jaccard_top3_mean", "tk_exact_top1_frac",
                     "tk_exact_top2_frac", "tk_exact_top3_frac",
+                    "tk_cond_jaccard_top3_mean", "tk_cond_exact_top3_frac",
+                    "tk_cond_frac_instances",
                     "tk_topk_rho_median", "tk_topk_union_median",
                 )
             },
@@ -740,6 +792,29 @@ def main(argv: list[str] | None = None) -> int:
             f"**{c['tk_exact_top3_frac']['mean'] * 100:.0f}%** | "
             f"{c['tk_topk_rho_median']['mean']:+.3f} "
             f"(n≈{c['tk_topk_union_median']['mean']:.1f}) |"
+        )
+    L.append("")
+    L.append(
+        "**Conditioned on a top-3 existing.** Set overlap only means something where "
+        "the profile has a well-defined top; a near-uniform profile has an "
+        "ill-conditioned top-3 and disagreement there says nothing about which "
+        "positions matter. These restrict to instances where BOTH fits place at "
+        f"least {float(cfg.separation.well_conditioned_mass):.0%} of their magnitude "
+        "in their own top 3.\n"
+    )
+    L.append(
+        "| width | depth | instances qualifying | mean Jaccard top3 "
+        "(all → cond.) | exact top-3 (all → cond.) |"
+    )
+    L.append("|---|---|---|---|---|")
+    for h, dp in keys:
+        c = agg["cells"][f"{h}x{dp}"]
+        L.append(
+            f"| {h} | {dp} | {c['tk_cond_frac_instances']['mean'] * 100:.0f}% | "
+            f"{c['tk_jaccard_top3_mean']['mean']:.2f} → "
+            f"**{c['tk_cond_jaccard_top3_mean']['mean']:.2f}** | "
+            f"{c['tk_exact_top3_frac']['mean'] * 100:.0f}% → "
+            f"**{c['tk_cond_exact_top3_frac']['mean'] * 100:.0f}%** |"
         )
     L.append("")
     L.append(
