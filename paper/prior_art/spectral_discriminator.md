@@ -116,3 +116,96 @@ scoping, and it is not what this project needs.
   is unambiguous about the rank-order basis of the method but does not contain
   that phrase. If that exact wording matters for citation, it still needs
   checking against the PDF.
+
+
+---
+
+# Addendum, 2026-08-30: operating points, and the latent-dimensionality reframe
+
+## Check A — which landscapes can carry a rank-one prediction at all
+
+For a logistic link, `g'' = sigma(1-sigma)(1-2sigma)`, which **vanishes exactly at
+sigma = 0.5** and is maximised at sigma = 0.211 or 0.789 with |g''| = 0.0962. So
+a landscape whose wild type sits at the inflection has no rank-one term at
+leading order at all: the leading structure there is the rank-TWO third-order
+term. Wild-type operating points, read from the data on disk (no fitting), with
+sigma taken as the wild type's quantile within each library's own phenotype
+distribution:
+
+| landscape | sigma at WT | \|g''\| | status |
+|---|---:|---:|---|
+| eqFP611 red | 0.236 | **0.0952** | usable, essentially at the optimum |
+| GB1 | 0.826 | **0.0938** | usable, near-optimal |
+| BRCA2 MPSA (consensus 5'ss) | 0.989 | 0.0105 | weak, saturated |
+| eqFP611 blue | 0.998 | 0.0017 | weak, saturated |
+| **FAS exon 6 (Julien 2016)** | **0.500** | **0.0000** | **degenerate** |
+| **FAS combinatorial (Baeza-Centurion 2019)** | **0.500** | **0.0000** | **degenerate** |
+
+**FAS is the worst available dataset for this statistic, and by construction.**
+Julien et al. state they transfected "under conditions that lead to
+approximately 50% exon inclusion, matching the levels of exon 6 inclusion in
+endogenous transcripts in this cell line" -- chosen so mutations could move
+inclusion in both directions. That places the wild type precisely where g''
+vanishes. The Baeza-Centurion combinatorial library is the same exon under the
+same design and inherits the same defect, so obtaining it would not help; it was
+not downloaded.
+
+Caveats on this table. sigma is a quantile proxy, not a fitted link, per the
+instruction not to fit anything; the proxy choice matters, and switching
+eqFP611 red from a min-max position to a quantile moved it from 0.036 to 0.236
+and from "modest" to "near-optimal". FAS is the one row that is proxy-
+independent, because its 50% figure is the paper's own statement about the
+assay. Note also the cross-check against `paper/tables/epistasis_spectrum.md`:
+eqFP611 red has the best operating point in the table and yet has ZERO
+eigenvalues outside its noise bulk, so a good operating point does not by itself
+buy a measurable signal.
+
+## Check B, part 2 — the latent-dimensionality reframe is also published
+
+The reframed claim -- how many latent dimensions does a genotype-phenotype map
+need, and is the one-dimensional assumption of MAVE-NN and SQUID correct -- is
+answered in:
+
+> Peter D. Tonner, Abe Pressman, David J. Ross, **"Interpretable modeling of
+> genotype-phenotype landscapes with state-of-the-art predictive power"**,
+> *PNAS* 118 (2021). [PMC9245639](https://pmc.ncbi.nlm.nih.gov/articles/PMC9245639/).
+> Software: `github.com/usnistgov/lantern`.
+
+LANTERN is a hierarchical Bayesian model that learns a low-dimensional latent
+space of additive mutational effects and **estimates its dimensionality from the
+data**. Verified from the paper: it ranks latent dimensions by variance,
+computes "the expected log-likelihood of each observation with an increasing
+number of dimensions included in the model", and applies "a one-sided,
+two-sample Kolmogorov-Smirnov test to compare the empirical distributions" of
+those likelihoods, counting dimensions with p <= 0.05.
+
+Its answers on real data: **"Across these datasets, the latent dimensionality
+learned by LANTERN ranged from three to five"** -- three for LacI, five for
+SARS-CoV-2, three for avGFP with the first dimension carrying 96.7% of the
+mutational-effect variance. And on the one-dimensional assumption specifically:
+**"we allow for multiple different biophysical mechanisms to influence
+biological function by modeling multiple latent dimensions"**.
+
+So the question is not open, and the answer is not one. LANTERN also estimates
+the dimensionality *directly by model comparison* rather than reading it off the
+rank of an epistasis matrix, which is the stronger method: it does not inherit
+the small-beta expansion, the g''(phi_0) = 0 degeneracy, the rank-2 noise
+artifact, or the misspecified spectral null that the proof-check found in the
+matrix-rank route.
+
+Related and also prior: Husain & Murugan's abstract already frames their result
+as "the dimensionality of mutational effects is reduced"; and Ghosh et al.,
+"Genotype-fitness mapping of adaptive mutants reveals shifting low-dimensional
+structure across divergent environments", *PLOS Biology* (2026), infers
+low-dimensional fitness landscapes and how their dimensionality shifts across
+environments.
+
+## Verdict on both checks
+
+**Check A: FAS is degenerate for this statistic and must not be the first
+dataset.** GB1 and eqFP611 red are the only usable operating points.
+
+**Check B: already published, in both framings.** The rank-one discriminator is
+Husain & Murugan 2020. The latent-dimensionality estimate is LANTERN, PNAS 2021,
+with software and published answers of three to five dimensions. Per the
+instruction, stop.
