@@ -169,6 +169,21 @@ occurrence:            # experiments/occurrence.py: the claim without a twin
   rho_near_one: 0.95   # if every cell's median attribution rho is at least this,
                        # training pins the attribution and the verdict says so
 
+epistasis_spectrum:    # experiments/epistasis_spectrum.py: three landscapes side by side
+  gb1_min_input: 10    # Olson counts filter; MAVE-NN uses the same cut, so the
+                       # retained row count is comparable to their 530,737
+  ge_epochs: 4000      # additive latent + monotone GE, fitted here because
+  ge_lr: 0.02          # neither MAVE-NN nor MoCHI is installed
+  ge_components: 8
+  # A pure-noise symmetric matrix has rank-1 fraction ~4/n, so the raw value
+  # is not comparable across landscapes of different size. Every statistic is
+  # therefore also computed on size-matched noise with the same mask.
+  null_reps_small: 40   # n <= 500
+  null_reps_large: 8    # n > 500; each draw is a full eigendecomposition
+  rank_one_high: 0.80  # leading term explains at least this in EVERY landscape
+                       # -> they all look rank-one and there is no contrast
+  rank_one_low: 0.30   # at most this in every landscape -> none looks rank-one
+
 identifiability_mpsa:  # experiments/identifiability_mpsa.py (real BRCA2 5'ss MPSA)
   path: data/raw/mpsa_data.csv.gz
   n_max: 4000          # sequences per seed; the full library is 30,483

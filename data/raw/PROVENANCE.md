@@ -106,6 +106,49 @@ group. That dataset has NOT been downloaded. **Decide which is wanted
 before any modelling: they are different libraries and support different
 claims.**
 
+### 2.1b eqFP611 fluorescent protein, 2^13 landscape — OBTAINED
+
+Poelwijk FJ, Socolich M, Ranganathan R. "Learning the pattern of epistasis
+linking genotype and phenotype in a protein." *Nature Communications*
+10:4213 (2019). PMID 31527666, PMC6746860. Supplementary retrieved from the
+Europe PMC `supplementaryFiles` endpoint for PMC6746860 on 2026-08-30.
+
+| file | bytes | SHA-256 |
+|---|---:|---|
+| `poelwijk_PMC6746860_supp.zip` | 3,316,828 | `558097683c529377c2a92f4b860556270fcb16589734ae9b0d9acd6451913386` |
+| `poelwijk_supp/41467_2019_12130_MOESM7_ESM.xlsx` | 737,089 | `d893d36645d10334b326696e98edbb7222b15bbeb946176482ed83637120904b` |
+
+`MOESM7` sheet `genodata` holds the combinatorially complete landscape:
+**8,192 genotypes**, a two-row header, columns `binary genotype` (13 bits),
+`amino acid sequence`, input/red/blue **counts**, and `brightness` for red,
+blue and combined. Counts give a Poisson noise scale.
+
+**Size caveat, stated because it limits what can be asked.** The single
+mutants here are the 13 one-bit genotypes, so the pairwise epistasis matrix
+is **13 x 13**. That is two orders of magnitude smaller than the other two
+landscapes and far too small for an asymptotic random-matrix edge to mean
+anything. It is included for the rank comparison, not for a spectral null.
+
+### 2.1c GB1 domain, singles and doubles — OBTAINED
+
+Olson CA, Wu NC, Sun R. "A comprehensive biophysical description of pairwise
+epistasis throughout an entire protein domain." *Current Biology*
+24(22):2643-2651 (2014). PMID 25455030. Supplementary table mmc2 retrieved
+from the Elsevier CDN on 2026-08-30.
+
+| file | bytes | SHA-256 |
+|---|---:|---|
+| `gb1_olson2014_mmc2.xlsx` | 28,090,836 | `e912c93cf3d1d95a7d8fc5bb8e8d50a523eb9398c51613b2a74693f07a50fe29` |
+
+Single sheet `DoubleSub.xls`, header on row 3. **535,917 double-mutant rows**
+with Mut1/Mut2 position and identity, input and selection counts, and the two
+single-mutant fitnesses; a separate column block holds the single mutants and
+the wild type counts. Note this is the raw count table, so double-mutant
+fitness must be computed from counts relative to wild type rather than read
+off. The row count differs from the 509,693 quoted in the task and from the
+530,737 that MAVE-NN reports after filtering `input_ct >= 10`; the difference
+is filtering, and whichever cut is used must be stated with the result.
+
 ### 2.2 BRCA2 exons 17-19 5' splice sites — OBTAINED
 
 Wong MS, Kinney JB, Krainer AR. "Quantitative activity profile and context
