@@ -151,6 +151,10 @@ separation:            # experiments/separation.py: the quantitative claim
   # and are excluded from the conditioned columns.
   well_conditioned_mass: 0.8   # both models must put this much of their total
                                # magnitude in their own top 3
+  min_qualifying_frac: 0.10  # a cell whose instances almost never have a
+                             # well-defined top-3 cannot support a claim about
+                             # WHICH positions matter; it is reported as
+                             # ill-posed rather than as disagreement
   exact_top3_agree: 0.8  # this fraction of instances with identical top-3 sets,
                          # in every cell, means the fits agree on WHICH positions
                          # matter and the full-rank gap is tail ordering only

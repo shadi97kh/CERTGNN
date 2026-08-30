@@ -104,6 +104,17 @@ from experiments.separation import (
 )
 
 
+def _finite(v: Any) -> bool:
+    """np.isfinite that tolerates None.
+
+    `to_jsonable` writes NaN as JSON null, so a value that is NaN in the live
+    run comes back as None under --retable and np.isfinite raises TypeError on
+    it. Conditioned statistics are NaN whenever no instance qualifies, which
+    happens in the flattest cells, so this path is reached in practice.
+    """
+    return v is not None and isinstance(v, (int, float)) and np.isfinite(v)
+
+
 def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
     cc, ip = cfg.closure_capacity, cfg.identifiability
     oc = cfg.occurrence
@@ -278,9 +289,9 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                 )
 
             rhos = [
-                p["attr_spearman"] for p in pairs if np.isfinite(p["attr_spearman"])
+                p["attr_spearman"] for p in pairs if _finite(p["attr_spearman"])
             ]
-            nseps = [p["n_separate"] for p in pairs if np.isfinite(p["n_separate"])]
+            nseps = [p["n_separate"] for p in pairs if _finite(p["n_separate"])]
             lat = [p["latent_r2"] for p in pairs if np.isfinite(p["latent_r2"])]
             cells.append(
                 {
@@ -410,23 +421,23 @@ def main(argv: list[str] | None = None) -> int:
             p["attr_spearman"]
             for c in sel
             for p in c["pairs"]
-            if np.isfinite(p["attr_spearman"])
+            if _finite(p["attr_spearman"])
         ]
         alln = [
             p["n_separate"]
             for c in sel
             for p in c["pairs"]
-            if np.isfinite(p["n_separate"])
+            if _finite(p["n_separate"])
         ]
         entry["pooled_pairs"] = len(allr)
         th_pairs = [p for c in sel for p in c["pairs"] if p.get("both_top_half")]
         entry["top_pairs"] = len(th_pairs)
-        r2q = [p["pair_r2_min"] for p in th_pairs if np.isfinite(p["pair_r2_min"])]
+        r2q = [p["pair_r2_min"] for p in th_pairs if _finite(p["pair_r2_min"])]
         allq = [
             p["pair_r2_min"]
             for c in sel
             for p in c["pairs"]
-            if np.isfinite(p["pair_r2_min"])
+            if _finite(p["pair_r2_min"])
         ]
         entry["top_pair_r2_median"] = float(np.median(r2q)) if r2q else float("nan")
         entry["all_pair_r2_median"] = float(np.median(allq)) if allq else float("nan")
@@ -456,7 +467,7 @@ def main(argv: list[str] | None = None) -> int:
                 p[key]
                 for c in sel
                 for p in c["pairs"]
-                if np.isfinite(p.get(key, np.nan))
+                if _finite(p.get(key))
             ]
             entry[f"pooled_{nm}"] = float(np.median(vv)) if vv else float("nan")
             # Same statistic on the quality-matched subset only.
@@ -464,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:
                 p[key]
                 for c in sel
                 for p in c["pairs"]
-                if p.get("both_top_half") and np.isfinite(p.get(key, np.nan))
+                if p.get("both_top_half") and _finite(p.get(key))
             ]
             entry[f"top_{nm}"] = float(np.median(rv)) if rv else float("nan")
         # Fractions of the surviving pairs below given agreement levels. The
@@ -905,8 +916,9 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
         cj = {k: v["pooled_tk_cj3"] for k, v in condc.items()}
         ae = {k: v["pooled_tk_ex3"] for k, v in condc.items()}
         ep = {k: v["pooled_eff_pos"] for k, v in condc.items()}
-        thin = sorted(k for k in cf if cf[k] < 0.10)
-        worst_c = min(ce, key=lambda k: ce[k])
+        minq = float(cfg.separation.min_qualifying_frac)
+        thin = sorted(k for k in cf if cf[k] < minq)
+        posed = sorted(k for k in cf if cf[k] >= minq)
         parts.append(
             "**Does the disagreement survive where a top-3 exists?** Agreement tracks "
             "concentration across this grid — cells with few effective positions agree "
@@ -921,19 +933,30 @@ def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
             f"{min(cf.values()) * 100:.0f}–{max(cf.values()) * 100:.0f}% of instances "
             "qualifying."
             + (
-                " **Read the cells where few instances qualify with care**: "
+                " **These cells are excluded from the claim, not caveated**: "
                 + ", ".join(thin)
-                + " retain under 10% of instances, so their conditioned numbers rest "
-                "on a small and self-selected subset, and a flat profile remains the "
-                "better description of what those models produce than a disagreement "
-                "about which positions matter."
+                + f" retain under {minq:.0%} of instances, meaning almost no sequence "
+                "has a well-defined top-3 under either model. For them the question "
+                "of which positions matter is not well posed, so their low agreement "
+                "is not evidence of disagreement about anything; a near-uniform "
+                "attribution profile is simply what those models produce."
                 if thin
                 else " Enough instances qualify in every cell for the conditioned "
-                "numbers to stand on their own, so the disagreement is not an artifact "
-                "of comparing tops that do not exist."
+                "numbers to stand on their own."
             )
-            + f" At {worst_c} the conditioned exact agreement is still only "
-            f"{ce[worst_c] * 100:.0f}%."
+            + (
+                " **The claim is therefore made on "
+                + ", ".join(posed)
+                + f"**, where {min(cf[k] for k in posed):.0%} to "
+                f"{max(cf[k] for k in posed):.0%} of instances have a well-defined "
+                "top-3 under both models. There, models tied on accuracy still pick "
+                "different top-3 position sets in "
+                f"{(1 - max(ce[k] for k in posed)) * 100:.0f}% to "
+                f"{(1 - min(ce[k] for k in posed)) * 100:.0f}% of sequences."
+                if posed
+                else " **No cell retains enough well-conditioned instances to support "
+                "a claim about which positions matter.**"
+            )
         )
 
     parts.append(
