@@ -1,0 +1,27 @@
+{
+  "experiment": "epistasis_spectrum",
+  "git_sha": "2bfb7d4",
+  "git_dirty": false,
+  "allow_dirty": false,
+  "config_hash": "3353d957",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "timestamp_utc": "20260830T041137Z",
+  "argv": [
+    "/home/shadi/certgnn/experiments/epistasis_spectrum.py",
+    "--config",
+    "configs/base.yaml"
+  ],
+  "run_id": null,
+  "sweep": null
+}
