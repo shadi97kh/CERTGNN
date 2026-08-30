@@ -231,7 +231,8 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                 pi = per_instance_rho(per_inst[i], per_inst[j])
                 tk = top_k_agreement(per_inst[i], per_inst[j])
                 tkc = top_k_agreement_conditioned(
-                    per_inst[i], per_inst[j],
+                    per_inst[i],
+                    per_inst[j],
                     float(cfg.separation.well_conditioned_mass),
                 )
                 tkr = per_instance_rho_topk(per_inst[i], per_inst[j])
@@ -239,9 +240,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                 # arbitrary member's concentration as if it described both.
                 ci = attribution_concentration(per_inst[i])
                 cj = attribution_concentration(per_inst[j])
-                conc = {
-                    k: 0.5 * (ci[k] + cj[k]) for k in ci
-                }
+                conc = {k: 0.5 * (ci[k] + cj[k]) for k in ci}
                 ok_sub = np.isfinite(subs[i]) & np.isfinite(subs[j])
                 r_sub = (
                     spearmanr(subs[i][ok_sub], subs[j][ok_sub]).statistic
@@ -288,9 +287,7 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     }
                 )
 
-            rhos = [
-                p["attr_spearman"] for p in pairs if _finite(p["attr_spearman"])
-            ]
+            rhos = [p["attr_spearman"] for p in pairs if _finite(p["attr_spearman"])]
             nseps = [p["n_separate"] for p in pairs if _finite(p["n_separate"])]
             lat = [p["latent_r2"] for p in pairs if np.isfinite(p["latent_r2"])]
             cells.append(
@@ -424,10 +421,7 @@ def main(argv: list[str] | None = None) -> int:
             if _finite(p["attr_spearman"])
         ]
         alln = [
-            p["n_separate"]
-            for c in sel
-            for p in c["pairs"]
-            if _finite(p["n_separate"])
+            p["n_separate"] for c in sel for p in c["pairs"] if _finite(p["n_separate"])
         ]
         entry["pooled_pairs"] = len(allr)
         th_pairs = [p for c in sel for p in c["pairs"] if p.get("both_top_half")]
@@ -463,12 +457,7 @@ def main(argv: list[str] | None = None) -> int:
             ("tk_rho", "tk_topk_rho_median"),
             ("tk_union", "tk_topk_union_median"),
         ):
-            vv = [
-                p[key]
-                for c in sel
-                for p in c["pairs"]
-                if _finite(p.get(key))
-            ]
+            vv = [p[key] for c in sel for p in c["pairs"] if _finite(p.get(key))]
             entry[f"pooled_{nm}"] = float(np.median(vv)) if vv else float("nan")
             # Same statistic on the quality-matched subset only.
             rv = [

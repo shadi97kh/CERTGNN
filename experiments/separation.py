@@ -588,7 +588,9 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     "lr": lr,
                     "heldout_r2": x_stat,
                     "attr_spearman": y_stat,
-                    "attr_rho_sub": float(r_sub) if np.isfinite(r_sub) else float("nan"),
+                    "attr_rho_sub": float(r_sub)
+                    if np.isfinite(r_sub)
+                    else float("nan"),
                     "n_sub_items": int(ok_sub.sum()),
                     "pi_median": pi["median"],
                     "pi_p10": pi["p10"],
@@ -704,13 +706,21 @@ def main(argv: list[str] | None = None) -> int:
             **{
                 f: mean_ci([c[f] for c in sel], n_boot=nb)
                 for f in (
-                    "conc_top3_ref", "conc_top3_twin", "eff_pos_ref", "eff_pos_twin",
-                    "tk_jaccard_top1_mean", "tk_jaccard_top2_mean",
-                    "tk_jaccard_top3_mean", "tk_exact_top1_frac",
-                    "tk_exact_top2_frac", "tk_exact_top3_frac",
-                    "tk_cond_jaccard_top3_mean", "tk_cond_exact_top3_frac",
+                    "conc_top3_ref",
+                    "conc_top3_twin",
+                    "eff_pos_ref",
+                    "eff_pos_twin",
+                    "tk_jaccard_top1_mean",
+                    "tk_jaccard_top2_mean",
+                    "tk_jaccard_top3_mean",
+                    "tk_exact_top1_frac",
+                    "tk_exact_top2_frac",
+                    "tk_exact_top3_frac",
+                    "tk_cond_jaccard_top3_mean",
+                    "tk_cond_exact_top3_frac",
                     "tk_cond_frac_instances",
-                    "tk_topk_rho_median", "tk_topk_union_median",
+                    "tk_topk_rho_median",
+                    "tk_topk_union_median",
                 )
             },
             "n_separate": mean_ci([c["n_separate"] for c in sel], n_boot=nb),
