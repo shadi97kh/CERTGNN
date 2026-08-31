@@ -71,6 +71,7 @@ import torch
 from scipy.stats import norm, spearmanr, ttest_rel
 
 from experiments._common import (
+    void_if_unsearched,
     configure_torch,
     git_sha,
     load_config,
@@ -668,6 +669,13 @@ def main(argv: list[str] | None = None) -> int:
 
 def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
     cells = agg["cells"]
+    v = void_if_unsearched(
+        sum(c.get("pooled_pairs", 0) for c in cells.values()),
+        "indistinguishable model pairs",
+        "No pair of independently initialised models survived to be compared.",
+    )
+    if v:
+        return v
     oc = cfg.occurrence
     near_one = float(oc.rho_near_one)
     usable = {

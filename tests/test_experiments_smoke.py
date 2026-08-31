@@ -97,3 +97,20 @@ def test_tier0_controls_runs_end_to_end(tmp_path):
         "mlp": 1,
         "mlp_mean": 1,
     }  # honest count: backbone chosen among 3
+
+
+def test_void_if_unsearched_distinguishes_empty_from_negative():
+    """A verdict must not report a negative from a search that never ran.
+
+    Regression for the signlayer depth-witness bug, where every cell had an
+    empty candidate set for structural reasons and the run printed "No witness
+    found" -- a false negative presented as a result.
+    """
+    from experiments._common import void_if_unsearched
+
+    assert void_if_unsearched(0, "pairs") is not None
+    assert "VOID" in void_if_unsearched(0, "pairs")
+    assert "NOT a negative" in void_if_unsearched(0, "pairs")
+    assert void_if_unsearched(1, "pairs") is None
+    assert void_if_unsearched(1000, "pairs") is None
+    assert "extra" in void_if_unsearched(0, "pairs", "extra")

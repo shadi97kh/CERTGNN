@@ -256,3 +256,31 @@ def to_jsonable(obj: Any) -> Any:
     if isinstance(obj, float) and not np.isfinite(obj):
         return None
     return obj
+
+
+def void_if_unsearched(n_examined: int, what: str, detail: str = "") -> str | None:
+    """A VOID verdict when a search examined nothing, else None.
+
+    Distinguishes two situations a verdict must never conflate:
+
+    * **searched and found nothing** -- a real negative, and reportable;
+    * **never actually searched** -- no information at all.
+
+    `signlayer`'s depth-witness run hit the second and printed "No witness
+    found", a false negative, because every cell it was asked to search had an
+    empty candidate set for structural reasons. A negative asserted from zero
+    candidates is not weak evidence, it is none, and it is worse than silence
+    because it reads as a result.
+
+    Call this at the top of any verdict computed from a filtered or sampled
+    candidate set, and return its value when it is not None.
+    """
+    if n_examined > 0:
+        return None
+    tail = f" {detail}" if detail else ""
+    return (
+        f"**VOID -- nothing was searched.** The candidate set for {what} was "
+        f"empty, so this run supports no conclusion in either direction; in "
+        f"particular it is NOT a negative result.{tail} Reporting one from an "
+        "empty search would be a false negative."
+    )

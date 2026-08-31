@@ -70,6 +70,7 @@ import torch
 from torch import nn
 
 from experiments._common import (
+    void_if_unsearched,
     configure_torch,
     git_sha,
     load_config,
@@ -537,6 +538,13 @@ def main(argv: list[str] | None = None) -> int:
 
 def verdict_text(agg: dict[str, Any], cfg: Any) -> str:
     cells = agg["cells"]
+    v = void_if_unsearched(
+        len(cells),
+        "refit cells",
+        "No cell produced a usable reference fit, so neither arm ran.",
+    )
+    if v:
+        return v
     cs = cfg.closure_search
     ok = float(cs.search_ok)
     rise_margin = float(cs.rise_margin)
