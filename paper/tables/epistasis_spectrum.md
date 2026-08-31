@@ -29,6 +29,48 @@ git SHA `2bfb7d4`, config `3353d957`. This is a measurement, not a test: the ran
 - **eqFP611 (red)** — noise: Poisson counting on red counts, median relative SD 0.1715 scaled by the brightness spread, x2 for the four terms in E. 13 single mutants, so E is 13x13: far too small for an asymptotic random-matrix edge, included for the rank comparison only.
 - **eqFP611 (blue)** — noise: Poisson counting on blue counts, median relative SD 0.0756 scaled by the brightness spread, x2 for the four terms in E. 13 single mutants, so E is 13x13: far too small for an asymptotic random-matrix edge, included for the rank comparison only.
 
-## Verdict
+## Verdict — RETRACTED
 
-**Rank structure does differ across landscapes.** The leading term explains 0.471 of the double-centered matrix in eqFP611 (red) and only 0.090 in FAS exon 6, a spread of 0.381, with effective rank 7.3 against 114.3. That is a real contrast, not a constant. **Against a size-matched null the ordering is not what the raw numbers suggest.** Pure noise alone would give a rank-one fraction of FAS exon 6 0.021, GB1 0.004, eqFP611 (red) 0.269, eqFP611 (blue) 0.269, purely because that fraction scales as 4/n. Relative to its own null each landscape sits at FAS exon 6 4.3x, GB1 33.5x, eqFP611 (red) 1.7x, eqFP611 (blue) 1.4x. Reading the raw column across landscapes of different size would invert this comparison, which is why it is not the column to read. **The control on the leading eigenvector.** Under the global-epistasis reading v₁ must be parallel to β. Alignment is FAS exon 6 0.422, GB1 0.513, eqFP611 (red) 0.188, eqFP611 (blue) 0.750. **eqFP611 (red) show substantial rank-one structure whose leading eigenvector is NOT aligned with β**, so for those the low-rank structure is not explained by a monotone nonlinearity on an additive trait, whatever else produces it. This is a description of three matrices, not a test of a mechanism, and it does not become one: the rank-one criterion and its application to GB1 are already published (Husain & Murugan, Mol Biol Evol 37:2865, 2020). Nothing here should be written up as a new discriminator.
+**This direction is closed. The measurements below stand; the conclusion drawn
+from them does not, and no claim in this table should be cited.**
+
+**1. Closed by prior art.** The rank-one result is already published: Husain &
+Murugan, "Physical Constraints on Epistasis", *Mol Biol Evol* 37(10):2865 (2020).
+Their Equation 2 states the epistasis matrix as a rank-1 term plus a sparse
+contact term, they use deviation from rank-one as their discriminating statistic
+(their "epistatic complexity"), and they apply an SVD low-rank decomposition to
+the GB1 epistasis matrix of Olson et al. (2014) — the same matrix analysed here.
+See `paper/prior_art/spectral_discriminator.md` for the verbatim quotations and
+the full check, including why Poelwijk et al. (2019) is *not* the collision and
+why the latent-dimensionality reframing is also claimed (LANTERN, PNAS 2021).
+
+**2. A false claim about eqFP611 (red).** The retracted verdict named eqFP611
+(red) as showing "substantial rank-one structure whose leading eigenvector is NOT
+aligned with β". That is wrong. eqFP611 (red) has **zero eigenvalues outside its
+own noise bulk** — its entire spectrum lies inside its noise floor. Its rank-one
+fraction of 0.471 and its β-alignment of 0.188 are both consistent with noise, so
+there is no structure there to be unexplained. Below the BBP threshold a spike
+sticks at the bulk edge *and* its eigenvector overlap goes to zero, which is
+exactly the observed signature; the branch that produced this claim did not gate
+on the noise floor.
+
+**3. The double-centering justification is wrong.** This table asserted that
+double-centering "removes that artifact without removing the effect". It removes
+a large part of the effect. Centering maps `β βᵀ` to `(β − β̄)(β − β̄)ᵀ`, whose
+norm carries `Var(β)` in place of `E[β²]`; in DMS the mean effect `|β̄|` routinely
+exceeds `sd(β)`, so centering **degrades the signal-to-noise ratio of exactly the
+quantity under test** while leaving the noise bulk edge unchanged. It also fails
+to preserve rank one on the hollow matrix actually formed, since the zero
+diagonal contributes a term of rank up to n — an O(1/n) effect, negligible at
+n=1045 but 8–15% at n=13, which is where this table's eqFP611 claims live.
+
+Further defects found by the proof-check and not repaired: the noise
+decomposition omits the wild-type error term `η₀·11ᵀ`, which is rank one and
+non-zero for GB1 (contaminating the raw, though not the double-centred, columns);
+the Wigner null is misspecified, predicting one outlier where 135 of 189 and 596
+of 1045 were observed; and every number here is a single run, contrary to this
+project's five-seed minimum.
+
+The code in `experiments/epistasis_spectrum.py` and the run directory are kept so
+the measurements remain reproducible and auditable. They are not evidence for any
+claim about mechanism.

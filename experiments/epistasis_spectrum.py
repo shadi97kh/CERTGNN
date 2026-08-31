@@ -1,5 +1,14 @@
 """Is the rank structure of the empirical epistasis matrix visibly different across landscapes?
 
+RETIRED. The verdict this produced is RETRACTED -- see `verdict_text` below and
+`paper/prior_art/spectral_discriminator.md`. The direction is closed by Husain &
+Murugan (Mol Biol Evol 37:2865, 2020), who state the rank-one result, use
+deviation from it as their discriminating statistic, and apply SVD to the same
+GB1 epistasis matrix. The measurement code is kept so the numbers remain
+reproducible; it should not be used to support a claim about mechanism, and two
+of its own choices are known to be wrong (the eqFP611-red reading and the
+double-centering justification, both detailed in the retraction).
+
 This is a MEASUREMENT, not a test. Husain & Murugan (Mol Biol Evol 37:2865,
 2020) already established the theory and already applied a low-rank
 decomposition to GB1 -- see `paper/prior_art/spectral_discriminator.md`, which
@@ -428,6 +437,7 @@ def null_reference(
         r1.append(st["rank1_variance_explained"])
         pr.append(st["participation_ratio"])
         ratio.append(st["lambda1_over_lambda2"])
+
     def q(v: list[float]) -> tuple[float, float, float]:
         return (
             float(np.mean(v)),
@@ -440,9 +450,15 @@ def null_reference(
     mr, lor, hir = q(ratio)
     return {
         "reps": len(r1),
-        "rank1_mean": m1, "rank1_lo": lo1, "rank1_hi": hi1,
-        "pr_mean": mp, "pr_lo": lop, "pr_hi": hip,
-        "l1l2_mean": mr, "l1l2_lo": lor, "l1l2_hi": hir,
+        "rank1_mean": m1,
+        "rank1_lo": lo1,
+        "rank1_hi": hi1,
+        "pr_mean": mp,
+        "pr_lo": lop,
+        "pr_hi": hip,
+        "l1l2_mean": mr,
+        "l1l2_lo": lor,
+        "l1l2_hi": hir,
     }
 
 
@@ -659,6 +675,39 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def verdict_text(results: list[dict[str, Any]], cfg: Any) -> str:
+    """The verdict is RETRACTED; emit the retraction, not a fresh conclusion.
+
+    The mechanism claim this experiment was built to support is closed by prior
+    art (Husain & Murugan, Mol Biol Evol 37:2865, 2020, Equation 2), and the
+    verdict this function used to compute contained two defects: it called
+    eqFP611 (red) structured when that channel's whole spectrum sits inside its
+    own noise floor, and it justified double-centering as removing the artifact
+    "without removing the effect" when centering discards the mean effect, which
+    in DMS typically exceeds the standard deviation.
+
+    The measurement code above is deliberately unchanged so the numbers stay
+    reproducible. Only the conclusion is withdrawn, and it is withdrawn here
+    rather than only in the checked-in table so that re-running this experiment
+    regenerates the retraction instead of a fresh, unretracted claim.
+    """
+    del results, cfg
+    return (
+        "**RETRACTED.** The measurements above stand; the conclusion drawn from "
+        "them does not, and no claim in this table should be cited. The rank-one "
+        "result is already published (Husain & Murugan, *Mol Biol Evol* "
+        "37(10):2865, 2020, Eq. 2), who also use deviation from rank-one as their "
+        "discriminating statistic and apply SVD to the same GB1 epistasis matrix. "
+        "The withdrawn verdict additionally (i) called eqFP611 (red) substantially "
+        "rank-one with a leading eigenvector unaligned to β, when that channel has "
+        "zero eigenvalues outside its own noise bulk so both numbers are noise, "
+        "and (ii) justified double-centering as removing the rank-2 artifact "
+        "without removing the effect, when centering discards the mean effect and "
+        "so degrades the SNR of the quantity under test. See "
+        "`paper/prior_art/spectral_discriminator.md`."
+    )
+
+
+def _retired_verdict_text(results: list[dict[str, Any]], cfg: Any) -> str:
     if not results:
         return "No landscape loaded."
     hi = float(cfg.epistasis_spectrum.rank_one_high)
