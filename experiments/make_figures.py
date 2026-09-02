@@ -535,6 +535,171 @@ def figure_separability(run: pathlib.Path, out: pathlib.Path, kind: str) -> dict
     return payload
 
 
+# ---------------------------------------------------------------------- fig 2
+
+
+def resolve_dump() -> pathlib.Path | None:
+    """Newest occurrence run that carries a per-instance dump.
+
+    Deliberately the mirror image of `resolve_run`: that one refuses dump runs
+    because they hold a partial grid, this one requires them. Neither can pick
+    up the other's runs by accident.
+    """
+    best = None
+    for run in sorted(RUNS.glob("*/")):
+        if not (run / "per_instance.npz").exists():
+            continue
+        try:
+            meta = json.load(open(run / "meta.json"))
+            res = json.load(open(run / "results.json"))
+        except Exception:  # noqa: BLE001
+            continue
+        if meta.get("experiment") != "occurrence" or not res.get("dump_only"):
+            continue
+        key = (not bool(meta.get("git_dirty")), meta.get("timestamp_utc", ""))
+        if best is None or key > best[0]:
+            best = (key, run)
+    return None if best is None else best[1]
+
+
+def _dump_arrays(run: pathlib.Path, cell: str) -> dict[str, np.ndarray]:
+    """Pool a cell's per-sequence arrays over every dumped seed."""
+    z = np.load(run / "per_instance.npz")
+    seeds = sorted(
+        {
+            k.split("__")[0].split("_seed")[1]
+            for k in z.files
+            if k.startswith(f"{cell}_seed")
+        },
+        key=int,
+    )
+    if not seeds:
+        raise SystemExit(f"no dumped seeds for {cell} in {run}")
+    rho, jac, prof = [], [], []
+    for sd in seeds:
+        base = f"{cell}_seed{sd}__"
+        rho.append(np.asarray(z[base + "rho"]).ravel())
+        jac.append(np.asarray(z[base + "jaccard"]).ravel())
+        prof.append(np.asarray(z[base + "rankprofile"]).reshape(-1, 9))
+    return {
+        "rho": np.concatenate(rho),
+        "jaccard": np.concatenate(jac),
+        "profile": np.concatenate(prof, axis=0),
+        "seeds": np.asarray([int(x) for x in seeds]),
+    }
+
+
+def figure2(
+    run: pathlib.Path, out: pathlib.Path, cell: str = "128x1", rho_star: float = 0.708
+) -> dict:
+    """Two panels: the rank profile, and the panel the argument rests on."""
+    d = _dump_arrays(run, cell)
+    prof = d["profile"]
+    ok = np.isfinite(prof).all(axis=1)
+    prof = prof[ok]
+    ranks = np.arange(1, prof.shape[1] + 1)
+    p25, p50, p75 = (np.percentile(prof, q, axis=0) for q in (25, 50, 75))
+    top3 = float(np.median(prof[:, :3].sum(axis=1)))
+
+    rho, jac = d["rho"], d["jaccard"]
+    m = np.isfinite(rho) & np.isfinite(jac)
+    rho, jac = rho[m], jac[m]
+    left = rho < rho_star
+    exact = jac >= 1.0
+    n_arg = int((left & exact).sum())
+    frac_arg = n_arg / rho.size if rho.size else float("nan")
+
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(5.5, 2.6))
+
+    # ---- (a) rank profile
+    ax_a.fill_between(ranks, p25, p75, color="#0072B2", alpha=0.22, lw=0)
+    ax_a.plot(ranks, p50, "-o", color="#0072B2", ms=3.4, lw=1.3, mec="white", mew=0.5)
+    ax_a.axvspan(0.5, 3.5, color="0.88", alpha=0.5, lw=0, zorder=0)
+    ax_a.annotate(
+        f"top-3 mass\n{top3 * 100:.0f}%",
+        xy=(2, p50[:3].max()),
+        xytext=(4.4, max(p75) * 0.82),
+        fontsize=7.5,
+        color="0.15",
+        arrowprops=dict(arrowstyle="-", lw=0.7, color="0.45"),
+    )
+    ax_a.set_xticks(ranks)
+    ax_a.set_xlim(0.5, prof.shape[1] + 0.5)
+    ax_a.set_ylim(0.0, None)
+    ax_a.set_xlabel("rank position")
+    ax_a.set_ylabel("normalized attribution mass")
+    ax_a.set_title("(a)", fontsize=9, loc="left")
+
+    # ---- (b) the key panel
+    # Top-3 Jaccard on 9 positions takes only {0, 0.2, 0.5, 1}, so an honest
+    # scatter would draw four lines and hide all density. Jitter spreads each
+    # level enough to read the mass without moving a point across a level.
+    rng = np.random.default_rng(0)
+    yj = jac + rng.uniform(-0.035, 0.035, size=jac.size)
+    ax_b.scatter(rho, yj, s=4, c="#0072B2", alpha=0.10, lw=0, rasterized=True, zorder=2)
+    hi = left & exact
+    ax_b.scatter(
+        rho[hi], yj[hi], s=5, c="#D55E00", alpha=0.30, lw=0, rasterized=True, zorder=3
+    )
+    ax_b.axvline(rho_star, color="0.2", ls="--", lw=1.0, zorder=4)
+    ax_b.text(
+        rho_star - 0.04,
+        0.52,
+        "perfect top-3 agreement\nexpected here (Prop. 2)",
+        rotation=90,
+        ha="right",
+        va="center",
+        fontsize=6.6,
+        color="0.15",
+    )
+    ax_b.annotate(
+        f"{frac_arg * 100:.0f}% of sequences",
+        xy=(min(rho.min(), rho_star) + 0.02, 1.0),
+        xytext=(0.02, 0.80),
+        textcoords="axes fraction",
+        fontsize=7.2,
+        color="#8a3d00",
+    )
+    ax_b.set_xlabel("per-sequence full-rank $\\rho$")
+    ax_b.set_ylabel("per-sequence top-3 Jaccard")
+    ax_b.set_yticks([0, 0.2, 0.5, 1.0])
+    ax_b.set_ylim(-0.12, 1.12)
+    ax_b.set_title(f"(b) {cell}", fontsize=9, loc="left")
+
+    fig.tight_layout(pad=0.4, w_pad=1.4)
+    fig.savefig(out, format="pdf")
+    fig.savefig(out.with_suffix(".png"), format="png", dpi=200)
+    plt.close(fig)
+
+    payload = {
+        "figure": out.name,
+        "cell": cell,
+        "source": _describe(run),
+        "dumped_seeds": [int(v) for v in d["seeds"]],
+        "panel_a": {
+            "y": "per-sequence normalized attribution mass, sorted descending",
+            "n_sequence_profiles": int(prof.shape[0]),
+            "median_by_rank": [float(v) for v in p50],
+            "p25_by_rank": [float(v) for v in p25],
+            "p75_by_rank": [float(v) for v in p75],
+            "median_top3_mass": top3,
+        },
+        "panel_b": {
+            "x": "per-sequence full-rank Spearman, accuracy-matched pairs",
+            "y": "per-sequence top-3 Jaccard",
+            "rho_star": rho_star,
+            "n_points": int(rho.size),
+            "n_left_of_line": int(left.sum()),
+            "n_exact_top3": int(exact.sum()),
+            "n_left_and_exact": n_arg,
+            "frac_left_and_exact": frac_arg,
+            "frac_exact_among_left": float((exact & left).sum() / max(left.sum(), 1)),
+        },
+    }
+    payload["sidecar"] = _write_sidecar(out, payload).name
+    return payload
+
+
 # ----------------------------------------------------------------------- main
 
 
@@ -601,6 +766,19 @@ def main() -> None:
     )
     fa = figure_separability(sep_run, out_dir / "figA_twin_separability.pdf", "twin")
 
+    # Figure 2 needs the per-instance dump. If none exists the rest of the
+    # figures still build, and the caller is told plainly rather than getting a
+    # stale or silently-missing panel.
+    dump = resolve_dump()
+    f2 = None
+    if dump is None:
+        print(
+            "\nNOTE: no per-instance dump found; Figure 2 skipped.\n"
+            "      run: python -m experiments.occurrence --dump-per-instance"
+        )
+    else:
+        f2 = figure2(dump, out_dir / "fig2_concentration.pdf")
+
     print("\n" + "=" * 78)
     print("FIGURE 1 (main)  paper/figures/fig1_not_weak_models.pdf")
     print("=" * 78)
@@ -624,13 +802,16 @@ def main() -> None:
     _print_sep("APPENDIX FIGURE  paper/figures/figA_twin_separability.pdf", fa)
 
     print("\nwrote:")
-    for name in (
-        "fig1_not_weak_models.pdf",
-        "fig3_occurrence_separability.pdf",
-        "figA_twin_separability.pdf",
-    ):
+    names = ["fig1_not_weak_models.pdf"]
+    if f2 is not None:
+        names.append("fig2_concentration.pdf")
+    names += ["fig3_occurrence_separability.pdf", "figA_twin_separability.pdf"]
+    for name in names:
         print(f"  {out_dir / name}")
-    print(f"sidecars: {f1['sidecar']}, {f3['sidecar']}, {fa['sidecar']}")
+    side = [f1["sidecar"], f3["sidecar"], fa["sidecar"]]
+    if f2 is not None:
+        side.insert(1, f2["sidecar"])
+    print("sidecars: " + ", ".join(side))
 
 
 if __name__ == "__main__":
