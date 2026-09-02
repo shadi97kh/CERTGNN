@@ -39,9 +39,10 @@ Reading the top attributed positions off a trained sequence--activity model is
 standard practice for guiding RNA therapeutic design. We set out to validate
 that practice on a real multiplexed splicing assay and report that it fails.
 Models whose held-out accuracy is statistically indistinguishable assign
-different top-3 positions for roughly half of held-out sequences, and the
-failure is not confined to poorly-fitting models: it persists at the
-best-fitting cell in our grid. Diagnosing why, we find three compounding causes.
+different top-3 positions for $43\%$ of held-out sequences at the best-fitting
+cell in our grid, rising to $94\%$ at the worst. The failure is therefore not
+confined to poorly-fitting models; no cell in the grid escapes it. Diagnosing
+why, we find three compounding causes.
 The fitting objective does not identify the attribution, so the choice among
 equally-accurate models is made by the initialization seed. Attribution mass is
 concentrated, with a median 86\% of a sequence's total in 3 of 9 positions; we
@@ -167,11 +168,14 @@ resolution.
   \centering
   \includegraphics[width=0.86\linewidth]{figures/fig1_not_weak_models.pdf}
   \caption{\textbf{The failure is not an artifact of poorly-fitting models.}
-  Each point is one architecture cell: held-out predictive $R^2$ against the
-  fraction of held-out sequences whose top-3 attributed position set differs
-  between two accuracy-matched models. The best-fitting cell in the grid still
-  disagrees on a substantial fraction of sequences, so the failure cannot be
-  dismissed as a symptom of underfitting.}
+  Each point is one architecture cell: held-out predictive $R^2$ against top-3
+  attributed-set divergence between accuracy-matched models. \textbf{The
+  plotted quantity is the median, over accuracy-tied pairs, of that pair's
+  fraction of held-out sequences whose top-3 sets differ} --- a median over
+  pairs of a per-pair fraction, not a single fraction pooled over sequences; the
+  same definition is used in Tables~\ref{tab:topk} and~\ref{tab:full}. The
+  best-fitting cell still diverges on $43\%$ of sequences, so the failure cannot
+  be dismissed as a symptom of underfitting.}
   \label{fig:headline}
 \end{figure}
 
@@ -188,9 +192,13 @@ reaching $+0.350$ (Figure~\ref{fig:headline}).
 \paragraph{The top-$k$ set, which is what gets used.}
 The top-3 set differs for 73\% and 90\% of held-out sequences at width 128,
 depths 2 and 3; restricted to sequences where the concentration diagnostic
-(Section~\ref{sec:why}) says the comparison is meaningful, 71\% and 80\%.
+(Section~\ref{sec:why}) says the comparison is meaningful, 71\% and 80\%. The
+conditioned figure is reported for completeness but carries little weight at
+depth 3: only $11\%$ of sequences at width 128 depth 3 have a well-defined
+top-3 under both models, and at width 64 depth 3 none do.
 These are accuracy-tied pairs of \emph{independently trained} models, the
-population described in Section~\ref{sec:approach}. The corresponding figures for a fit
+population described in Section~\ref{sec:approach}. The corresponding figures
+for a fit
 against its own reparameterized twin are much smaller --- 46\%, 47\%, 34\% and
 21\% --- and are reported separately in Appendix~\ref{gen:twin}; the two
 populations must not be quoted interchangeably.
@@ -305,12 +313,17 @@ Proposition~\ref{prop:noise} gives the Poisson log-ratio scale.
 result.}
 Under a binomial form, a near-saturated sequence receives $\sigma \to 0$; since
 the separation test of Proposition~\ref{prop:sep} weights points by
-$1/\sigma^2$, a handful of such points dominated. The mean of $1/\sigma^2$ ran
-$1.1 \times 10^6$ times its median, and the required sample size collapsed to
-zero --- that is, the analysis reported that the models were trivially
-separable. Under the Poisson log-ratio that ratio is $3.0$ and the requirement
-becomes meaningful. Counting noise is a lower bound on total noise, so every
-reported requirement is a lower bound.
+$1/\sigma^2$, a handful of such points dominated and the required sample size
+collapsed to zero --- that is, the analysis reported that the models were
+trivially separable. The binomial model is also inapplicable on its own terms
+here: $N_{\mathrm{ex}} \ge N_{\mathrm{tot}}$ on $4.9\%$ of rows, where the
+binomial variance is zero or negative. Under the Poisson log-ratio the weight
+distribution is unremarkable --- the mean of $1/\sigma^2$ is $3.0$ times its
+median --- and the requirement becomes meaningful. We do not quote a magnitude
+for the binomial inflation: that model was replaced before the separation
+experiment was first committed, so the figure cannot be regenerated from
+released code (Appendix~\ref{gen:noise}). Counting noise is a lower bound on
+total noise, so every reported requirement is a lower bound.
 
 \subsection{Cause 4: two ways our validation nearly hid the failure}
 
@@ -352,13 +365,13 @@ pinning the distinction.
 The practice is not always unsound, and the conditions are measurable.
 
 \begin{itemize}
-\item \textbf{Depth is what tracks the failure; width is not.} Exact top-3
-  agreement falls monotonically with depth --- 26--57\% at depth 1, 12--27\% at
-  depth 2, 6--10\% at depth 3 --- with a rank correlation of $+0.80$ between
-  depth and top-3 divergence against $-0.06$ for width. \textbf{No cell in this
-  grid is safe.} The best, width 128 depth 1, still differs on the top-3 set
-  for $43\%$ of sequences. We looked for a low-capacity exemption and did not
-  find one.
+\item \textbf{Depth is what tracks the failure; width is not, and no cell is
+  safe.} Top-3 divergence rises monotonically with depth: $43$--$74\%$ at depth
+  1, $73$--$88\%$ at depth 2, $90$--$94\%$ at depth 3, a rank correlation of
+  $+0.80$ with depth against $-0.06$ with width. Within depth 1 it improves with
+  width, from $74\%$ at width 16 to $43\%$ at width 128, but it never falls
+  below $43\%$ anywhere in the grid. We looked for a low-capacity exemption and
+  found the opposite: the narrowest models are among the worst.
 \item \textbf{It degrades with capacity, not with fit quality alone.} The
   correlation between held-out $R^2$ and agreement is $+0.650$: real, but far
   from explanatory, and the best-fitting cell still shows the failure.
@@ -536,12 +549,14 @@ Modelling the readout as a proportion $p$ from $N$ trials gives
 $\mathrm{sd}(y) \propto \sqrt{(1-p)/(Np)}$, which tends to $0$ as $p \to 1$.
 Since the statistic of Proposition~\ref{prop:sep} weights points by
 $1/\sigma_i^2$, a small number of near-saturated sequences then carry unbounded
-weight. Empirically the ratio $\mathrm{mean}(1/\sigma^2)/\mathrm{median}(1/\sigma^2)$
-is $1.1 \times 10^6$ under the binomial form and $3.0$ under
-Proposition~\ref{prop:noise}. The binomial model is also inapplicable on its own
-terms here: $N_{\mathrm{ex}} > N_{\mathrm{tot}}$ in 4.9\% of rows, by up to
-$20.9\times$, so the two counts are not numerator and denominator of a
-proportion.
+weight. Under Proposition~\ref{prop:noise} the ratio
+$\mathrm{mean}(1/\sigma^2)/\mathrm{median}(1/\sigma^2)$ is $3.0$, a heavy but
+unremarkable tail. We give no corresponding figure for the binomial form: it was
+replaced before the separation experiment was first committed and cannot be
+regenerated from released code, so only the structural defect is quoted. That
+defect is decisive on its own: $N_{\mathrm{ex}} > N_{\mathrm{tot}}$ in 4.9\% of
+rows, by up to $20.9\times$, so the two counts are not numerator and
+denominator of a proportion.
 \end{remark}
 
 \begin{proposition}[Separation sample size]

@@ -300,7 +300,10 @@ def figure1(run: pathlib.Path, out: pathlib.Path) -> dict:
     )
 
     ax.set_xlabel("held-out predictive $R^2$")
-    ax.set_ylabel("top-3 attributed set differs\n(fraction of held-out sequences)")
+    # Say what is actually plotted. pooled_tk_ex3 is a MEDIAN OVER PAIRS of a
+    # per-pair fraction, not a fraction pooled over sequences, and the earlier
+    # label claimed the latter.
+    ax.set_ylabel("top-3 set differs\n(median over tied pairs,\nfraction of sequences)")
     # y starts at 0 so the reader sees absolute magnitude rather than an
     # autoscaled band, with a hair of room below so the y=0 rule is not hidden
     # under the spine. x is given the data range plus padding: forcing x to 0
