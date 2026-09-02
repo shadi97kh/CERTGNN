@@ -116,7 +116,72 @@ def _finite(v: Any) -> bool:
     return v is not None and isinstance(v, (int, float)) and np.isfinite(v)
 
 
-def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
+def _collect_per_instance(
+    sink: dict[str, Any],
+    cell: str,
+    seed: int,
+    per_inst: list[np.ndarray],
+    pairs: list[dict[str, Any]],
+    k_top: int = 3,
+) -> None:
+    """Record per-SEQUENCE agreement for every accuracy-matched pair.
+
+    A pure dump. It reads the same `per_inst` arrays the verdict path reads and
+    recomputes nothing that feeds a verdict; the summaries above are untouched
+    whether or not this runs. It exists because the per-sequence values are the
+    argument for Proposition 2 and the aggregation throws them away: only the
+    median, p10, p90 and an exceedance fraction survive into `results.json`,
+    and none of those can show that a sequence with LOW full-rank rho can still
+    have IDENTICAL top-3 sets.
+
+    Two arrays per accuracy-matched pair, one value per held-out sequence:
+    the full-rank Spearman over all positions, and the top-k Jaccard.
+    Plus, once per cell-seed, each model's per-sequence attribution profile
+    sorted descending and normalized to sum one, which is the rank-profile
+    panel.
+    """
+    rho_rows: list[np.ndarray] = []
+    jac_rows: list[np.ndarray] = []
+    pair_ids: list[tuple[int, int]] = []
+    for p in pairs:
+        a, b = per_inst[int(p["i"])], per_inst[int(p["j"])]
+        A, B = np.abs(np.asarray(a, float)), np.abs(np.asarray(b, float))
+        n = A.shape[0]
+        rho = np.full(n, np.nan)
+        jac = np.full(n, np.nan)
+        ia = np.argsort(-A, axis=1)[:, :k_top]
+        ib = np.argsort(-B, axis=1)[:, :k_top]
+        for r in range(n):
+            v = spearmanr(A[r], B[r]).statistic
+            rho[r] = float(v) if np.isfinite(v) else np.nan
+            sa, sb = set(ia[r].tolist()), set(ib[r].tolist())
+            jac[r] = len(sa & sb) / len(sa | sb)
+        rho_rows.append(rho.astype(np.float32))
+        jac_rows.append(jac.astype(np.float32))
+        pair_ids.append((int(p["i"]), int(p["j"])))
+
+    key = f"{cell}_seed{seed}"
+    if rho_rows:
+        sink[f"{key}__rho"] = np.stack(rho_rows)
+        sink[f"{key}__jaccard"] = np.stack(jac_rows)
+        sink[f"{key}__pairs"] = np.asarray(pair_ids, dtype=np.int16)
+
+    prof = []
+    for pi in per_inst:
+        m = np.abs(np.asarray(pi, float))
+        tot = m.sum(axis=1, keepdims=True)
+        tot = np.where(tot <= 0, np.nan, tot)
+        prof.append(np.sort(m / tot, axis=1)[:, ::-1].astype(np.float32))
+    if prof:
+        sink[f"{key}__rankprofile"] = np.stack(prof)
+
+
+def run_seed(
+    cfg: Any,
+    seed: int,
+    dump_cells: frozenset[str] | None = None,
+    dump_sink: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     cc, ip = cfg.closure_capacity, cfg.identifiability
     oc = cfg.occurrence
     dev = pick_device(cfg)
@@ -156,6 +221,13 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
     cells: list[dict[str, Any]] = []
     for hidden in [int(h) for h in cc.hidden]:
         for depth in [int(dp) for dp in cc.depth]:
+            # A dump run evaluates only the cells it is asked to dump. That
+            # makes its results.json a PARTIAL grid, which is why the run is
+            # marked dump_only and why the figure and appendix resolvers refuse
+            # to read it: a partial grid that looks well-formed is exactly how a
+            # figure silently acquires the wrong denominator.
+            if dump_cells is not None and f"{hidden}x{depth}" not in dump_cells:
+                continue
             base_gen = seed * 7919 + hidden * 31 + depth
             base_torch = seed * 100 + hidden + depth
             # One learning-rate selection for the cell, shared by all K models,
@@ -288,6 +360,13 @@ def run_seed(cfg: Any, seed: int) -> dict[str, Any]:
                     }
                 )
 
+            if dump_sink is not None and dump_cells is not None:
+                cname = f"{hidden}x{depth}"
+                if cname in dump_cells:
+                    _collect_per_instance(
+                        dump_sink, cname, seed, per_inst, pairs, k_top=3
+                    )
+
             rhos = [p["attr_spearman"] for p in pairs if _finite(p["attr_spearman"])]
             nseps = [p["n_separate"] for p in pairs if _finite(p["n_separate"])]
             lat = [p["latent_r2"] for p in pairs if np.isfinite(p["latent_r2"])]
@@ -340,6 +419,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("overrides", nargs="*")
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--retable", metavar="RUNDIR")
+    ap.add_argument(
+        "--dump-per-instance",
+        action="store_true",
+        help="write per-sequence rho and top-k Jaccard for accuracy-matched "
+        "pairs. Restricts the grid to --dump-cells and --dump-seeds and marks "
+        "the run dump_only, so its partial results.json can never be mistaken "
+        "for a verdict run.",
+    )
+    ap.add_argument("--dump-cells", default="128x1,128x3")
+    ap.add_argument("--dump-seeds", default="0,1,2")
     args = ap.parse_args(argv)
     cfg = load_config(args.config, args.overrides)
     configure_torch(cfg)
@@ -359,9 +448,22 @@ def main(argv: list[str] | None = None) -> int:
         run = make_run_dir(cfg, "occurrence", allow_dirty=args.allow_dirty)
         meta = json.loads((run / "meta.json").read_text())
         print(f"run dir: {run}")
+        dump_cells = (
+            frozenset(c.strip() for c in args.dump_cells.split(",") if c.strip())
+            if args.dump_per_instance
+            else None
+        )
+        dump_sink: dict[str, Any] | None = {} if args.dump_per_instance else None
+        seeds = resolve_seeds(cfg)
+        if args.dump_per_instance:
+            want = {int(v) for v in args.dump_seeds.split(",") if v.strip()}
+            seeds = [s_ for s_ in seeds if int(s_) in want]
+            print(f"DUMP MODE: cells {sorted(dump_cells)} seeds {seeds}")
+            print("  the grid is restricted, so results.json here is PARTIAL")
+
         per_seed = []
-        for seed in resolve_seeds(cfg):
-            r = run_seed(cfg, seed)
+        for seed in seeds:
+            r = run_seed(cfg, seed, dump_cells, dump_sink)
             per_seed.append(r)
             c = [k for k in r["cells"] if k["hidden"] == 64 and k["depth"] == 2]
             msg = (
@@ -373,9 +475,22 @@ def main(argv: list[str] | None = None) -> int:
             print(f"seed {seed}:{msg}", flush=True)
             (run / f"seed_{seed}.json").write_text(json.dumps(to_jsonable(r), indent=1))
 
+        if dump_sink is not None:
+            out = run / "per_instance.npz"
+            np.savez_compressed(out, **dump_sink)
+            print(
+                f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB, "
+                f"{len(dump_sink)} arrays)"
+            )
+
     nb = int(cfg.bootstrap_resamples)
     keys = [(c["hidden"], c["depth"]) for c in per_seed[0]["cells"]]
+    # A dump run covers a subset of the grid. Marking it here, in the artefact
+    # itself, is what lets every consumer refuse it by inspection rather than by
+    # remembering which timestamp was a dump.
+    dump_only = bool(getattr(args, "dump_per_instance", False)) or len(keys) < 12
     agg: dict[str, Any] = {
+        "dump_only": dump_only,
         "n_seeds": len(per_seed),
         "n": per_seed[0]["n"],
         "n_fit": per_seed[0]["n_fit"],

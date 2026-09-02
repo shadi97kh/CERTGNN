@@ -136,9 +136,16 @@ def _usable(run: pathlib.Path, experiment: str, keys: tuple[str, ...]) -> str | 
         return f"unreadable: {exc}"
     if meta.get("experiment") != experiment:
         return f"meta.json names experiment {meta.get('experiment')!r}"
+    # A dump run covers a subset of the grid and says so in its own record.
+    # Refusing it here is what stops a figure or a table silently acquiring a
+    # two-cell denominator that looks perfectly well-formed.
+    if res.get("dump_only"):
+        return "dump_only run (partial grid)"
     cells = res.get("cells") or {}
     if not cells:
         return "no cells"
+    if len(cells) < 12:
+        return f"partial grid ({len(cells)} cells, expected 12)"
     for name, cell in cells.items():
         miss = _missing(cell, keys)
         if miss:
