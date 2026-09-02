@@ -100,6 +100,20 @@ def order(cells: dict) -> list[str]:
     return sorted(cells, key=lambda k: (cells[k]["hidden"], cells[k]["depth"]))
 
 
+# The main-text tables show the two extreme widths at every depth. That
+# brackets the grid on both axes the paper argues about -- capacity and depth --
+# and includes 128x1, the best-fitting cell the "not weak models" claim rests
+# on. All twelve cells are in Table A.2, so nothing is hidden, and the caption
+# says which rule selected these. Twelve-row tables in the body cost roughly a
+# page each and push the floats past the references.
+MAIN_CELLS = ("16x1", "16x2", "16x3", "128x1", "128x2", "128x3")
+
+
+def main_order(cells: dict) -> list[str]:
+    keep = [k for k in order(cells) if k in MAIN_CELLS]
+    return keep or order(cells)
+
+
 def meta_of(run: pathlib.Path) -> dict:
     return json.load(open(run / "meta.json"))
 
@@ -113,7 +127,7 @@ def fragment(
     header: str,
     caption: str,
     label: str,
-    placement: str = "t",
+    placement: str = "tb",
     small: bool = True,
 ) -> str:
     L = [
@@ -166,7 +180,7 @@ def pct(x: float) -> str:
 def table_tied(occ: pathlib.Path) -> str:
     c = cells_of(occ)
     body = []
-    for k in order(c):
+    for k in main_order(c):
         e = c[k]
         body.append(
             f"{e['hidden']}$\\times${e['depth']} & "
@@ -187,8 +201,10 @@ def table_tied(occ: pathlib.Path) -> str:
         r"to reject at a stated resolution rather than a claim of equality. "
         r"Per-instance $\rho$ is a Spearman correlation between two models' "
         r"9-position attribution vectors \emph{for a single held-out sequence}, "
-        r"pooled over sequences and over tied pairs. Bootstrap intervals and "
-        r"the remaining columns are in Table~\ref{tab:full}."
+        r"pooled over sequences and over tied pairs. \textbf{Rows are the two "
+        r"extreme widths at each depth}, which bracket both axes the argument "
+        r"turns on; all twelve cells, with bootstrap intervals, are in "
+        r"Table~\ref{tab:full}."
     )
     return fragment(
         body,
@@ -203,7 +219,7 @@ def table_tied(occ: pathlib.Path) -> str:
 def table_topk(occ: pathlib.Path) -> str:
     c = cells_of(occ)
     body = []
-    for k in order(c):
+    for k in main_order(c):
         e = c[k]
         body.append(
             f"{e['hidden']}$\\times${e['depth']} & "
@@ -221,7 +237,9 @@ def table_topk(occ: pathlib.Path) -> str:
         r"magnitudes, where $9$ means all positions contribute equally. Jaccard "
         r"on 3-element sets takes only $\{0, 0.2, 0.5, 1\}$, so its median is "
         r"near-useless as a summary and the \emph{mean} is reported, alongside "
-        r"the fraction of sequences whose top-3 sets match exactly."
+        r"the fraction of sequences whose top-3 sets match exactly. Rows are "
+        r"the same bracketing subset as Table~\ref{tab:tied}; all twelve cells "
+        r"are in Table~\ref{tab:full}."
     )
     return fragment(
         body,

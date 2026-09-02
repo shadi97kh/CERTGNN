@@ -1,0 +1,31 @@
+% PROXY ONLY -- not the real NeurIPS/ICBINB style file.
+% Reproduces the text-block geometry (5.5in x 9in on US Letter, 10pt) and the
+% commands the paper uses, so that page count can be measured. Spacing around
+% floats and section heads is close but not identical, so treat the resulting
+% count as +/- about a third of a page.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{neurips_2026}[2026 proxy for page counting]
+\DeclareOption{dblblindworkshop}{}
+\DeclareOption{preprint}{}
+\DeclareOption{final}{}
+\DeclareOption*{}
+\ProcessOptions\relax
+\RequirePackage[letterpaper,left=1.5in,right=1.5in,top=1in,bottom=1in,%
+  textwidth=5.5in,textheight=9in]{geometry}
+\RequirePackage{times}
+\renewcommand{\normalsize}{\fontsize{10}{12}\selectfont}
+\normalsize
+\newcommand{\workshoptitle}[1]{\gdef\@workshoptitle{#1}}
+\gdef\@workshoptitle{}
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{1em}
+\renewcommand{\section}{\@startsection{section}{1}{\z@}%
+  {-2.0ex \@plus -0.5ex \@minus -0.2ex}{1.5ex \@plus 0.3ex \@minus 0.2ex}%
+  {\large\bf\raggedright}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}%
+  {-1.8ex \@plus -0.5ex \@minus -0.2ex}{0.8ex \@plus 0.2ex}%
+  {\normalsize\bf\raggedright}}
+\renewcommand{\paragraph}{\@startsection{paragraph}{4}{\z@}%
+  {1.5ex \@plus 0.5ex \@minus 0.2ex}{-1em}{\normalsize\bf}}
+\RequirePackage[font=small]{caption}
+\endinput

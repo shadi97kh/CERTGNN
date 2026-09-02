@@ -1,0 +1,32 @@
+{
+  "figure": "fig0_workflow.pdf",
+  "source": {
+    "run": "20260830T002223Z_6f98de3_6e25cf7d",
+    "git_sha": "6f98de3",
+    "git_dirty": false,
+    "config_hash": "6e25cf7d"
+  },
+  "cell": "128x1",
+  "lr_chosen_seed0": 0.003,
+  "values": {
+    "library": 30483,
+    "n": 4000,
+    "n_fit": 3000,
+    "n_heldout": 1000,
+    "n_cells": 12,
+    "K": 20,
+    "models_per_seed": 240,
+    "seeds": 10,
+    "ladder": 4,
+    "epochs": 1200,
+    "n_pairs": 190,
+    "n_tied": 154,
+    "alpha": 0.05,
+    "mde_r2": 0.031759662926374436,
+    "seq_len": 9,
+    "rho_median": 0.8833333333333333,
+    "top3_mass": 0.975809452655024,
+    "top3_divergence": 0.43000000000000005,
+    "cell": "128x1"
+  }
+}

@@ -57,6 +57,23 @@ search that examined zero candidates. We give boundary conditions under which th
 practice does survive, and a reporting checklist.
 \end{abstract}
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig0_workflow.pdf}
+  \caption{\textbf{The pipeline, and where the disagreement appears.} Every
+  count is read from the committed run behind this paper. Models are trained
+  per width $\times$ depth cell differing \emph{only} in initialization seed,
+  then filtered to the pairs a paired $t$-test on held-out squared errors
+  cannot separate at $\alpha = 0.05$; the surviving pairs are compared by
+  in-silico mutagenesis, sequence by sequence. At the best-fitting cell the
+  survivors agree well on the full-position ranking and concentrate almost all
+  their mass in three positions, yet they disagree about \emph{which} three
+  for nearly half of held-out sequences. The two controls named above the
+  pipeline both reported success without testing what they were meant to test
+  (Section~\ref{sec:why}, Table~\ref{tab:validation}).}
+  \label{fig:workflow}
+\end{figure}
+
 \section{Problem}
 
 \paragraph{Biological task.}
@@ -180,10 +197,9 @@ populations must not be quoted interchangeably.
 
 \input{tex/tab_topk}
 
-\paragraph{The data adjudicates cheaply, which sharpens rather than softens the
-result.}
-\textsc{TODO: this paragraph's claim inverts under the correct population and
-needs the authors' rewrite.} Proposition~\ref{prop:sep} gives the number of
+\paragraph{The data adjudicates cheaply, which sharpens the result rather than
+softening it.}
+Proposition~\ref{prop:sep} gives the number of
 held-out measurements needed to reject that two accuracy-tied models are the
 same function, under a noise scale derived from the assay's own read counts
 (Proposition~\ref{prop:noise}). For \emph{independently trained} accuracy-tied
@@ -268,14 +284,12 @@ also with substantial disagreement. The statistic cannot distinguish the two.
 \paragraph{Diagnostic.}
 Report the top-$k$ position \emph{set} overlap and the concentration alongside
 it. Under that diagnostic, ten of twelve cells show genuine disagreement about
-which positions matter. \textsc{TODO: this paragraph's conclusion inverts and
-needs rewriting.} For accuracy-tied independently trained pairs, width 16 depths
-2 and 3 agree on the top-3 set in only 13\% and 9\% of instances --- the
-\emph{lowest} agreement in the grid, not the highest. The cells that agree most
-are the depth-1 cells, led by width 128 depth 1 at 57\%. The 82\% and 86\%
-figures previously given here are the twin comparison, not this one. Whether a
-low-capacity exemption survives at all under the correct population is a
-judgement for the authors; on these numbers it does not.
+which positions matter, and it does so in every cell of the grid. Exact top-3
+agreement runs 26--57\% at depth 1, 12--27\% at depth 2 and 6--10\% at depth 3.
+The best cell in the grid, width 128 depth 1, still assigns a different top-3
+set for $43\%$ of held-out sequences. We had expected a low-capacity exemption
+and there is none: the smallest models are among the \emph{worst}, not the
+best. See Section~\ref{sec:boundary}.
 
 \subsection{Cause 3: the noise model, and a silent failure in ours}
 
@@ -338,17 +352,23 @@ pinning the distinction.
 The practice is not always unsound, and the conditions are measurable.
 
 \begin{itemize}
-\item \textbf{\textsc{TODO: this bullet no longer holds.}} Width 16, depths
-  2--3 give top-3 agreement of only 9--13\% among accuracy-tied independently
-  trained pairs; the 82--86\% figure was the twin comparison. Agreement is
-  highest at depth 1 (up to 57\% at width 128), so \emph{depth}, not low
-  capacity, is what tracks agreement in this grid.
+\item \textbf{Depth is what tracks the failure; width is not.} Exact top-3
+  agreement falls monotonically with depth --- 26--57\% at depth 1, 12--27\% at
+  depth 2, 6--10\% at depth 3 --- with a rank correlation of $+0.80$ between
+  depth and top-3 divergence against $-0.06$ for width. \textbf{No cell in this
+  grid is safe.} The best, width 128 depth 1, still differs on the top-3 set
+  for $43\%$ of sequences. We looked for a low-capacity exemption and did not
+  find one.
 \item \textbf{It degrades with capacity, not with fit quality alone.} The
   correlation between held-out $R^2$ and agreement is $+0.650$: real, but far
   from explanatory, and the best-fitting cell still shows the failure.
-\item \textbf{It is worst where the separation requirement is largest.} The cells
-  needing $10^6$--$10^7$ measurements to distinguish are the same cells whose
-  top-3 sets diverge most.
+\item \textbf{Pairs that are harder to tell apart agree more, not less.} Across
+  cells the median number of held-out measurements needed to separate a tied
+  pair as functions is rank-correlated $-0.94$ with top-3 divergence: where the
+  two fits are closer as functions they also pick more similar positions, which
+  is the direction one would want and the opposite of what the twin comparison
+  shows (Appendix~\ref{gen:twin}). The failure is therefore not a by-product of
+  the two fits being nearly identical.
 \item \textbf{Scope.} One assay, one phenotype, sequence length 9. We do not
   claim this generalizes to longer contexts or to models with strong
   architectural priors, and we tested only in-silico mutagenesis, not gradient
@@ -607,10 +627,21 @@ carries the git SHA and configuration hash of the run that produced it.
 \section{The vacuous ceiling, in full}
 \label{app:ceiling}
 
-\textsc{[The refit code path; why best-iterate selection retained the
-initialization; the $6.7 \times 10^{-19}$ initial loss and the $10^{-10}$
-early-stopping threshold; and the cold-start control that replaced it, with
-per-cell recovery figures and per-seed spread.]}
+The refit loads the reference weights, then evaluates the loss and snapshots
+the best iterate \emph{before} entering the optimization loop. For the null
+target --- the reference's own latent --- that initial state is already the
+best iterate that will ever be seen, so no later step can displace it. The
+measured initial loss is $6.7 \times 10^{-19}$, below the $10^{-10}$
+early-stopping threshold, and the loop breaks on its first iteration.
+
+The consequence is visible in the run records without reference to any loss
+value: the warm-started control returns held-out $R^2$ of exactly $1.0$ in all
+$120$ cell--seed combinations, bit-exact rather than approximate. A control
+that cannot return anything else has not measured anything. The cold-started
+replacement, which must actually travel to the same in-class target, recovers
+it at only $0.4501$ in the worst cell and falls below the $0.999$ threshold in
+11 of 12 cells, with per-seed spread of $0.21$ to $0.87$ at width 128 depth 3.
+Both arms are plotted in Figure~\ref{gen:ceiling-fig}.
 
 The general form of the error is worth stating separately from its instance. A
 control that verifies a procedure can recover a target must ensure the procedure
@@ -622,10 +653,16 @@ letter of the control and none of its purpose.
 \label{app:repro}
 
 Code, pre-registered analysis plans, per-seed raw values, and run provenance are
-released at \textsc{[URL]}. Each result directory records the git SHA, the
-configuration hash, the seed list, and the tuning budget consumed.
+released at \url{https://github.com/shadi97kh/CERTGNN}. Each result directory
+records the git SHA, the configuration hash, the seed list, and the tuning
+budget consumed, and every table and figure in this paper is generated from
+those directories by \texttt{experiments/make\_tables.py},
+\texttt{make\_figures.py} and \texttt{make\_workflow\_figure.py} rather than
+transcribed.
 
-\appendix
+% Supplementary material the appendix above does not already cover:
+% the noise-model derivation, the twin comparison, and cold-start recovery.
+% No second \appendix -- one has already been issued above.
 \input{appendix}
 
 \end{document}
