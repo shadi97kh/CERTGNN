@@ -1,0 +1,149 @@
+{
+  "figure": "fig1_not_weak_models.pdf",
+  "source": {
+    "run": "20260830T002223Z_6f98de3_6e25cf7d",
+    "experiment": "occurrence",
+    "git_sha": "6f98de3",
+    "git_dirty": false,
+    "config_hash": "6e25cf7d",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "timestamp_utc": "20260830T002223Z"
+  },
+  "x": "cells[*].heldout_r2_mean.mean",
+  "y": "1 - cells[*].pooled_tk_ex3",
+  "y_note": "pooled_tk_ex3 is the MEDIAN over accuracy-matched model pairs of that pair's fraction of held-out sequences whose top-3 attributed sets match exactly. So y is a median over pairs of a per-pair fraction, not a single pooled fraction over sequences.",
+  "annotated_cell": "128x1",
+  "rows": [
+    {
+      "cell": "16x1",
+      "hidden": 16,
+      "depth": 1,
+      "heldout_r2_mean": 0.6011494845151842,
+      "heldout_r2_lo": 0.5724983305240948,
+      "heldout_r2_hi": 0.627360757317296,
+      "pooled_tk_ex3": 0.2575,
+      "top3_divergence": 0.7424999999999999
+    },
+    {
+      "cell": "16x2",
+      "hidden": 16,
+      "depth": 2,
+      "heldout_r2_mean": 0.5591393100016504,
+      "heldout_r2_lo": 0.5242836626750731,
+      "heldout_r2_hi": 0.5879675236442959,
+      "pooled_tk_ex3": 0.1275,
+      "top3_divergence": 0.8725
+    },
+    {
+      "cell": "16x3",
+      "hidden": 16,
+      "depth": 3,
+      "heldout_r2_mean": 0.5349319858237249,
+      "heldout_r2_lo": 0.4947811915343016,
+      "heldout_r2_hi": 0.5676640892532634,
+      "pooled_tk_ex3": 0.0925,
+      "top3_divergence": 0.9075
+    },
+    {
+      "cell": "32x1",
+      "hidden": 32,
+      "depth": 1,
+      "heldout_r2_mean": 0.6019348426206568,
+      "heldout_r2_lo": 0.5753973404023992,
+      "heldout_r2_hi": 0.626330525549469,
+      "pooled_tk_ex3": 0.315,
+      "top3_divergence": 0.685
+    },
+    {
+      "cell": "32x2",
+      "hidden": 32,
+      "depth": 2,
+      "heldout_r2_mean": 0.553706699057533,
+      "heldout_r2_lo": 0.5110241819958113,
+      "heldout_r2_hi": 0.5908778005541138,
+      "pooled_tk_ex3": 0.125,
+      "top3_divergence": 0.875
+    },
+    {
+      "cell": "32x3",
+      "hidden": 32,
+      "depth": 3,
+      "heldout_r2_mean": 0.4791743854541323,
+      "heldout_r2_lo": 0.4127569478133413,
+      "heldout_r2_hi": 0.5348744404752487,
+      "pooled_tk_ex3": 0.08,
+      "top3_divergence": 0.92
+    },
+    {
+      "cell": "64x1",
+      "hidden": 64,
+      "depth": 1,
+      "heldout_r2_mean": 0.6278179156923035,
+      "heldout_r2_lo": 0.6002769019670496,
+      "heldout_r2_hi": 0.6544077835831008,
+      "pooled_tk_ex3": 0.475,
+      "top3_divergence": 0.525
+    },
+    {
+      "cell": "64x2",
+      "hidden": 64,
+      "depth": 2,
+      "heldout_r2_mean": 0.5380854603246978,
+      "heldout_r2_lo": 0.4845918301596725,
+      "heldout_r2_hi": 0.5861209260660072,
+      "pooled_tk_ex3": 0.135,
+      "top3_divergence": 0.865
+    },
+    {
+      "cell": "64x3",
+      "hidden": 64,
+      "depth": 3,
+      "heldout_r2_mean": 0.3928742077701931,
+      "heldout_r2_lo": 0.33089658025706487,
+      "heldout_r2_hi": 0.4482973767409519,
+      "pooled_tk_ex3": 0.055,
+      "top3_divergence": 0.945
+    },
+    {
+      "cell": "128x1",
+      "hidden": 128,
+      "depth": 1,
+      "heldout_r2_mean": 0.637150176720287,
+      "heldout_r2_lo": 0.6122098832844782,
+      "heldout_r2_hi": 0.6585093257548678,
+      "pooled_tk_ex3": 0.57,
+      "top3_divergence": 0.43000000000000005
+    },
+    {
+      "cell": "128x2",
+      "hidden": 128,
+      "depth": 2,
+      "heldout_r2_mean": 0.5836093579447307,
+      "heldout_r2_lo": 0.5369211293011196,
+      "heldout_r2_hi": 0.6258521074657547,
+      "pooled_tk_ex3": 0.2725,
+      "top3_divergence": 0.7275
+    },
+    {
+      "cell": "128x3",
+      "hidden": 128,
+      "depth": 3,
+      "heldout_r2_mean": 0.47610337730378094,
+      "heldout_r2_lo": 0.39485973851246375,
+      "heldout_r2_hi": 0.5455886712194677,
+      "pooled_tk_ex3": 0.095,
+      "top3_divergence": 0.905
+    }
+  ]
+}
