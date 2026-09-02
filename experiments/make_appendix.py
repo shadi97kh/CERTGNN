@@ -434,6 +434,14 @@ def section_a3(sep: pathlib.Path) -> str:
         r"were re-derived from the committed $30{,}483$-row library while "
         r"preparing this appendix and agree with the recorded values.",
         "",
+        r"\emph{A figure comparing the two weight distributions was considered "
+        r"and cut.} It would need the binomial variance form, which is not in "
+        r"the repository, and per-observation $1/\sigma^2$ values, which no run "
+        r"directory stores --- only the median noise scale survives into "
+        r"\texttt{results.json}. Drawing it would have meant inventing the "
+        r"comparator and recomputing the rest outside any recorded run, so the "
+        r"comparison stays in prose where its provenance can be stated.",
+        "",
         r"\paragraph{$Z$ is a lower bound.}",
         r"This models sequencing noise only. Library preparation and biological "
         r"variation add more, so the true noise is larger and the required "
@@ -518,6 +526,25 @@ def section_a4(cs: pathlib.Path, ch: pathlib.Path) -> str:
         f"loss ranges from ${min(init):.3f}$ to ${max(init):.3f}$, against "
         r"$6.7 \times 10^{-19}$ for the warm-started control it replaces.}",
         r"\end{table}",
+        "",
+        r"\begin{figure}[h]",
+        r"\centering",
+        r"\includegraphics[width=0.92\linewidth]{figures/figA2_vacuous_ceiling.pdf}",
+        r"\caption{\textbf{The warm-start control cannot fail, so it measures "
+        r"nothing.} Held-out $R^2$ recovering the null target, a function the "
+        r"architecture realizes exactly, with the ten per-seed values overlaid. "
+        r"The warm-started control returns $1.000000$ in every cell and every "
+        r"seed --- all $120$ values are exactly $1.0$, not approximately --- "
+        r"because it is initialized at the reference and its initial loss of "
+        r"$6.7 \times 10^{-19}$ is already below the $10^{-10}$ stopping "
+        r"threshold, so the optimization loop never runs and best-iterate "
+        r"selection keeps the initial state. The cold-started arm must actually "
+        r"search for the same target and its per-seed spread shows how much the "
+        r"basin varies: at $128\times3$ restarts land between $0.21$ and "
+        r"$0.87$. Warm bars are flat by construction; that flatness is the "
+        r"finding, not a plotting artefact.}",
+        r"\label{gen:ceiling-fig}",
+        r"\end{figure}",
         "",
         r"\paragraph{What the control shows.}",
     ]

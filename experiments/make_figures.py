@@ -711,6 +711,140 @@ def figure2(
     return payload
 
 
+# --------------------------------------------------------------------- fig A.2
+
+
+def _per_seed(run: pathlib.Path, key: str) -> dict[str, dict[int, float]]:
+    """Per-cell, per-seed values of one field, read from the seed_*.json files.
+
+    The aggregated results.json keeps only mean and bootstrap bounds, which
+    cannot show the basin spread: a cell whose cold restarts land anywhere
+    between 0.21 and 0.87 looks the same as a tight one once summarized.
+    """
+    out: dict[str, dict[int, float]] = {}
+    for f in sorted(run.glob("seed_*.json")):
+        d = json.load(open(f))
+        seed = int(d["seed"])
+        cells = (
+            d["cells"] if isinstance(d["cells"], list) else list(d["cells"].values())
+        )
+        for c in cells:
+            v = c.get(key)
+            if v is None or not np.isfinite(float(v)):
+                continue
+            out.setdefault(f"{c['hidden']}x{c['depth']}", {})[seed] = float(v)
+    return out
+
+
+def figureA2(warm_run: pathlib.Path, cold_run: pathlib.Path, out: pathlib.Path) -> dict:
+    """The vacuous ceiling: warm-start returns 1.000000 without optimizing."""
+    warm = _per_seed(warm_run, "null_heldout")
+    cold = _per_seed(cold_run, "arm1_cold_heldout")
+    cells = sorted(
+        set(warm) & set(cold),
+        key=lambda k: (int(k.split("x")[0]), int(k.split("x")[1])),
+    )
+    if not cells:
+        raise SystemExit("no cells shared between the warm and cold runs")
+
+    rows = []
+    for c in cells:
+        w = np.array(sorted(warm[c].values()))
+        k = np.array(sorted(cold[c].values()))
+        rows.append(
+            {
+                "cell": c,
+                "warm_mean": float(w.mean()),
+                "warm_min": float(w.min()),
+                "warm_max": float(w.max()),
+                "warm_all_exactly_one": bool(np.all(w == 1.0)),
+                "warm_seeds": int(w.size),
+                "cold_mean": float(k.mean()),
+                "cold_min": float(k.min()),
+                "cold_max": float(k.max()),
+                "cold_seeds": int(k.size),
+            }
+        )
+
+    x = np.arange(len(cells), dtype=float)
+    wdt = 0.38
+    fig, ax = plt.subplots(figsize=(5.5, 2.9))
+
+    ax.bar(
+        x - wdt / 2,
+        [r["warm_mean"] for r in rows],
+        wdt,
+        color="#999999",
+        edgecolor="white",
+        lw=0.5,
+        zorder=2,
+        label="warm start (begins at the target)",
+    )
+    ax.bar(
+        x + wdt / 2,
+        [r["cold_mean"] for r in rows],
+        wdt,
+        color="#0072B2",
+        edgecolor="white",
+        lw=0.5,
+        zorder=2,
+        label="cold start (must search)",
+    )
+
+    # Per-seed points. The warm arm is a single value repeated, so its strip is
+    # a flat line at 1.0 -- which is the point of the figure, not a defect.
+    rng = np.random.default_rng(0)
+    for i, c in enumerate(cells):
+        for off, src, col in (
+            (-wdt / 2, warm[c], "0.35"),
+            (wdt / 2, cold[c], "#00436b"),
+        ):
+            v = np.array(list(src.values()))
+            jx = i + off + rng.uniform(-wdt * 0.28, wdt * 0.28, size=v.size)
+            ax.scatter(jx, v, s=5, c=col, alpha=0.75, lw=0, zorder=4)
+
+    ax.axhline(1.0, color="0.2", lw=0.7, ls=":", zorder=1)
+    ax.set_xticks(x)
+    ax.set_xticklabels(cells, rotation=45, ha="right")
+    ax.set_ylabel(
+        "held-out $R^2$ recovering a target\nthe architecture realizes exactly"
+    )
+    ax.set_xlabel("cell (width $\\times$ depth)")
+    ax.set_ylim(0.0, 1.04)
+    ax.set_yticks(np.linspace(0, 1, 6))
+    ax.grid(axis="y", color="0.92", lw=0.5, zorder=0)
+    ax.set_axisbelow(True)
+    # Bars fill the whole 0-1 range, so any in-axes legend sits on data.
+    ax.legend(
+        frameon=False,
+        loc="lower left",
+        bbox_to_anchor=(0.0, 1.01),
+        fontsize=7,
+        handletextpad=0.5,
+        borderpad=0.2,
+        ncol=2,
+        columnspacing=1.4,
+    )
+
+    fig.tight_layout(pad=0.4)
+    fig.savefig(out, format="pdf")
+    fig.savefig(out.with_suffix(".png"), format="png", dpi=200)
+    plt.close(fig)
+
+    payload = {
+        "figure": out.name,
+        "warm_source": _describe(warm_run),
+        "cold_source": _describe(cold_run),
+        "warm_field": "closure_heldout seed_*.json cells[*].null_heldout",
+        "cold_field": "closure_search seed_*.json cells[*].arm1_cold_heldout",
+        "warm_all_exactly_one_everywhere": all(r["warm_all_exactly_one"] for r in rows),
+        "n_warm_values": sum(r["warm_seeds"] for r in rows),
+        "rows": rows,
+    }
+    payload["sidecar"] = _write_sidecar(out, payload).name
+    return payload
+
+
 # ----------------------------------------------------------------------- main
 
 
@@ -777,6 +911,12 @@ def main() -> None:
     )
     fa = figure_separability(sep_run, out_dir / "figA_twin_separability.pdf", "twin")
 
+    ch_run = resolve_run("closure_heldout", ("hidden", "depth"), None)
+    cs_run = resolve_run(
+        "closure_search", ("hidden", "depth", "arm1_cold_heldout"), None
+    )
+    fa2 = figureA2(ch_run, cs_run, out_dir / "figA2_vacuous_ceiling.pdf")
+
     # Figure 2 needs the per-instance dump. If none exists the rest of the
     # figures still build, and the caller is told plainly rather than getting a
     # stale or silently-missing panel.
@@ -835,14 +975,41 @@ def main() -> None:
     _print_sep("FIGURE 3 (main)  paper/figures/fig3_occurrence_separability.pdf", f3)
     _print_sep("APPENDIX FIGURE  paper/figures/figA_twin_separability.pdf", fa)
 
+    print("\n" + "=" * 78)
+    print("APPENDIX FIGURE  paper/figures/figA2_vacuous_ceiling.pdf")
+    print("=" * 78)
+    print(f"  warm : {fa2['warm_source']['run']}  git {fa2['warm_source']['git_sha']}")
+    print(f"  cold : {fa2['cold_source']['run']}  git {fa2['cold_source']['git_sha']}")
+    print(f"  warm field : {fa2['warm_field']}")
+    print(f"  cold field : {fa2['cold_field']}")
+    print(
+        f"  warm arm is EXACTLY 1.0 in all {fa2['n_warm_values']} values: "
+        f"{fa2['warm_all_exactly_one_everywhere']}"
+    )
+    print()
+    print(
+        f"  {'cell':>7} {'warm mean':>10} {'warm min':>9} {'warm max':>9}"
+        f" {'cold mean':>10} {'cold min':>9} {'cold max':>9}"
+    )
+    for r in fa2["rows"]:
+        print(
+            f"  {r['cell']:>7} {r['warm_mean']:>10.6f} {r['warm_min']:>9.6f}"
+            f" {r['warm_max']:>9.6f} {r['cold_mean']:>10.4f} {r['cold_min']:>9.4f}"
+            f" {r['cold_max']:>9.4f}"
+        )
+
     print("\nwrote:")
     names = ["fig1_not_weak_models.pdf"]
     if f2 is not None:
         names.append("fig2_concentration.pdf")
-    names += ["fig3_occurrence_separability.pdf", "figA_twin_separability.pdf"]
+    names += [
+        "fig3_occurrence_separability.pdf",
+        "figA_twin_separability.pdf",
+        "figA2_vacuous_ceiling.pdf",
+    ]
     for name in names:
         print(f"  {out_dir / name}")
-    side = [f1["sidecar"], f3["sidecar"], fa["sidecar"]]
+    side = [f1["sidecar"], f3["sidecar"], fa["sidecar"], fa2["sidecar"]]
     if f2 is not None:
         side.insert(1, f2["sidecar"])
     print("sidecars: " + ", ".join(side))
