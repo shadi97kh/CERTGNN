@@ -608,6 +608,7 @@ def figure2(
     exact = jac >= 1.0
     n_arg = int((left & exact).sum())
     frac_arg = n_arg / rho.size if rho.size else float("nan")
+    frac_left = n_arg / max(int(left.sum()), 1)
 
     fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(5.5, 2.6))
 
@@ -642,28 +643,38 @@ def figure2(
         rho[hi], yj[hi], s=5, c="#D55E00", alpha=0.30, lw=0, rasterized=True, zorder=3
     )
     ax_b.axvline(rho_star, color="0.2", ls="--", lw=1.0, zorder=4)
-    ax_b.text(
-        rho_star - 0.04,
-        0.52,
-        "perfect top-3 agreement\nexpected here (Prop. 2)",
-        rotation=90,
-        ha="right",
-        va="center",
-        fontsize=6.6,
-        color="0.15",
-    )
+    # The rho* label sits above the cloud, not across it: rotated into the dense
+    # region it was unreadable and hid the very points it refers to.
     ax_b.annotate(
-        f"{frac_arg * 100:.0f}% of sequences",
-        xy=(min(rho.min(), rho_star) + 0.02, 1.0),
-        xytext=(0.02, 0.80),
-        textcoords="axes fraction",
-        fontsize=7.2,
-        color="#8a3d00",
+        "perfect top-3 agreement\nexpected here (Prop. 2)",
+        xy=(rho_star, 1.16),
+        xytext=(rho_star - 0.10, 1.30),
+        ha="right",
+        va="bottom",
+        fontsize=6.4,
+        color="0.15",
+        annotation_clip=False,
+        arrowprops=dict(arrowstyle="-", lw=0.6, color="0.45", shrinkA=0, shrinkB=2),
     )
+    # Anchor the count to the highlighted block. Both fractions are given: the
+    # share of all points is small, but the share AMONG points the rank
+    # correlation calls disagreement is the number the argument turns on.
+    if n_arg:
+        anchor_x = float(np.median(rho[hi]))
+        ax_b.annotate(
+            f"{frac_arg * 100:.1f}% of all points,\n"
+            f"{frac_left * 100:.0f}% of those left of the line",
+            xy=(anchor_x, 1.0),
+            xytext=(0.03, 0.62),
+            textcoords="axes fraction",
+            fontsize=6.6,
+            color="#8a3d00",
+            arrowprops=dict(arrowstyle="->", lw=0.7, color="#D55E00"),
+        )
     ax_b.set_xlabel("per-sequence full-rank $\\rho$")
     ax_b.set_ylabel("per-sequence top-3 Jaccard")
     ax_b.set_yticks([0, 0.2, 0.5, 1.0])
-    ax_b.set_ylim(-0.12, 1.12)
+    ax_b.set_ylim(-0.12, 1.14)
     ax_b.set_title(f"(b) {cell}", fontsize=9, loc="left")
 
     fig.tight_layout(pad=0.4, w_pad=1.4)
@@ -693,7 +704,7 @@ def figure2(
             "n_exact_top3": int(exact.sum()),
             "n_left_and_exact": n_arg,
             "frac_left_and_exact": frac_arg,
-            "frac_exact_among_left": float((exact & left).sum() / max(left.sum(), 1)),
+            "frac_exact_among_left": frac_left,
         },
     }
     payload["sidecar"] = _write_sidecar(out, payload).name
@@ -797,6 +808,29 @@ def main() -> None:
             f"  {r['cell']:>7}  {r['depth']:>5}  {r['heldout_r2_mean']:>13.6f}"
             f"  {r['pooled_tk_ex3']:>14.6f}  {r['top3_divergence']:>13.6f}"
         )
+
+    if f2 is not None:
+        print("\n" + "=" * 78)
+        print("FIGURE 2 (main)  paper/figures/fig2_concentration.pdf")
+        print("=" * 78)
+        print(f"  population : {f2['cell']}, accuracy-matched pairs")
+        _print_source("dump", f2["source"])
+        print(f"  dumped seeds: {f2['dumped_seeds']}")
+        a, b = f2["panel_a"], f2["panel_b"]
+        print(f"\n  (a) {a['n_sequence_profiles']:,} per-sequence profiles")
+        print(f"      median top-3 mass      : {a['median_top3_mass']:.4f}")
+        print(f"      {'rank':>5} {'p25':>9} {'median':>9} {'p75':>9}")
+        for i, (q1, md, q3) in enumerate(
+            zip(a["p25_by_rank"], a["median_by_rank"], a["p75_by_rank"]), start=1
+        ):
+            print(f"      {i:>5} {q1:>9.4f} {md:>9.4f} {q3:>9.4f}")
+        print(f"\n  (b) {b['n_points']:,} (sequence, pair) points")
+        print(f"      rho* from Prop. 2      : {b['rho_star']}")
+        print(f"      left of rho*           : {b['n_left_of_line']:,}")
+        print(f"      exact top-3 match      : {b['n_exact_top3']:,}")
+        print(f"      LEFT and EXACT         : {b['n_left_and_exact']:,}")
+        print(f"      fraction of all points : {b['frac_left_and_exact'] * 100:.1f}%")
+        print(f"      fraction among left    : {b['frac_exact_among_left'] * 100:.1f}%")
 
     _print_sep("FIGURE 3 (main)  paper/figures/fig3_occurrence_separability.pdf", f3)
     _print_sep("APPENDIX FIGURE  paper/figures/figA_twin_separability.pdf", fa)

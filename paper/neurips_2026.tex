@@ -279,12 +279,19 @@ also with substantial disagreement. The statistic cannot distinguish the two.
   \centering
   \includegraphics[width=0.98\linewidth]{figures/fig2_concentration.pdf}
   \caption{\textbf{A low rank correlation has two incompatible readings, and the
-  top-$k$ set separates them.} (a) Normalized attribution mass by rank position,
-  median over held-out sequences with interquartile band: mass collapses after
-  the third position. (b) Per-sequence full-rank $\rho$ against top-3 set
-  overlap. At low $\rho$ the overlap is bimodal: some pairs genuinely disagree
-  about which positions matter, others agree exactly and differ only in the
-  ordering of a near-zero tail.}
+  top-$k$ set separates them.} Accuracy-tied independently trained pairs at
+  width 128, depth 1; three seeds, $203{,}200$ (sequence, pair) points.
+  (a) Normalized attribution mass by rank position, median over $24{,}000$
+  held-out sequence profiles with interquartile band: a median $97\%$ of the
+  mass sits in the top three positions and the remainder collapses to near
+  zero. (b) Per-sequence full-rank $\rho$ against per-sequence top-3 set
+  Jaccard. The dashed line is $\rho = 0.708$, the value Proposition~\ref{prop:rank}
+  gives for two models that agree \emph{exactly} on the top 3 and order the
+  remaining 6 at random. Points left of it with Jaccard $= 1$ (highlighted) are
+  sequences where the two models pick the same three positions while the rank
+  correlation reads as disagreement: $4.4\%$ of all points, and $30\%$ of every
+  point the rank correlation places left of the line. The statistic cannot
+  distinguish the two readings; the top-$k$ set can.}
   \label{fig:concentration}
 \end{figure}
 

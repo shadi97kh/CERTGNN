@@ -460,6 +460,13 @@ def main(argv: list[str] | None = None) -> int:
             seeds = [s_ for s_ in seeds if int(s_) in want]
             print(f"DUMP MODE: cells {sorted(dump_cells)} seeds {seeds}")
             print("  the grid is restricted, so results.json here is PARTIAL")
+            # make_run_dir writes the CONFIGURED seed list. A dump run uses a
+            # subset, and a provenance record that overstates which seeds ran
+            # is worse than none: it is checkable and wrong.
+            meta["seeds"] = [int(v) for v in seeds]
+            meta["seeds_configured"] = [int(v) for v in resolve_seeds(cfg)]
+            meta["dump_cells"] = sorted(dump_cells)
+            (run / "meta.json").write_text(json.dumps(meta, indent=1))
 
         per_seed = []
         for seed in seeds:
