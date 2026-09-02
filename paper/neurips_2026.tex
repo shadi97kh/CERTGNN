@@ -44,7 +44,7 @@ failure is not confined to poorly-fitting models: it persists at the
 best-fitting cell in our grid. Diagnosing why, we find three compounding causes.
 The fitting objective does not identify the attribution, so the choice among
 equally-accurate models is made by the initialization seed. Attribution mass is
-concentrated, with a median 82\% of a sequence's total in 3 of 9 positions; we
+concentrated, with a median 86\% of a sequence's total in 3 of 9 positions; we
 show in closed form that under this concentration a Spearman correlation of
 $0.71$ is what \emph{perfect} agreement about which positions matter already
 produces, so the rank correlations normally used to check agreement cannot
@@ -183,9 +183,14 @@ the highest in the grid --- 154 of 190 pairs are accuracy-tied, and among them
 reaching $+0.350$ (Figure~\ref{fig:headline}).
 
 \paragraph{The top-$k$ set, which is what gets used.}
-The top-3 set differs for 46\% and 47\% of held-out sequences at width 128,
+The top-3 set differs for 73\% and 90\% of held-out sequences at width 128,
 depths 2 and 3; restricted to sequences where the concentration diagnostic
-(Section~\ref{sec:why}) says the comparison is meaningful, 34\% and 21\%.
+(Section~\ref{sec:why}) says the comparison is meaningful, 71\% and 80\%.
+These are accuracy-tied pairs of \emph{independently trained} models, the
+population of Section~\ref{sec:setup}. The corresponding figures for a fit
+against its own reparameterized twin are much smaller --- 46\%, 47\%, 34\% and
+21\% --- and are reported separately in Appendix~\ref{gen:twin}; the two
+populations must not be quoted interchangeably.
 
 \begin{table}[t]
   \caption{Top-$k$ set agreement and attribution concentration. Jaccard on sets
@@ -204,25 +209,34 @@ depths 2 and 3; restricted to sequences where the concentration diagnostic
   \end{tabular}
 \end{table}
 
-\paragraph{The data cannot adjudicate.}
-Proposition~\ref{prop:sep} gives the number of held-out measurements needed to
-reject that two accuracy-tied models are the same function, under a noise scale
-derived from the assay's own read counts (Proposition~\ref{prop:noise}). The
-requirement spans four orders of magnitude across the grid, reaching
-$8.8 \times 10^7$ against a library of 30{,}483 (Figure~\ref{fig:sep}). In those
-cells the two models are indistinguishable with any data that exists, and they
-still assign different top-3 sets for roughly half of sequences.
+\paragraph{The data adjudicates cheaply, which sharpens rather than softens the
+result.}
+\textsc{TODO: this paragraph's claim inverts under the correct population and
+needs the authors' rewrite.} Proposition~\ref{prop:sep} gives the number of
+held-out measurements needed to reject that two accuracy-tied models are the
+same function, under a noise scale derived from the assay's own read counts
+(Proposition~\ref{prop:noise}). For \emph{independently trained} accuracy-tied
+pairs the requirement is small in every cell: a median of $0.3$ to $2.1$
+measurements, so all twelve cells sit four orders of magnitude below the
+$30{,}483$-sequence library (Figure~\ref{fig:sep}). These models are therefore
+\emph{easily} distinguishable as functions while being tied on predictive
+accuracy, and they still assign different top-3 sets in $43$--$94\%$ of
+sequences. The $8.8 \times 10^7$ figure previously quoted here belongs to the
+twin comparison (Appendix~\ref{gen:twin}), where the requirement does span nine
+orders of magnitude and two cells do exceed the library.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.86\linewidth]{figures/fig3_separation.pdf}
-  \caption{\textbf{No existing quantity of data resolves the disagreement in the
-  worst cells.} Held-out measurements required to reject that two
-  accuracy-matched models are the same function (Proposition~\ref{prop:sep}),
-  under the assay's own Poisson count-noise model, on a log scale. The
-  horizontal line is the full library (30{,}483 sequences). Cells above the line
-  cannot be adjudicated with any data that exists, and are among the cells whose
-  top-3 sets diverge most.}
+  \includegraphics[width=0.86\linewidth]{figures/fig3_occurrence_separability.pdf}
+  \caption{\textbf{Accuracy-tied models are cheap to tell apart as functions,
+  yet disagree about which positions matter.} Held-out measurements required to
+  reject that two \emph{independently trained} accuracy-matched models are the
+  same function (Proposition~\ref{prop:sep}), under the assay's own Poisson
+  count-noise model, with the top-3 set divergence on the right axis. Every cell
+  needs fewer than three measurements, against a library of $30{,}483$, so the
+  reference line is off scale and is stated in the panel rather than drawn. The
+  companion figure for a fit against its own reparameterized twin, where the
+  requirement spans nine orders of magnitude, is Appendix~\ref{gen:twin}.}
   \label{fig:sep}
 \end{figure}
 
@@ -245,10 +259,13 @@ arbitrarily-selected model is an arbitrary answer.
 
 \subsection{Cause 2: attribution is concentrated, so the usual check cannot detect the failure}
 
-Attribution is not spread evenly across positions. A median 82\% of a sequence's
-total $|\Delta|$ sits in its three strongest positions, with an effective 4.4
-contributing positions of 9 by the exponentiated entropy of the normalized
-magnitudes (Figure~\ref{fig:concentration}a).
+Attribution is not spread evenly across positions. Among accuracy-tied
+independently trained pairs, a median 86\% of a sequence's total $|\Delta|$ sits
+in its three strongest positions, with an effective 3.9 contributing positions
+of 9 by the exponentiated entropy of the normalized magnitudes
+(Figure~\ref{fig:concentration}a). The twin comparison gives 82\% and 4.4; the
+argument below is unchanged by which is used, but the number quoted must match
+the population under discussion.
 
 This is not merely a nuisance; it makes the standard check uninformative, and we
 can say by how much. Proposition~\ref{prop:rank} shows that if two models agree
@@ -273,10 +290,14 @@ also with substantial disagreement. The statistic cannot distinguish the two.
 \paragraph{Diagnostic.}
 Report the top-$k$ position \emph{set} overlap and the concentration alongside
 it. Under that diagnostic, ten of twelve cells show genuine disagreement about
-which positions matter; two do not. At width 16, depths 2 and 3, the fits agree
-on the top-3 set in 82\% and 86\% of instances, so there the full-rank
-disagreement is tail ordering and the narrow reading is the honest one. This is a
-boundary condition, not a caveat; see Section~\ref{sec:boundary}.
+which positions matter. \textsc{TODO: this paragraph's conclusion inverts and
+needs rewriting.} For accuracy-tied independently trained pairs, width 16 depths
+2 and 3 agree on the top-3 set in only 13\% and 9\% of instances --- the
+\emph{lowest} agreement in the grid, not the highest. The cells that agree most
+are the depth-1 cells, led by width 128 depth 1 at 57\%. The 82\% and 86\%
+figures previously given here are the twin comparison, not this one. Whether a
+low-capacity exemption survives at all under the correct population is a
+judgement for the authors; on these numbers it does not.
 
 \subsection{Cause 3: the noise model, and a silent failure in ours}
 
@@ -335,9 +356,11 @@ pinning the distinction.
 The practice is not always unsound, and the conditions are measurable.
 
 \begin{itemize}
-\item \textbf{It survives at low capacity here.} Width 16, depths 2--3 give
-  top-3 agreement in 82--86\% of instances. Capacity relative to the identifiable
-  signal is the operative variable, not architecture family.
+\item \textbf{\textsc{TODO: this bullet no longer holds.}} Width 16, depths
+  2--3 give top-3 agreement of only 9--13\% among accuracy-tied independently
+  trained pairs; the 82--86\% figure was the twin comparison. Agreement is
+  highest at depth 1 (up to 57\% at width 128), so \emph{depth}, not low
+  capacity, is what tracks agreement in this grid.
 \item \textbf{It degrades with capacity, not with fit quality alone.} The
   correlation between held-out $R^2$ and agreement is $+0.650$: real, but far
   from explanatory, and the best-fitting cell still shows the failure.
@@ -563,7 +586,8 @@ contribute equally and $N_{\mathrm{eff}} \to 1$ as one position dominates.
 
 \noindent This is the exponentiated Shannon entropy of the normalized attribution
 and is reported per-sequence in Table~\ref{tab:topk}; the median over held-out
-sequences is $4.4$ of $9$.
+sequences is $3.9$ of $9$ for accuracy-tied
+independently trained pairs, and $4.4$ of $9$ for the twin comparison.
 
 \section{Full per-cell results}
 \label{app:full}
