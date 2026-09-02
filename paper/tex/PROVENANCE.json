@@ -1,0 +1,93 @@
+{
+  "occurrence": {
+    "experiment": "occurrence",
+    "git_sha": "6f98de3",
+    "git_dirty": false,
+    "allow_dirty": false,
+    "config_hash": "6e25cf7d",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "timestamp_utc": "20260830T002223Z",
+    "argv": [
+      "/home/shadi/certgnn/experiments/occurrence.py",
+      "--config",
+      "configs/base.yaml"
+    ],
+    "run_id": null,
+    "sweep": null,
+    "run": "20260830T002223Z_6f98de3_6e25cf7d"
+  },
+  "closure_search": {
+    "experiment": "closure_search",
+    "git_sha": "94dd5a2",
+    "git_dirty": false,
+    "allow_dirty": false,
+    "config_hash": "2267b74e",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "timestamp_utc": "20260829T191427Z",
+    "argv": [
+      "/home/shadi/certgnn/experiments/closure_search.py",
+      "--config",
+      "configs/base.yaml"
+    ],
+    "run_id": null,
+    "sweep": null,
+    "run": "20260829T191427Z_94dd5a2_2267b74e"
+  },
+  "separation": {
+    "experiment": "separation",
+    "git_sha": "972496a",
+    "git_dirty": false,
+    "allow_dirty": false,
+    "config_hash": "5da8cb38",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "timestamp_utc": "20260830T030657Z",
+    "argv": [
+      "/home/shadi/certgnn/experiments/separation.py",
+      "--config",
+      "configs/base.yaml"
+    ],
+    "run_id": null,
+    "sweep": null,
+    "run": "20260830T030657Z_972496a_5da8cb38"
+  },
+  "fragments": [
+    "tab_full.tex",
+    "tab_protocol.tex",
+    "tab_tied.tex",
+    "tab_topk.tex",
+    "tab_validation.tex"
+  ]
+}
