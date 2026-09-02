@@ -13,11 +13,19 @@ Figure 1  paper/figures/fig1_not_weak_models.pdf
     x  per-cell held-out predictive R^2                 (occurrence: heldout_r2_mean)
     y  per-cell top-3 attributed-set divergence         (occurrence: 1 - pooled_tk_ex3)
 
-Figure 3  paper/figures/fig3_separation.pdf
-    y  held-out measurements needed to separate a fit
-       from its reparameterized twin, log scale         (separation: n_separate)
-    twin axis  top-3 divergence                         (separation: 1 - tk_exact_top3_frac)
-    reference  the full BRCA2 5'ss library size, read from the config, not typed here
+Figure 3  paper/figures/fig3_occurrence_separability.pdf   [MAIN TEXT]
+    y  held-out measurements to separate two accuracy-matched
+       fits, log scale                                  (occurrence: n_separate_median)
+    twin axis  top-3 divergence                         (occurrence: 1 - pooled_tk_ex3)
+
+Appendix  paper/figures/figA_twin_separability.pdf      [APPENDIX]
+    the same quantities for a fit against its REPARAMETERIZED TWIN
+                                                        (separation: n_separate,
+                                                         1 - tk_exact_top3_frac)
+
+Both main-text figures therefore describe the occurrence experiment. The twin
+comparison is a separate result and is never mixed into a main-text figure: the
+two populations differ in top-3 divergence by up to 50 points.
 """
 
 from __future__ import annotations
@@ -45,8 +53,40 @@ SECOND_SERIES_COLOR = "#CC79A7"
 
 # Keys each figure needs. A run that lacks one of these is rejected loudly
 # rather than silently plotted with a substituted quantity.
-OCC_CELL_KEYS = ("hidden", "depth", "heldout_r2_mean", "pooled_tk_ex3")
+OCC_CELL_KEYS = (
+    "hidden",
+    "depth",
+    "heldout_r2_mean",
+    "pooled_tk_ex3",
+    "n_separate_median",
+)
 SEP_CELL_KEYS = ("hidden", "depth", "n_separate", "tk_exact_top3_frac")
+
+# The two separability figures measure the SAME quantity on DIFFERENT populations,
+# and conflating them is the error this module exists to prevent. The occurrence
+# figure compares independently trained models that the data cannot tell apart.
+# The twin figure compares one fit against its own reparameterized twin. Their
+# top-3 divergences differ by up to 50 points, so a caption that names the wrong
+# population misstates the result rather than merely mislabelling it.
+SEPARABILITY = {
+    "occurrence": {
+        "n_key": "n_separate_median",
+        "div_key": "pooled_tk_ex3",
+        "div_is_dict": False,
+        "population": "independently trained, accuracy-matched pairs",
+        "ylabel": "held-out measurements to separate\ntwo accuracy-matched fits",
+        "divlabel": "top-3 attributed set differs",
+    },
+    "twin": {
+        "n_key": "n_separate",
+        "div_key": "tk_exact_top3_frac",
+        "div_is_dict": True,
+        "population": "a fit against its reparameterized twin",
+        "ylabel": "held-out measurements to separate\na fit from its reparameterized twin",
+        "divlabel": "top-3 attributed set differs",
+    },
+}
+
 
 plt.rcParams.update(
     {
@@ -291,14 +331,23 @@ def figure1(run: pathlib.Path, out: pathlib.Path) -> dict:
 # ---------------------------------------------------------------------- fig 3
 
 
-def figure3(run: pathlib.Path, out: pathlib.Path) -> dict:
+def figure_separability(run: pathlib.Path, out: pathlib.Path, kind: str) -> dict:
+    """Measurements needed to separate two fits, for one population of pairs.
+
+    `kind` selects the population: "occurrence" for independently trained,
+    accuracy-matched pairs, "twin" for a fit against its reparameterized twin.
+    Everything the caption depends on comes from SEPARABILITY[kind], so the
+    axis label and the data can never come from different experiments.
+    """
+    sp = SEPARABILITY[kind]
     cells = load_cells(run)
     library, library_src = read_library_size()
 
     rows = []
     for name, c in cells.items():
-        mean, lo, hi = _mean_lo_hi(c["n_separate"])
-        tk = c["tk_exact_top3_frac"]
+        mean, lo, hi = _mean_lo_hi(c[sp["n_key"]])
+        raw = c[sp["div_key"]]
+        agree = float(raw["mean"]) if sp["div_is_dict"] else float(raw)
         rows.append(
             {
                 "cell": name,
@@ -307,8 +356,8 @@ def figure3(run: pathlib.Path, out: pathlib.Path) -> dict:
                 "n_separate_mean": mean,
                 "n_separate_lo": lo,
                 "n_separate_hi": hi,
-                "tk_exact_top3_frac": float(tk["mean"]),
-                "top3_divergence": 1.0 - float(tk["mean"]),
+                "top3_agreement": agree,
+                "top3_divergence": 1.0 - agree,
                 "exceeds_full_library": bool(mean > library),
             }
         )
@@ -326,8 +375,16 @@ def figure3(run: pathlib.Path, out: pathlib.Path) -> dict:
     lo_clipped = np.maximum(lo, floor)
     yerr = np.vstack([mean - lo_clipped, hi - mean])
 
+    # A log axis earns its place only when the data spans decades. The twin
+    # population spans nine and needs it; the accuracy-matched population spans
+    # about half of one, where a log axis shows a single tick and reads as an
+    # error. Choose from the data rather than fixing it per figure.
+    decades = np.log10(hi.max() / max(lo_clipped.min(), 1e-12))
+    logscale = decades >= 1.5
+
     fig, ax = plt.subplots(figsize=(5.5, 3.2))
-    ax.set_yscale("log")
+    if logscale:
+        ax.set_yscale("log")
 
     ax.errorbar(
         x,
@@ -345,27 +402,52 @@ def figure3(run: pathlib.Path, out: pathlib.Path) -> dict:
         label="$n$ to separate",
     )
 
-    top = max(hi.max(), library) * 2.5
-    ax.axhspan(library, top, color="0.88", alpha=0.45, lw=0, zorder=0)
-    ax.axhline(library, color="0.25", lw=0.9, ls="--", zorder=2)
-    ax.text(
-        -0.35,
-        library * 1.6,
-        f"full library ({library:,.0f})",
-        ha="left",
-        va="bottom",
-        fontsize=7.5,
-        color="0.15",
-    )
+    # The library reference is only drawn when it is within two decades of the
+    # data. For the accuracy-matched population every cell separates with a
+    # couple of measurements, four orders of magnitude below the library, so
+    # plotting the line would compress all twelve cells into a sliver and the
+    # figure would carry less information, not more. There it is stated instead.
+    on_scale = hi.max() >= library / 100.0
+    if on_scale:
+        top = max(hi.max(), library) * 2.5
+        ax.axhspan(library, top, color="0.88", alpha=0.45, lw=0, zorder=0)
+        ax.axhline(library, color="0.25", lw=0.9, ls="--", zorder=2)
+        ax.text(
+            -0.35,
+            library * 1.6,
+            f"full library ({library:,.0f})",
+            ha="left",
+            va="bottom",
+            fontsize=7.5,
+            color="0.15",
+        )
+    else:
+        top = hi.max() * 1.18
+        ax.text(
+            len(rows) - 0.5,
+            top * 0.985,
+            f"every cell separates with fewer than {np.ceil(hi.max()):.0f}"
+            f" measurements;\nthe full library holds {library:,.0f}",
+            ha="right",
+            va="top",
+            fontsize=7.5,
+            color="0.15",
+        )
 
-    ax.set_ylim(floor, top)
+    ax.set_ylim(0.0 if not logscale else floor, top)
     ax.set_xlim(-0.6, len(rows) - 0.4)
     ax.set_xticks(x)
     ax.set_xticklabels([r["cell"] for r in rows], rotation=45, ha="right")
-    ax.set_ylabel("held-out measurements to separate\na fit from its twin")
+    ax.set_ylabel(sp["ylabel"])
     ax.set_xlabel("cell (width $\\times$ depth), ordered by $n$ to separate")
-    # Horizontal rules only: the y axis spans nine decades, so the decade grid is
-    # load-bearing for reading a value. No vertical grid; x is categorical.
+    # The population belongs on the figure itself, not only in the caption:
+    # these two figures are indistinguishable at a glance and are routinely
+    # confused, which is the error this whole module guards against.
+    ax.set_title(sp["population"], fontsize=8, loc="left", color="0.25", pad=6)
+    # Horizontal rules only. On the twin figure the y axis spans nine decades and
+    # the decade grid is load-bearing for reading a value; on the occurrence
+    # figure it still helps because the axis stays logarithmic for comparability
+    # between the two. No vertical grid; x is categorical.
     ax.grid(axis="y", which="major", color="0.9", lw=0.5, zorder=0)
     ax.set_axisbelow(True)
 
@@ -384,7 +466,7 @@ def figure3(run: pathlib.Path, out: pathlib.Path) -> dict:
         mew=0.5,
         zorder=4,
     )
-    ax2.set_ylabel("top-3 attributed set differs", color="0.25")
+    ax2.set_ylabel(sp["divlabel"], color="0.25")
     ax2.set_ylim(0.0, 1.0)
     ax2.tick_params(axis="y", labelsize=8, colors="0.25")
 
@@ -397,7 +479,9 @@ def figure3(run: pathlib.Path, out: pathlib.Path) -> dict:
             mfc="#0072B2",
             mec="white",
             ms=5,
-            label="$n$ to separate (left, log)",
+            label="$n$ to separate (left, log)"
+            if logscale
+            else "$n$ to separate (left)",
         ),
         Line2D(
             [],
@@ -413,9 +497,10 @@ def figure3(run: pathlib.Path, out: pathlib.Path) -> dict:
     ax.legend(
         handles=handles,
         frameon=False,
-        loc="upper left",
+        loc="upper left" if logscale else "lower right",
         handletextpad=0.3,
         borderpad=0.2,
+        labelspacing=0.3,
     )
 
     fig.savefig(out, format="pdf")
@@ -424,10 +509,18 @@ def figure3(run: pathlib.Path, out: pathlib.Path) -> dict:
 
     payload = {
         "figure": out.name,
+        "kind": kind,
+        "population": sp["population"],
         "source": _describe(run),
-        "y_left": "cells[*].n_separate.{mean,lo,hi}",
-        "y_right": "1 - cells[*].tk_exact_top3_frac.mean",
-        "reference_line": {"value": library, "read_from": library_src},
+        "y_scale": "log" if logscale else "linear",
+        "y_left": f"cells[*].{sp['n_key']}.{{mean,lo,hi}}",
+        "y_right": f"1 - cells[*].{sp['div_key']}"
+        + (".mean" if sp["div_is_dict"] else ""),
+        "reference_line": {
+            "value": library,
+            "read_from": library_src,
+            "drawn": bool(on_scale),
+        },
         "n_cells_above_reference": sum(r["exceeds_full_library"] for r in rows),
         "rows": rows,
     }
@@ -443,6 +536,36 @@ def _print_source(tag: str, src: dict) -> None:
     print(f"  {tag} run   : {src['run']}{dirty}")
     print(f"  git sha    : {src['git_sha']}    config hash: {src['config_hash']}")
     print(f"  seeds      : {src['seeds']}")
+
+
+def _print_sep(title: str, f: dict) -> None:
+    print("\n" + "=" * 78)
+    print(title)
+    print("=" * 78)
+    print(f"  population : {f['population']}")
+    _print_source(f["kind"], f["source"])
+    print(f"  y left  = {f['y_left']}  (log scale)")
+    print(f"  y right = {f['y_right']}")
+    ref = f["reference_line"]
+    print(
+        f"  library reference = {ref['value']:,.0f} from {ref['read_from']}"
+        f"  (drawn: {ref['drawn']})"
+    )
+    print(
+        f"  cells above the full library: {f['n_cells_above_reference']}"
+        f" of {len(f['rows'])}"
+    )
+    print()
+    print(
+        f"  {'cell':>7}  {'depth':>5}  {'n to separate':>16}  {'lo':>15}  {'hi':>16}"
+        f"  {'top3 diverg.':>12}"
+    )
+    for r in f["rows"]:
+        print(
+            f"  {r['cell']:>7}  {r['depth']:>5}  {r['n_separate_mean']:>16,.4f}"
+            f"  {r['n_separate_lo']:>15,.4f}  {r['n_separate_hi']:>16,.4f}"
+            f"  {r['top3_divergence']:>12.4f}"
+        )
 
 
 def main() -> None:
@@ -461,19 +584,28 @@ def main() -> None:
     occ_run = resolve_run("occurrence", OCC_CELL_KEYS, args.occurrence_run)
     sep_run = resolve_run("separation", SEP_CELL_KEYS, args.separation_run)
 
+    # Both MAIN-TEXT figures come from the occurrence run, so the body of the
+    # paper describes one population throughout. The twin comparison is a real
+    # and separate result and keeps its own figure, in the appendix, named for
+    # what it measures.
     f1 = figure1(occ_run, out_dir / "fig1_not_weak_models.pdf")
-    f3 = figure3(sep_run, out_dir / "fig3_separation.pdf")
+    f3 = figure_separability(
+        occ_run, out_dir / "fig3_occurrence_separability.pdf", "occurrence"
+    )
+    fa = figure_separability(sep_run, out_dir / "figA_twin_separability.pdf", "twin")
 
     print("\n" + "=" * 78)
-    print("FIGURE 1  paper/figures/fig1_not_weak_models.pdf")
+    print("FIGURE 1 (main)  paper/figures/fig1_not_weak_models.pdf")
     print("=" * 78)
+    print("  population : independently trained, accuracy-matched pairs")
     _print_source("occurrence", f1["source"])
     print(f"  x = {f1['x']}")
     print(f"  y = {f1['y']}")
     print(f"  annotated  : {f1['annotated_cell']}")
     print()
     print(
-        f"  {'cell':>7}  {'depth':>5}  {'x heldout R2':>13}  {'pooled_tk_ex3':>14}  {'y divergence':>13}"
+        f"  {'cell':>7}  {'depth':>5}  {'x heldout R2':>13}"
+        f"  {'pooled_tk_ex3':>14}  {'y divergence':>13}"
     )
     for r in f1["rows"]:
         print(
@@ -481,32 +613,17 @@ def main() -> None:
             f"  {r['pooled_tk_ex3']:>14.6f}  {r['top3_divergence']:>13.6f}"
         )
 
-    print("\n" + "=" * 78)
-    print("FIGURE 3  paper/figures/fig3_separation.pdf")
-    print("=" * 78)
-    _print_source("separation", f3["source"])
-    print(f"  y left  = {f3['y_left']}  (log scale)")
-    print(f"  y right = {f3['y_right']}")
-    ref = f3["reference_line"]
-    print(f"  reference line = {ref['value']:,.0f}  read from {ref['read_from']}")
-    print(
-        f"  cells above the full library: {f3['n_cells_above_reference']} of {len(f3['rows'])}"
-    )
-    print()
-    print(
-        f"  {'cell':>7}  {'depth':>5}  {'n_separate mean':>17}  {'lo':>15}  {'hi':>16}"
-        f"  {'top3 diverg.':>12}  above"
-    )
-    for r in f3["rows"]:
-        print(
-            f"  {r['cell']:>7}  {r['depth']:>5}  {r['n_separate_mean']:>17,.3f}"
-            f"  {r['n_separate_lo']:>15,.3f}  {r['n_separate_hi']:>16,.3f}"
-            f"  {r['top3_divergence']:>12.4f}  {'yes' if r['exceeds_full_library'] else '-'}"
-        )
+    _print_sep("FIGURE 3 (main)  paper/figures/fig3_occurrence_separability.pdf", f3)
+    _print_sep("APPENDIX FIGURE  paper/figures/figA_twin_separability.pdf", fa)
 
-    print(f"\nwrote {out_dir/'fig1_not_weak_models.pdf'}")
-    print(f"wrote {out_dir/'fig3_separation.pdf'}")
-    print(f"wrote sidecars {f1['sidecar']}, {f3['sidecar']}")
+    print("\nwrote:")
+    for name in (
+        "fig1_not_weak_models.pdf",
+        "fig3_occurrence_separability.pdf",
+        "figA_twin_separability.pdf",
+    ):
+        print(f"  {out_dir / name}")
+    print(f"sidecars: {f1['sidecar']}, {f3['sidecar']}, {fa['sidecar']}")
 
 
 if __name__ == "__main__":

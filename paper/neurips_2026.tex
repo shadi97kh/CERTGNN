@@ -1,0 +1,613 @@
+\documentclass{article}
+
+\usepackage[dblblindworkshop]{neurips_2026}
+
+\workshoptitle{I Can't Believe It's Not Better (ICBINB): Failure Modes of AI in Biology}
+
+\title{Reading Positions Off a Genotype--Phenotype Model:\\
+A Negative Result on Attribution Reliability in a Multiplexed Splicing Assay}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+
+\author{%
+  Anonymous Author(s) \\
+  Affiliation \\
+  Address \\
+  \texttt{email} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Reading the top attributed positions off a trained sequence--activity model is
+standard practice for guiding RNA therapeutic design. We set out to validate
+that practice on a real multiplexed splicing assay and report that it fails.
+Models whose held-out accuracy is statistically indistinguishable assign
+different top-3 positions for roughly half of held-out sequences, and the
+failure is not confined to poorly-fitting models: it persists at the
+best-fitting cell in our grid. Diagnosing why, we find three compounding causes.
+The fitting objective does not identify the attribution, so the choice among
+equally-accurate models is made by the initialization seed. Attribution mass is
+concentrated, with a median 82\% of a sequence's total in 3 of 9 positions; we
+show in closed form that under this concentration a Spearman correlation of
+$0.71$ is what \emph{perfect} agreement about which positions matter already
+produces, so the rank correlations normally used to check agreement cannot
+distinguish success from failure. And the data required to adjudicate between
+two models, computed from the assay's own Poisson count noise rather than
+assumed, exceeds the full library by up to three orders of magnitude. We also
+report two ways our own validation nearly hid the result: a control that read as
+passing because the refit began at its own target, and a negative reported from a
+search that examined zero candidates. We give boundary conditions under which the
+practice does survive, and a reporting checklist.
+\end{abstract}
+
+\section{Problem}
+
+\paragraph{Biological task.}
+Given a short RNA sequence and a measured activity, identify \emph{which
+positions determine that activity}. In splice-site and siRNA design this is not
+a secondary output; it is the object that guides the next round of synthesis. A
+designer who reads positions 2, 5 and 6 as critical will vary those and hold the
+rest fixed.
+
+\paragraph{Data modality and setting.}
+A multiplexed assay of variant effect: each sequence is assayed in a pooled
+library and read out as a ratio of two sequencing count pools. We use the BRCA2
+exon 17--19 5$'$ splice-site assay of Wong et al.~[9], which quantifies
+$\sim$30{,}483 nine-nucleotide sites with $\log_{10}$ percent-spliced-in
+readouts and retains per-sequence read counts. We subsample $n = 4000$ per seed,
+split 3000 fit / 1000 held out by a fixed seeded permutation recorded with each
+run.
+
+\paragraph{Assumption under test.}
+That the top-$k$ attributed positions recovered from a well-fitting model are a
+property of the sequence--activity relationship rather than of the particular
+model that happened to be trained.
+
+\paragraph{Target metric.}
+Agreement of the top-$k$ attributed position \emph{set} between models that the
+data cannot distinguish on predictive accuracy, measured per-sequence rather
+than averaged over the library. We use $k = 3$ throughout, justified in
+Section~\ref{sec:why} by the measured concentration of attribution mass and by
+Proposition~\ref{prop:rank} in Appendix~\ref{app:formal}.
+
+\paragraph{Desired outcome.}
+For the practice to be sound, accuracy-matched models should agree on the top-$k$
+set for nearly all sequences. A designer should not get a different answer
+because a different seed was used.
+
+\section{Proposed approach}
+
+The approach under investigation is standard practice~[1,\,8], not a method we
+invented: fit a genotype--phenotype model to the assay, compute per-position
+attributions by in-silico mutagenesis, and read the top-ranked positions as the
+determinants.
+
+\paragraph{Core mechanism.}
+A model $f_\theta$ is fit by minimizing predictive loss on the assay.
+Attribution scores each position by the mean absolute change in prediction under
+substitution, over the real four-letter alphabet:
+\begin{equation}
+  A_j(x) \;=\; \frac{1}{3}\sum_{b \neq x_j}\bigl|f_\theta(x^{j\to b}) - f_\theta(x)\bigr| .
+  \label{eq:ism}
+\end{equation}
+Positions are ranked by $A_j$ and the top $k$ reported.
+
+\paragraph{Preconditions.}
+(i) The model fits the assay well enough that its sensitivities are meaningful.
+(ii) The attribution is faithful to the model, in the sense that it reflects the
+model's own dependence on each position. (iii) Implicitly, that the model is
+\emph{the} model --- that the fitting procedure selects a function determined by
+the data.
+
+\paragraph{Hypothesis under which it works.}
+If the data determines $f$ up to predictive equivalence, and attribution is
+faithful to $f$, then the top-$k$ set is determined by the data. Precondition
+(iii) is the one we test, and it is the one that is almost never stated.
+
+\paragraph{Models and protocol.}
+Feedforward genotype--phenotype maps over a grid of widths $\{16,32,64,128\}$ and
+depths $\{1,2,3\}$, with the per-cell learning rate chosen by pilot on the fit
+split. Within a cell we train $K = 20$ models differing \emph{only} in
+initialization seed: same architecture, same split, same budget, same learning
+rate. All reported quantities use at least 5 seeds with bootstrap intervals;
+enumerations are exact and reported as exact. Claims and thresholds were
+pre-registered and frozen by a commit hook before the runs
+(Appendix~\ref{app:protocol}). Total compute is on the order of GPU-days on a
+single mid-range machine.
+
+\section{Observed outcome}
+
+Models the data cannot separate on accuracy assign different top-3 positions for
+a large fraction of held-out sequences.
+
+\paragraph{Accuracy matching.}
+We filter to pairs whose held-out performance a paired $t$-test on per-point
+squared errors cannot separate at $\alpha = 0.05$. This is a failure to reject,
+not a demonstration of equivalence, so we report the filter's resolution
+alongside it: the minimum detectable held-out $R^2$ difference at 80\% power
+given $n_{\text{held-out}} = 1000$. Of 2280 pairs, 1610 are not separable at this
+resolution.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.86\linewidth]{figures/fig1_not_weak_models.pdf}
+  \caption{\textbf{The failure is not an artifact of poorly-fitting models.}
+  Each point is one architecture cell: held-out predictive $R^2$ against the
+  fraction of held-out sequences whose top-3 attributed position set differs
+  between two accuracy-matched models. The best-fitting cell in the grid still
+  disagrees on a substantial fraction of sequences, so the failure cannot be
+  dismissed as a symptom of underfitting.}
+  \label{fig:headline}
+\end{figure}
+
+\begin{table}[t]
+  \caption{Accuracy-matched pairs and their attribution agreement. Per-instance
+  $\rho$ is a Spearman correlation between two models' 9-position attribution
+  vectors \emph{for a single held-out sequence}, summarized over sequences.
+  \textsc{[Take-away sentence once filled.]}}
+  \label{tab:tied}
+  \centering
+  \small
+  \begin{tabular}{lrrrrr}
+    \toprule
+    cell & held-out $R^2$ & tied pairs & resolution ($\Delta R^2$) & $\rho$ p10 / median & frac $\rho<0.5$ \\
+    \midrule
+    \textsc{TODO} & & & & & \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{It is not an artifact of weak models.}
+Held-out $R^2$ does correlate with agreement across cells (Spearman $+0.650$
+against the minimum $\rho$), so we state the result at the \emph{best}-fitting
+cell rather than the worst. At width 128, depth 1 --- held-out $R^2 = 0.637$,
+the highest in the grid --- 154 of 190 pairs are accuracy-tied, and among them
+37\% rank positions at $\rho$ below 0.9, 15\% below 0.8, and 6\% below 0.7,
+reaching $+0.350$ (Figure~\ref{fig:headline}).
+
+\paragraph{The top-$k$ set, which is what gets used.}
+The top-3 set differs for 46\% and 47\% of held-out sequences at width 128,
+depths 2 and 3; restricted to sequences where the concentration diagnostic
+(Section~\ref{sec:why}) says the comparison is meaningful, 34\% and 21\%.
+
+\begin{table}[t]
+  \caption{Top-$k$ set agreement and attribution concentration. Jaccard on sets
+  this small is quantized --- top-3 overlap takes only the values
+  $\{0, 0.2, 0.5, 1\}$ --- so we report the mean and the exact-match fraction
+  rather than the median. \textsc{[Take-away sentence once filled.]}}
+  \label{tab:topk}
+  \centering
+  \small
+  \begin{tabular}{lrrrr}
+    \toprule
+    cell & top-3 mass & effective positions & top-3 exact match & mean Jaccard \\
+    \midrule
+    \textsc{TODO} & & & & \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{The data cannot adjudicate.}
+Proposition~\ref{prop:sep} gives the number of held-out measurements needed to
+reject that two accuracy-tied models are the same function, under a noise scale
+derived from the assay's own read counts (Proposition~\ref{prop:noise}). The
+requirement spans four orders of magnitude across the grid, reaching
+$8.8 \times 10^7$ against a library of 30{,}483 (Figure~\ref{fig:sep}). In those
+cells the two models are indistinguishable with any data that exists, and they
+still assign different top-3 sets for roughly half of sequences.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.86\linewidth]{figures/fig3_separation.pdf}
+  \caption{\textbf{No existing quantity of data resolves the disagreement in the
+  worst cells.} Held-out measurements required to reject that two
+  accuracy-matched models are the same function (Proposition~\ref{prop:sep}),
+  under the assay's own Poisson count-noise model, on a log scale. The
+  horizontal line is the full library (30{,}483 sequences). Cells above the line
+  cannot be adjudicated with any data that exists, and are among the cells whose
+  top-3 sets diverge most.}
+  \label{fig:sep}
+\end{figure}
+
+\section{Reason for failure}
+\label{sec:why}
+
+\subsection{Cause 1: the fitting objective does not identify the attribution}
+
+Predictive loss constrains $f$ on the observed points. It places no constraint on
+which of the many equally-accurate functions is selected, and that selection is
+made by the initialization seed (Remark~\ref{rem:nonid}). This is the Rashomon
+effect~[2,\,3,\,4,\,7] instantiated on a real assay. What is new here is not
+that multiplicity exists but its magnitude \emph{at the level of the top-$k$
+set}, and the demonstration that the data cannot resolve it.
+
+The consequence is that precondition (iii) of Section~2 is false, and it is the
+precondition nobody states. Faithfulness of the attribution to the model
+(precondition ii) does not help: a perfectly faithful attribution of an
+arbitrarily-selected model is an arbitrary answer.
+
+\subsection{Cause 2: attribution is concentrated, so the usual check cannot detect the failure}
+
+Attribution is not spread evenly across positions. A median 82\% of a sequence's
+total $|\Delta|$ sits in its three strongest positions, with an effective 4.4
+contributing positions of 9 by the exponentiated entropy of the normalized
+magnitudes (Figure~\ref{fig:concentration}a).
+
+This is not merely a nuisance; it makes the standard check uninformative, and we
+can say by how much. Proposition~\ref{prop:rank} shows that if two models agree
+\emph{exactly} on the top 3 of 9 positions and order the remaining 6 at random,
+the expected Spearman correlation is $0.708$. A reported $\rho$ of $0.7$ is
+therefore consistent with perfect agreement about which positions matter, and
+also with substantial disagreement. The statistic cannot distinguish the two.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.98\linewidth]{figures/fig2_concentration.pdf}
+  \caption{\textbf{A low rank correlation has two incompatible readings, and the
+  top-$k$ set separates them.} (a) Normalized attribution mass by rank position,
+  median over held-out sequences with interquartile band: mass collapses after
+  the third position. (b) Per-sequence full-rank $\rho$ against top-3 set
+  overlap. At low $\rho$ the overlap is bimodal: some pairs genuinely disagree
+  about which positions matter, others agree exactly and differ only in the
+  ordering of a near-zero tail.}
+  \label{fig:concentration}
+\end{figure}
+
+\paragraph{Diagnostic.}
+Report the top-$k$ position \emph{set} overlap and the concentration alongside
+it. Under that diagnostic, ten of twelve cells show genuine disagreement about
+which positions matter; two do not. At width 16, depths 2 and 3, the fits agree
+on the top-3 set in 82\% and 86\% of instances, so there the full-rank
+disagreement is tail ordering and the narrow reading is the honest one. This is a
+boundary condition, not a caveat; see Section~\ref{sec:boundary}.
+
+\subsection{Cause 3: the noise model, and a silent failure in ours}
+
+Asking how much data would separate two models requires a noise scale, and this
+assay supplies one rather than needing an assumption. The phenotype is affine in
+$\log_{10}$ of a count ratio: regressing $y$ on $\log_{10}(\text{ex}/\text{tot})$
+over the library gives slope $0.933$ with $r = 0.990$. Those are two independent
+count pools, not a proportion --- \text{ex} exceeds \text{tot} in 4.9\% of rows,
+by up to $20.9\times$ --- so a binomial model is wrong here.
+Proposition~\ref{prop:noise} gives the Poisson log-ratio scale.
+
+\paragraph{Our first noise model failed silently, in the direction that hides the
+result.}
+Under a binomial form, a near-saturated sequence receives $\sigma \to 0$; since
+the separation test of Proposition~\ref{prop:sep} weights points by
+$1/\sigma^2$, a handful of such points dominated. The mean of $1/\sigma^2$ ran
+$1.1 \times 10^6$ times its median, and the required sample size collapsed to
+zero --- that is, the analysis reported that the models were trivially
+separable. Under the Poisson log-ratio that ratio is $3.0$ and the requirement
+becomes meaningful. Counting noise is a lower bound on total noise, so every
+reported requirement is a lower bound.
+
+\subsection{Cause 4: two ways our validation nearly hid the failure}
+
+Both are errors we committed and caught. We report them because the controls that
+catch them are cheap and appear not to be standard.
+
+\paragraph{A ceiling that was arithmetic, not evidence.}
+To check that a refit procedure can recover a target, one refits to a target the
+model class provably contains and confirms recovery. Our implementation
+warm-started the refit from the reference weights. For the null target --- the
+reference's own latent --- the initial loss was already $6.7 \times 10^{-19}$,
+below the early-stopping threshold, so best-iterate selection kept the initial
+state and the optimization loop never ran. The control returned $1.000000$
+because it \emph{began at the answer}. It verified that the optimizer does not
+wander away from a perfect solution; it never verified that the procedure can
+\emph{find} a solution it does not start at, which is the capability every
+downstream conclusion assumed. Details in Appendix~\ref{app:ceiling}.
+
+The fix is a ceiling that requires search: cold-start the same refit. Under that
+control, recovery of a target the architecture realizes \emph{exactly} falls to
+held-out $R^2 \approx 0.45$ at depth 3, with per-seed variation indicating
+distinct basins rather than measurement noise.
+
+\paragraph{A negative reported from an empty search.}
+A separate experiment reported ``no witness found'' after examining zero
+candidates: every cell it searched had an empty candidate set for structural
+reasons. Searched-and-found-nothing is a result; never-searched is not, and the
+second was reported as the first. We now emit a \textsc{void} verdict whenever a
+negative would be drawn from an empty candidate set, with a regression test
+pinning the distinction.
+
+\subsection{Boundary conditions}
+\label{sec:boundary}
+
+The practice is not always unsound, and the conditions are measurable.
+
+\begin{itemize}
+\item \textbf{It survives at low capacity here.} Width 16, depths 2--3 give
+  top-3 agreement in 82--86\% of instances. Capacity relative to the identifiable
+  signal is the operative variable, not architecture family.
+\item \textbf{It degrades with capacity, not with fit quality alone.} The
+  correlation between held-out $R^2$ and agreement is $+0.650$: real, but far
+  from explanatory, and the best-fitting cell still shows the failure.
+\item \textbf{It is worst where the separation requirement is largest.} The cells
+  needing $10^6$--$10^7$ measurements to distinguish are the same cells whose
+  top-3 sets diverge most.
+\item \textbf{Scope.} One assay, one phenotype, sequence length 9. We do not
+  claim this generalizes to longer contexts or to models with strong
+  architectural priors, and we tested only in-silico mutagenesis, not gradient
+  or Shapley-based attribution.
+\end{itemize}
+
+\subsection{Actionable takeaways}
+
+\begin{enumerate}
+\item \textbf{Report per-instance top-$k$ sets, not a library-averaged rank
+  correlation.} By Proposition~\ref{prop:rank} the averaged correlation cannot
+  distinguish perfect agreement from substantial disagreement.
+\item \textbf{Report the concentration of the attribution.} Without it a reader
+  cannot interpret a rank correlation at all, because the reference value under
+  perfect agreement depends on it.
+\item \textbf{Derive the noise scale from the assay where counts are available},
+  and check the count model. Ours was wrong in the direction that made the
+  problem disappear.
+\item \textbf{Train more than one seed and report top-$k$ set agreement across
+  them.} This costs a constant factor and is the single cheapest check that would
+  have caught the failure.
+\item \textbf{Verify that a passing control required a search.} A control that
+  starts at its own target passes by arithmetic.
+\item \textbf{Refuse to report a negative from an empty candidate set.}
+\end{enumerate}
+
+\section*{References}
+
+\medskip
+{
+\small
+
+[1] Alipanahi, B., Delong, A., Weirauch, M.T.\ \& Frey, B.J.\ (2015) Predicting
+the sequence specificities of DNA- and RNA-binding proteins by deep learning.
+{\it Nature Biotechnology} {\bf 33}(8):831--838.
+
+[2] Breiman, L.\ (2001) Statistical modeling: the two cultures. {\it Statistical
+Science} {\bf 16}(3):199--231.
+
+[3] Fisher, A., Rudin, C.\ \& Dominici, F.\ (2019) All models are wrong, but many
+are useful: learning a variable's importance by studying an entire class of
+prediction models simultaneously. {\it Journal of Machine Learning Research}
+{\bf 20}(177):1--81.
+
+[4] Hsu, H.\ \& Calmon, F.P.\ (2022) Rashomon capacity: a metric for predictive
+multiplicity in classification. In {\it Advances in Neural Information
+Processing Systems 35}, pp.\ 28988--29000.
+
+[5] Marx, C., Calmon, F.\ \& Ustun, B.\ (2020) Predictive multiplicity in
+classification. In {\it Proceedings of the 37th International Conference on
+Machine Learning}, PMLR {\bf 119}:6765--6774.
+
+[6] Seitz, E.E., McCandlish, D.M., Kinney, J.B.\ \& Koo, P.K.\ (2024)
+Interpreting cis-regulatory mechanisms from genomic deep neural networks using
+surrogate models. {\it Nature Machine Intelligence} {\bf 6}:701--713.
+
+[7] Semenova, L., Rudin, C.\ \& Parr, R.\ (2022) On the existence of simpler
+machine learning models. In {\it Proceedings of the 2022 ACM Conference on
+Fairness, Accountability, and Transparency}, pp.\ 1827--1858.
+
+[8] Tareen, A., Kooshkbaghi, M., Posfai, A., Ireland, W.T., McCandlish, D.M.\ \&
+Kinney, J.B.\ (2022) MAVE-NN: learning genotype--phenotype maps from multiplex
+assays of variant effect. {\it Genome Biology} {\bf 23}:98.
+
+[9] Wong, M.S., Kinney, J.B.\ \& Krainer, A.R.\ (2018) Quantitative activity
+profile and context dependence of all human 5$'$ splice sites. {\it Molecular
+Cell} {\bf 71}(6):1012--1026.
+
+[10] Zhou, S., Huang, M.\ \& Li, K.\ (2026) Position: genomic model research must
+move beyond anecdotal evaluation of interpretability methods. In {\it Proceedings
+of the 43rd International Conference on Machine Learning}. arXiv:2606.07607.
+
+}
+
+\appendix
+
+\section{Formal statements}
+\label{app:formal}
+
+The statements below are elementary. We give them explicitly because two of
+them (Propositions~\ref{prop:rank} and~\ref{prop:noise}) determine how the
+main-text numbers should be read, and because the failure described in
+Section~4.3 was a violation of Proposition~\ref{prop:noise} that produced a
+plausible-looking wrong answer rather than an error.
+
+\begin{remark}[Predictive risk does not determine the attribution]
+\label{rem:nonid}
+Let $\mathcal{F}$ be a model class, $R$ a population risk, and
+$\mathcal{F}_\epsilon = \{f \in \mathcal{F} : R(f) \le \min_{f'} R(f') + \epsilon\}$
+the $\epsilon$-Rashomon set. Let $A : \mathcal{F} \to \mathbb{R}^L$ be the
+attribution map of Eq.~\eqref{eq:ism}. Nothing in the definition of
+$\mathcal{F}_\epsilon$ constrains $A$ to be constant on it. Consequently, the
+attribution reported by a fitting procedure is a function of \emph{which}
+element of $\mathcal{F}_\epsilon$ the optimizer returns, and that is determined
+by the initialization, not by the data. The empirical content of this paper is
+the diameter of $A(\mathcal{F}_\epsilon)$ on a real assay, measured at the level
+of the top-$k$ set.
+\end{remark}
+
+\begin{proposition}[Expected rank correlation under concentrated attribution]
+\label{prop:rank}
+Let two models rank $L$ positions. Suppose they agree exactly on the ordering of
+the top $k$ positions, and that the remaining $m = L - k$ positions carry
+negligible attribution mass, so that their relative orderings are independent
+uniform random permutations. Then the expected Spearman rank correlation over
+all $L$ positions is
+\begin{equation}
+  \mathbb{E}[\rho_L] \;=\; 1 - \frac{m(m^2 - 1)}{L(L^2 - 1)} .
+\end{equation}
+For $L = 9$ and $k = 3$ this is $1 - \nicefrac{210}{720} = 0.708$.
+\end{proposition}
+
+\begin{proof}
+Spearman's $\rho$ over $L$ items is
+$\rho = 1 - 6\sum_i d_i^2 / \bigl(L(L^2-1)\bigr)$, where $d_i$ is the rank
+difference at item $i$. The top $k$ contribute $d_i = 0$ by assumption. For two
+independent uniform permutations of $m$ items, $\mathbb{E}[\rho_m] = 0$, and
+since $\rho_m = 1 - 6\sum d_i^2/\bigl(m(m^2-1)\bigr)$ this gives
+$\mathbb{E}\bigl[\sum d_i^2\bigr] = m(m^2-1)/6$ over the tail block.
+Substituting yields the result.
+\end{proof}
+
+\begin{table}[h]
+  \caption{Expected Spearman correlation over $L = 9$ positions when two models
+  agree \emph{exactly} on the top $k$ and order the rest at random
+  (Proposition~\ref{prop:rank}). A reported $\rho$ at or below these values
+  carries no evidence of disagreement about which positions matter.}
+  \label{tab:rho-null}
+  \centering
+  \small
+  \begin{tabular}{lrrrr}
+    \toprule
+    top-$k$ agreed & $k=2$ & $k=3$ & $k=4$ & $k=5$ \\
+    \midrule
+    $\mathbb{E}[\rho_9]$ & 0.533 & 0.708 & 0.833 & 0.917 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{proposition}[Poisson log-ratio noise scale]
+\label{prop:noise}
+Let the phenotype be $y = a\log_{10}(N_{\mathrm{ex}}/N_{\mathrm{tot}}) + b$ with
+$N_{\mathrm{ex}}$ and $N_{\mathrm{tot}}$ independent Poisson counts with means
+$\lambda_{\mathrm{ex}}, \lambda_{\mathrm{tot}}$. Then to first order
+\begin{equation}
+  \mathrm{sd}(y) \;=\; \frac{|a|}{\ln 10}
+  \sqrt{\frac{1}{\lambda_{\mathrm{ex}}} + \frac{1}{\lambda_{\mathrm{tot}}}}
+  \;\;\approx\;\; \frac{|a|}{\ln 10}
+  \sqrt{\frac{1}{N_{\mathrm{ex}}} + \frac{1}{N_{\mathrm{tot}}}} .
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+For $N \sim \mathrm{Poisson}(\lambda)$, the delta method with $g(N) = \ln N$
+gives $\mathrm{Var}(\ln N) \approx \lambda^{-2}\mathrm{Var}(N) = 1/\lambda$.
+Independence of the two pools gives
+$\mathrm{Var}(\ln N_{\mathrm{ex}} - \ln N_{\mathrm{tot}}) \approx
+1/\lambda_{\mathrm{ex}} + 1/\lambda_{\mathrm{tot}}$. Converting to base 10 and
+scaling by $a$ yields the result; substituting counts for means is the usual
+plug-in estimator.
+\end{proof}
+
+\begin{remark}[Why the binomial form fails here, and fails silently]
+Modelling the readout as a proportion $p$ from $N$ trials gives
+$\mathrm{sd}(y) \propto \sqrt{(1-p)/(Np)}$, which tends to $0$ as $p \to 1$.
+Since the statistic of Proposition~\ref{prop:sep} weights points by
+$1/\sigma_i^2$, a small number of near-saturated sequences then carry unbounded
+weight. Empirically the ratio $\mathrm{mean}(1/\sigma^2)/\mathrm{median}(1/\sigma^2)$
+is $1.1 \times 10^6$ under the binomial form and $3.0$ under
+Proposition~\ref{prop:noise}. The binomial model is also inapplicable on its own
+terms here: $N_{\mathrm{ex}} > N_{\mathrm{tot}}$ in 4.9\% of rows, by up to
+$20.9\times$, so the two counts are not numerator and denominator of a
+proportion.
+\end{remark}
+
+\begin{proposition}[Separation sample size]
+\label{prop:sep}
+Let $f_1, f_2$ be two candidate functions with pointwise difference
+$d_i = f_1(x_i) - f_2(x_i)$ at held-out points $x_i$, and let observations carry
+independent Gaussian noise with known standard deviations $\sigma_i$. Testing
+$H_0 : y \sim f_1$ against $H_1 : y \sim f_2$ at two-sided level $\alpha$ with
+power $1 - \beta$ requires
+\begin{equation}
+  n \;\ge\; \frac{\bigl(z_{1-\alpha/2} + z_{1-\beta}\bigr)^2}
+  {\overline{\left(d_i / \sigma_i\right)^2}} ,
+  \qquad
+  \overline{\left(d_i/\sigma_i\right)^2}
+  \;=\; \frac{1}{n}\sum_{i=1}^{n} \frac{d_i^2}{\sigma_i^2} .
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+The log-likelihood ratio between the two simple hypotheses is Gaussian with mean
+$\pm\tfrac12\sum_i d_i^2/\sigma_i^2$ under $H_0$ and $H_1$ respectively, and
+variance $\sum_i d_i^2/\sigma_i^2$. The standardized separation is therefore
+$\bigl(\sum_i d_i^2/\sigma_i^2\bigr)^{1/2}$, and the standard two-sided power
+requirement $\bigl(\sum_i d_i^2/\sigma_i^2\bigr)^{1/2} \ge z_{1-\alpha/2} + z_{1-\beta}$
+rearranges to the stated bound.
+\end{proof}
+
+\begin{remark}[The reported requirement is a lower bound]
+Proposition~\ref{prop:noise} accounts for sequencing count noise only. Library
+preparation, transfection and biological variation add further variance, which
+increases $\sigma_i$ and hence increases the required $n$. Every separation
+requirement in the main text is therefore a lower bound on the measurements
+needed.
+\end{remark}
+
+\begin{proposition}[Effective number of contributing positions]
+\label{prop:eff}
+For an attribution vector $A \in \mathbb{R}_{\ge 0}^L$ with $\sum_j A_j > 0$, let
+$q_j = A_j / \sum_{j'} A_{j'}$. The effective number of contributing positions is
+$N_{\mathrm{eff}}(A) = \exp\bigl(-\sum_j q_j \ln q_j\bigr)$, satisfying
+$1 \le N_{\mathrm{eff}} \le L$, with $N_{\mathrm{eff}} = L$ iff all positions
+contribute equally and $N_{\mathrm{eff}} \to 1$ as one position dominates.
+\end{proposition}
+
+\noindent This is the exponentiated Shannon entropy of the normalized attribution
+and is reported per-sequence in Table~\ref{tab:topk}; the median over held-out
+sequences is $4.4$ of $9$.
+
+\section{Full per-cell results}
+\label{app:full}
+
+\textsc{[Complete 12-row versions of Tables~\ref{tab:tied} and~\ref{tab:topk}
+with bootstrap confidence intervals, for every cell in the width $\times$ depth
+grid. Generated by \texttt{experiments/make\_paper\_tables.py} from the
+committed run directories.]}
+
+\section{Protocol and pre-registration}
+\label{app:protocol}
+
+\textsc{[Learning-rate ladder and per-cell selection procedure; epoch budgets;
+seed counts; the exact split rule (3000 fit / 1000 held out by seeded
+permutation, indices recorded per run); and the tuning budget actually spent per
+cell, from the \texttt{tuning\_budget.json} written with each run.]}
+
+Claims, thresholds and go/no-go criteria were written and committed before any
+result existed, and a pre-commit hook refuses modifications to the
+pre-registration once a run directory exists. Every reported number carries the
+git SHA and configuration hash of the run that produced it.
+
+\section{The vacuous ceiling, in full}
+\label{app:ceiling}
+
+\textsc{[The refit code path; why best-iterate selection retained the
+initialization; the $6.7 \times 10^{-19}$ initial loss and the $10^{-10}$
+early-stopping threshold; and the cold-start control that replaced it, with
+per-cell recovery figures and per-seed spread.]}
+
+The general form of the error is worth stating separately from its instance. A
+control that verifies a procedure can recover a target must ensure the procedure
+does not \emph{begin} at that target. Warm-starting a refit from the reference
+weights and then asking it to recover the reference's own output satisfies the
+letter of the control and none of its purpose.
+
+\section{Reproducibility}
+\label{app:repro}
+
+Code, pre-registered analysis plans, per-seed raw values, and run provenance are
+released at \textsc{[URL]}. Each result directory records the git SHA, the
+configuration hash, the seed list, and the tuning budget consumed.
+
+\appendix
+\input{appendix}
+
+\end{document}
