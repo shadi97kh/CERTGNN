@@ -93,6 +93,7 @@ set for nearly all sequences. A designer should not get a different answer
 because a different seed was used.
 
 \section{Proposed approach}
+\label{sec:approach}
 
 The approach under investigation is standard practice~[1,\,8], not a method we
 invented: fit a genotype--phenotype model to the assay, compute per-position
@@ -187,7 +188,7 @@ The top-3 set differs for 73\% and 90\% of held-out sequences at width 128,
 depths 2 and 3; restricted to sequences where the concentration diagnostic
 (Section~\ref{sec:why}) says the comparison is meaningful, 71\% and 80\%.
 These are accuracy-tied pairs of \emph{independently trained} models, the
-population of Section~\ref{sec:setup}. The corresponding figures for a fit
+population described in Section~\ref{sec:approach}. The corresponding figures for a fit
 against its own reparameterized twin are much smaller --- 46\%, 47\%, 34\% and
 21\% --- and are reported separately in Appendix~\ref{gen:twin}; the two
 populations must not be quoted interchangeably.
