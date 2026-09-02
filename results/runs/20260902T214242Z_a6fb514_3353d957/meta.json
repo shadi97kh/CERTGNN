@@ -1,0 +1,40 @@
+{
+ "experiment": "occurrence",
+ "git_sha": "a6fb514",
+ "git_dirty": false,
+ "allow_dirty": false,
+ "config_hash": "3353d957",
+ "seeds": [
+  0,
+  1,
+  2
+ ],
+ "timestamp_utc": "20260902T214242Z",
+ "argv": [
+  "/home/shadi/certgnn/experiments/occurrence.py",
+  "--dump-per-instance",
+  "--dump-cells",
+  "128x1,128x3",
+  "--dump-seeds",
+  "0,1,2"
+ ],
+ "run_id": null,
+ "sweep": null,
+ "seeds_configured": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9
+ ],
+ "dump_cells": [
+  "128x1",
+  "128x3"
+ ],
+ "note": "seeds corrected post hoc: make_run_dir recorded the configured list but only 0,1,2 were run. The code now writes the actual list."
+}

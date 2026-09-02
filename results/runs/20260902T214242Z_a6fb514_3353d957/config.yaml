@@ -1,0 +1,302 @@
+groups:
+  substrate: synthetic
+  model: sage_sum
+  explainer: soft_mask
+  rewire: none
+  conformal: split
+seeds: 10
+seed: null
+alpha: 0.1
+n_strata: 5
+bootstrap_resamples: 2000
+torch_threads: 1
+output:
+  figures: paper/figures
+  tables: paper/tables
+  runs: results/runs
+gate2:
+  eta0_mean: 0.0
+  eta0_std: 2.0
+  links:
+  - identity
+  - logit
+  - probit
+  - cloglog
+  link_sweep:
+    n_instances: 1000
+    delta: 0.1
+    n_pairs: 20000
+  curve_fit:
+    deltas:
+    - 0.1
+    - 0.3
+    - 0.7
+    - 1.0
+    n_instances: 1000
+  rank_reversal:
+    baseline_pairs:
+    - - 0.5
+      - 0.9
+    - - 0.5
+      - 0.95
+    - - 0.5
+      - 0.99
+    n_per_baseline: 200
+    delta: 1.0
+  coverage:
+    topology:
+      kind: nested_bubbles
+      n_branches: 2
+      depth: 2
+      n_distractors: 3
+    regulator: random
+    delta: 1.0
+    n_cal: 1000
+    n_test: 5000
+    explanation_ball_fraction: 0.5
+gate2_model:
+  regulator: far
+  delta: 1.0
+  n_train: 600
+  n_val: 150
+  n_cal: 600
+  n_test: 1500
+  explanation_ball_fraction: 0.5
+  target: latent
+  arms:
+  - baseline_hidden
+  - baseline_observable
+  min_val_r2: 0.05
+benchmark:
+  root: data/benchmarks
+  datasets:
+  - mutag
+  - ba_2motifs
+  - tree_cycles
+  - ba_shapes
+  - ba_community
+  explainers:
+  - gnn_explainer
+  - pg_explainer
+  - graphmask
+  - dummy
+  max_instances: 300
+  epochs: 60
+  batch_size: 32
+  explainer_epochs: 100
+  aopc_k: 10
+ism:
+  n_alt: 3
+  omega: 2.0
+  cut: 0.95
+closure_capacity:
+  n_max: 4000
+  device: cuda:1
+  hidden:
+  - 16
+  - 32
+  - 64
+  - 128
+  depth:
+  - 1
+  - 2
+  - 3
+  strengths:
+  - 0.25
+  - 0.55
+  - 0.75
+  - 0.95
+  omega: 2.0
+  ref_epochs: 1200
+  lr_ladder:
+  - 0.01
+  - 0.003
+  - 0.001
+  - 0.0003
+  pilot_epochs: 300
+  min_fit_r2: 0.05
+  refit_epochs: 6000
+  asymptote_boot: 400
+closure_shuffled:
+  strength: 0.95
+  interpolating_r2: 0.9
+  selective_r2: 0.5
+  selectivity_margin: 0.05
+closure_heldout:
+  n_fit: 3000
+  strength: 0.95
+  ceiling_min: 0.99
+  floor_max: 0.1
+  heldout_closed: 0.999999
+closure_search:
+  n_fit: 3000
+  strength: 0.95
+  search_ok: 0.999
+  rise_margin: 0.01
+separation:
+  n_fit: 3000
+  strength: 0.95
+  alpha: 0.05
+  power: 0.8
+  ism_instances: 400
+  library_size: 30483
+  well_conditioned_mass: 0.8
+  min_qualifying_frac: 0.1
+  exact_top3_agree: 0.8
+occurrence:
+  n_fit: 3000
+  n_models: 20
+  alpha: 0.05
+  ism_instances: 400
+  rho_near_one: 0.95
+epistasis_spectrum:
+  gb1_min_input: 10
+  ge_epochs: 4000
+  ge_lr: 0.02
+  ge_components: 8
+  null_reps_small: 40
+  null_reps_large: 8
+  rank_one_high: 0.8
+  rank_one_low: 0.3
+identifiability_mpsa:
+  path: data/raw/mpsa_data.csv.gz
+  n_max: 4000
+  restarts: 3
+  epochs: 1200
+  omegas:
+  - 1.0
+  - 2.0
+  - 4.0
+  omega: 2.0
+  ism_max: 600
+identifiability:
+  topology:
+    kind: nested_bubbles
+    n_branches: 2
+    depth: 2
+    n_distractors: 3
+  n_instances: 800
+  nonlinearity: 1.0
+  quad_rank: 3
+  scale: 2.0
+  noise: 0.01
+  restarts: 12
+  loss_tol: 0.2
+  epochs: 1500
+  warp_fit_epochs: 2000
+  lr: 0.01
+  hidden: 32
+  ge_components: 5
+  warp_strength: 0.8
+  warp_omega: 2.0
+  radius:
+    families:
+    - sinusoid
+    - spline
+    - sigmoid_mixture
+    strengths:
+    - 0.1
+    - 0.25
+    - 0.4
+    - 0.55
+    - 0.7
+    - 0.85
+    - 0.95
+    omegas:
+    - 1.0
+    - 2.0
+    - 4.0
+    warp_fit_epochs: 1200
+    fit_tol: 1.0e-10
+    sample_sizes:
+    - label: FAS exon 6
+      'n': 3072
+    - label: BRCA2 exon 17
+      'n': 32768
+rank_reversal_std:
+  topology:
+    kind: nested_bubbles
+    n_branches: 2
+    depth: 2
+    n_distractors: 3
+  delta: 1.0
+  baseline_pairs:
+  - - 0.5
+    - 0.9
+  - - 0.5
+    - 0.95
+  - - 0.5
+    - 0.99
+  n_per_baseline: 100
+splice:
+  window: 10
+gate2_splice:
+  max_per_split: 4000
+  explanation_ball_fraction: 0.5
+  min_test_r2: 0.02
+tier0:
+  substrates:
+  - splice
+  - connectome
+  - synthetic
+  run_bqn_on:
+  - connectome
+  candidates:
+  - splice
+  - connectome
+  bqn:
+    layers: 2
+    clusters: 4
+    dropout: 0.0
+    epochs: 60
+    lr: 0.001
+    weight_decay: 0.0001
+  rewire_swaps_per_edge: 10
+substrate:
+  name: synthetic
+  topology:
+    kind: nested_bubbles
+    n_branches: 2
+    depth: 2
+    n_distractors: 3
+  regulator: far
+  delta: 1.0
+  link: logit
+  p0: 0.5
+  eta0_mean: 0.0
+  eta0_std: 2.0
+  noise: 0.05
+  structural_features: false
+  target_indicator: true
+  n_train: 600
+  n_val: 150
+  n_cal: 1000
+  n_test: 600
+model:
+  arch: sage_sum
+  hidden: 64
+  depth: 5
+  readout: target
+  epochs: 60
+  lr: 0.003
+  batch_size: 64
+  weight_decay: 0.0
+explainer:
+  method: soft_mask
+  mask_type: soft
+  warm_start: resistance_ball
+  epsilon: 0.1
+  sparsity_weight: 0.05
+  gap_weight: 10.0
+  lr: 0.05
+  max_iter: 500
+  k: 10
+rewire:
+  mode: none
+  budget: 0.0
+  strategy: global_random
+conformal:
+  method: split
+  alpha: 0.1
+  score: latent_fidelity_gap
+  n_strata: 5
