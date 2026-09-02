@@ -282,10 +282,13 @@ also with substantial disagreement. The statistic cannot distinguish the two.
   Jaccard. The dashed line is $\rho = 0.708$, the value Proposition~\ref{prop:rank}
   gives for two models that agree \emph{exactly} on the top 3 and order the
   remaining 6 at random. Points left of it with Jaccard $= 1$ (highlighted) are
-  sequences where the two models pick the same three positions while the rank
-  correlation reads as disagreement: $4.4\%$ of all points, and $30\%$ of every
-  point the rank correlation places left of the line. The statistic cannot
-  distinguish the two readings; the top-$k$ set can.}
+  cases where the two models pick the same three positions while the rank
+  correlation reads as disagreement. \textbf{There are $8{,}861$ such
+  (sequence, pair) observations: $4.4\%$ of all $203{,}200$ plotted, and
+  $30\%$ of the $29{,}310$ that fall left of the line.} Each observation is one
+  held-out sequence under one accuracy-tied pair, so the region is a substantial
+  population rather than a handful of outliers. The statistic cannot distinguish
+  the two readings; the top-$k$ set can.}
   \label{fig:concentration}
 \end{figure}
 
