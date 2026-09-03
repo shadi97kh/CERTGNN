@@ -86,6 +86,8 @@
   "fragments": [
     "tab_full.tex",
     "tab_protocol.tex",
+    "tab_robust.tex",
+    "tab_robust_full.tex",
     "tab_tied.tex",
     "tab_topk.tex",
     "tab_validation.tex"

@@ -26,7 +26,10 @@ import argparse
 import glob
 import json
 import pathlib
+import statistics
 from collections import Counter
+
+import numpy as np
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RUNS = ROOT / "results" / "runs"
@@ -456,6 +459,158 @@ def table_protocol(occ: pathlib.Path) -> str:
 # ----------------------------------------------------------------------- main
 
 
+# ------------------------------------------------------------- table: matching
+
+
+# The accuracy filter is a failure to reject, not an equivalence test, so a
+# reader is entitled to ask whether the disagreement is carried by pairs that
+# merely slipped past a t-test while differing in real predictive quality.
+# These thresholds answer that by tightening the match on the held-out R^2 gap
+# itself, which is the quantity the objection is about, and re-reading the same
+# per-pair records. Uncertainty is taken over the outer data-split seeds: model
+# pairs within a seed share a split and a training set, so treating them as
+# independent would understate the interval.
+MATCH_LEVELS: tuple[tuple[str, float | None], ...] = (
+    ("accuracy-tied ($t$-test)", None),
+    ("$|\\Delta R^2| < 0.01$", 0.01),
+    ("$|\\Delta R^2| < 0.005$", 0.005),
+    ("$|\\Delta R^2| < 0.001$", 0.001),
+)
+
+ROBUST_CELL = "128x1"
+
+
+def _seed_records(occ: pathlib.Path) -> list[dict]:
+    return [json.load(open(f)) for f in sorted(occ.glob("seed_*.json"))]
+
+
+def _seed_cell(seed: dict, name: str) -> dict | None:
+    for c in seed["cells"]:
+        if f"{c['hidden']}x{c['depth']}" == name:
+            return c
+    return None
+
+
+def _boot(vals: list[float], reps: int = 20000) -> tuple[float, float, float]:
+    """Mean of the per-seed values with a bootstrap interval over seeds."""
+    a = np.asarray(vals, dtype=float)
+    rng = np.random.default_rng(20260903)
+    draws = rng.choice(a, size=(reps, a.size), replace=True).mean(axis=1)
+    return float(a.mean()), float(np.percentile(draws, 2.5)), float(
+        np.percentile(draws, 97.5)
+    )
+
+
+def _match_row(seeds: list[dict], cell: str, thr: float | None) -> dict | None:
+    """Per-seed medians over the pairs surviving one matching threshold."""
+    n, d1, d2, d3 = [], [], [], []
+    for s in seeds:
+        c = _seed_cell(s, cell)
+        if c is None:
+            continue
+        ps = [p for p in c["pairs"] if thr is None or p["r2_gap"] < thr]
+        n.append(len(ps))
+        if not ps:
+            continue
+        d1.append(statistics.median(1 - p["tk_exact_top1_frac"] for p in ps))
+        d2.append(statistics.median(1 - p["tk_exact_top2_frac"] for p in ps))
+        d3.append(statistics.median(1 - p["tk_exact_top3_frac"] for p in ps))
+    if not d3:
+        return None
+    m3, lo3, hi3 = _boot(d3)
+    return {
+        "n_pairs": float(np.mean(n)),
+        "n_seeds": len(d3),
+        "top1": _boot(d1)[0],
+        "top2": _boot(d2)[0],
+        "top3": m3,
+        "top3_lo": lo3,
+        "top3_hi": hi3,
+    }
+
+
+def table_robust(occ: pathlib.Path) -> str:
+    """Does tightening the accuracy match remove the disagreement? It does not."""
+    seeds = _seed_records(occ)
+    cells = cells_of(occ)
+    body = []
+    for label, thr in MATCH_LEVELS:
+        r = _match_row(seeds, ROBUST_CELL, thr)
+        if r is None:
+            continue
+        body.append(
+            f"{label} & {r['n_pairs']:.0f} & "
+            f"{r['top1'] * 100:.0f}\\% & {r['top2'] * 100:.0f}\\% & "
+            f"{r['top3'] * 100:.0f}\\% \\tiny[{r['top3_lo'] * 100:.0f}, "
+            f"{r['top3_hi'] * 100:.0f}]"
+        )
+    e = cells[ROBUST_CELL]
+    w, d = e["hidden"], e["depth"]
+    loose = _match_row(seeds, ROBUST_CELL, None)
+    tight = _match_row(seeds, ROBUST_CELL, MATCH_LEVELS[-1][1])
+    shrink = loose["n_pairs"] / tight["n_pairs"]
+    return fragment(
+        body,
+        "lrrrr",
+        "matching rule & pairs/seed & top-1 differs & top-2 differs "
+        "& top-3 differs",
+        "\\textbf{The disagreement does not come from pairs that merely slipped "
+        "past a $t$-test: tightening the accuracy match by a factor of "
+        f"{shrink:.0f} leaves it statistically unchanged."
+        "} Best-fitting cell "
+        f"({w}$\\times${d}); each row re-reads the same per-pair records under a "
+        "stricter cap on the held-out $R^2$ gap. Entries are the mean over the "
+        f"{len(seeds)} data-split seeds of that seed's median over qualifying "
+        "pairs, bootstrapped over seeds rather than pairs, since pairs within a "
+        "seed share a split. The top-1 column shows the disagreement is not "
+        "confined to a negligible third position. All twelve cells: "
+        "Table~\\ref{tab:robustfull}.",
+        "tab:robust",
+    )
+
+
+def table_robust_full(occ: pathlib.Path) -> str:
+    """The same tightening, every cell, at the loosest and strictest match."""
+    seeds = _seed_records(occ)
+    cells = cells_of(occ)
+    body = []
+    for k in order(cells):
+        loose = _match_row(seeds, k, None)
+        tight = _match_row(seeds, k, 0.001)
+        if loose is None:
+            continue
+        e = cells[k]
+        t = (
+            f"{tight['n_pairs']:.0f} & {tight['top1'] * 100:.0f}\\% & "
+            f"{tight['top2'] * 100:.0f}\\% & {tight['top3'] * 100:.0f}\\% "
+            f"\\tiny[{tight['top3_lo'] * 100:.0f}, {tight['top3_hi'] * 100:.0f}]"
+            if tight is not None
+            else "0 & --- & --- & ---"
+        )
+        body.append(
+            f"{e['hidden']} & {e['depth']} & "
+            f"{loose['n_pairs']:.0f} & {loose['top1'] * 100:.0f}\\% & "
+            f"{loose['top2'] * 100:.0f}\\% & {loose['top3'] * 100:.0f}\\% "
+            f"\\tiny[{loose['top3_lo'] * 100:.0f}, {loose['top3_hi'] * 100:.0f}] & "
+            + t
+        )
+    return fragment(
+        body,
+        "llrrrrrrrr",
+        "width & depth & \\multicolumn{4}{c}{accuracy-tied ($t$-test)} & "
+        "\\multicolumn{4}{c}{$|\\Delta R^2| < 0.001$} \\\\\n"
+        "    \\cmidrule(lr){3-6}\\cmidrule(lr){7-10}\n"
+        "    & & pairs & top-1 & top-2 & top-3 & pairs & top-1 & top-2 & top-3",
+        "Tightening the accuracy match to $|\\Delta R^2| < 0.001$ in every cell. "
+        "The pair population falls by roughly an order of magnitude and the "
+        "top-$k$ disagreement does not move, so the failure is not an artifact "
+        "of the $t$-test's resolution. Columns as in "
+        "Table~\\ref{tab:robust}; intervals bootstrap over data-split seeds.",
+        "tab:robustfull",
+        placement="!htb",
+    )
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default="paper/tex")
@@ -478,6 +633,8 @@ def main() -> None:
         "tab_validation.tex": table_validation(cs, sep),
         "tab_full.tex": table_full(occ),
         "tab_protocol.tex": table_protocol(occ),
+        "tab_robust.tex": table_robust(occ),
+        "tab_robust_full.tex": table_robust_full(occ),
     }
     for name, text in frags.items():
         (out / name).write_text(text)

@@ -62,31 +62,31 @@ A Negative Result on Attribution Reliability in a Multiplexed Splicing Assay}
 \begin{abstract}
 Reading the top attributed positions off a trained sequence--activity model is
 standard practice for guiding RNA therapeutic design~[14], and that community
-has argued such claims are validated anecdotally~[22]. We set out to validate
-the practice on a real multiplexed splicing assay and report that it fails.
-Models whose held-out accuracy is statistically indistinguishable assign
-different top-3 positions for $43\%$ of held-out sequences at the best-fitting
-cell in our grid, rising to $94\%$ at the worst. The failure is therefore not
-confined to poorly-fitting models; no cell in the grid escapes it. Diagnosing
-why, we find three compounding causes.
-The fitting objective does not identify the attribution, so the choice among
-equally-accurate models is made by the initialization seed. Attribution mass is
-concentrated --- a median $98\%$ of a sequence's total in 3 of 9 positions at
-the best-fitting cell --- and we show in closed form that under such
-concentration a Spearman correlation of $0.71$ is what \emph{perfect} agreement
-about which positions matter already produces, so the rank correlations normally used to check agreement cannot
-distinguish success from failure. And the criterion the field selects on does
-not constrain the function: tied models differ pointwise on the scale of the
-assay's own Poisson observation noise, a median prediction difference of $0.5$
-to $2.5$ times the noise standard deviation, so one or two held-out measurements
-separate them as functions even though their aggregate accuracy is
-indistinguishable --- the data could choose, and the accuracy criterion does
-not. We also report two
-ways our own validation nearly hid the result: a control that read as passing
-because the refit began at its own target, and a negative reported from a search
-that examined zero candidates. We report the conditions under which the failure
-is worst rather than any under which the practice is safe, since we found none,
-and a reporting checklist.
+has argued such claims are validated anecdotally~[22]. We test the practice on a
+real multiplexed splicing assay and report that it is not reproducible. Models
+whose held-out accuracy is statistically indistinguishable assign different top-3
+positions for $43\%$ of held-out sequences at the best-fitting cell in our grid,
+rising to $94\%$ at the worst; no cell escapes it, so the failure is not confined
+to poorly-fitting models. Tightening the accuracy match until 17 of every 18
+surviving pairs are discarded leaves that figure unchanged. Diagnosing why, we
+find three compounding causes. The fitting objective does not identify the
+attribution, so the choice among equally-accurate models is made by the
+initialization seed. Attribution mass is concentrated --- a median $98\%$ of a
+sequence's total in 3 of 9 positions at the best cell --- and we show in closed
+form that under such concentration a Spearman correlation of $0.71$ is what
+\emph{perfect} agreement about which positions matter already produces, so the
+rank correlations normally used to check agreement cannot distinguish success
+from failure. And the criterion the field selects on does not constrain the
+function: tied models differ pointwise on the scale of the assay's own Poisson
+observation noise, so one or two held-out measurements separate them as functions
+even though their aggregate accuracy is indistinguishable --- the data could
+choose, and the accuracy criterion does not. We also report two ways our own
+validation nearly hid the result: a control that read as passing because the
+refit began at its own target, and a negative reported from a search that
+examined zero candidates. This is a reproducibility failure, not evidence that
+the attributed positions are biologically wrong. We report the conditions under
+which it is worst, having found none under which the practice is safe, and a
+reporting checklist.
 \end{abstract}
 
 \begin{figure}[!tb]
@@ -207,6 +207,15 @@ alongside it: the minimum detectable held-out $R^2$ difference at 80\% power
 given $n_{\text{held-out}} = 1000$. Of 2280 pairs, 1610 are not separable at this
 resolution.
 
+\textbf{Tightening the match does not change the result.} Re-reading the same
+per-pair records under stricter caps on the held-out $R^2$ gap itself, moving
+from the $t$-test to $|\Delta R^2| < 0.001$ discards 17 of every 18 surviving
+pairs and leaves top-3 divergence at $43\%$, inside the unrestricted interval
+(Table~\ref{tab:robust}). The disagreement is not carried by pairs that differ
+in predictive quality and merely escaped detection.
+
+\input{tex/tab_robust}
+
 \begin{figure}[!tb]
   \centering
   \includegraphics[width=0.86\linewidth]{figures/fig1_not_weak_models.png}
@@ -244,18 +253,15 @@ both models.
 and 3 is a far weaker finding than a change of leader, and the top-$k$ Jaccard
 cannot separate them: it is over unordered sets, so two models can select the
 same three positions and still disagree about which dominates. We therefore
-report the strongest position separately (Table~\ref{tab:topk}). \textbf{The two
-models pick a different strongest position for $18\%$ of sequences at width 128
-depth 1, rising to $68\%$ at depth 3} --- at the best cell, one sequence in five
-whose dominant position, carrying a median $71\%$ of the mass on its own, is not
-the same position under a model tied on accuracy. Pooling the $203{,}200$
-sequence--pair observations at that cell rather than taking a median over pairs
-gives $19.7\%$ and a $44.2\%$ set disagreement, which decomposes as $35.0$
-points agreeing on the leader but differing at ranks 2--3, $9.2$ differing on
-both, and $10.5$ selecting the same three positions but a different leader.
-\textbf{So at the best-fitting cell most of the top-3 disagreement is about
-ranks 2 and 3, and we say so rather than claim the stronger result;} at depth 3
-the balance inverts, with $63.9$ of the $91.0$ points of set disagreement also
+report the strongest position separately (Tables~\ref{tab:topk}
+and~\ref{tab:robust}). \textbf{The two models pick a different strongest position
+for $18\%$ of sequences at width 128 depth 1, rising to $68\%$ at depth 3;} the
+top-2 set differs for $29\%$, so the disagreement is not confined to a negligible
+third position. Pooling the $203{,}200$ sequence--pair observations at that cell
+gives a $44.2\%$ set disagreement, of which $35.0$ points agree on the leader and
+differ only at ranks 2--3. \textbf{So at the best-fitting cell most of the top-3
+disagreement is about ranks 2 and 3, and we say so rather than claim the stronger
+result;} at depth 3 the balance inverts, $63.9$ of the $91.0$ points also
 involving a different leader.
 These are accuracy-tied pairs of \emph{independently trained} models, the
 population described in Section~\ref{sec:approach}. The corresponding figures
@@ -411,35 +417,26 @@ total noise, so every reported requirement is a lower bound.
 Both are errors we committed and caught. We report them because the controls that
 catch them are cheap and appear not to be standard, in the spirit of the
 randomization checks that exposed saliency methods insensitive to their own
-model~[1]. Table~\ref{tab:validation}
-states each one as what was reported, what was actually tested, and what the
-corrected check reports.
+model~[1]. Table~\ref{tab:validation}, in Appendix~\ref{app:ceiling}, states each
+one as what was reported, what was actually tested, and what the corrected check
+reports.
 
-\input{tex/tab_validation}
-
-\paragraph{A ceiling that was arithmetic, not evidence.}
+\paragraph{A ceiling that was arithmetic, and a negative from an empty search.}
 To check that a refit can recover a target, one refits to a target the class
 provably contains. Ours warm-started from the reference weights, so for the null
 target --- the reference's own latent --- the initial loss was already
-$6.7 \times 10^{-19}$, below the early-stopping threshold; best-iterate
-selection kept the initial state and the loop never ran. The control returned
-$1.000000$ because it \emph{began at the answer}. It verified that the optimizer
-does not wander away from a perfect solution, never that the procedure can
-\emph{find} one it does not start at --- the capability every downstream
-conclusion assumed (Appendix~\ref{app:ceiling}).
-
-The fix is a ceiling that requires search: cold-start the same refit. Under that
-control, recovery of a target the architecture realizes \emph{exactly} falls to
-held-out $R^2 \approx 0.45$ at depth 3, with per-seed variation indicating
-distinct basins rather than measurement noise.
-
-\paragraph{A negative reported from an empty search.}
-A separate experiment reported ``no witness found'' after examining zero
-candidates: every cell it searched had an empty candidate set for structural
-reasons. Searched-and-found-nothing is a result; never-searched is not, and the
-second was reported as the first. We now emit a \textsc{void} verdict whenever a
-negative would be drawn from an empty candidate set, with a regression test
-pinning the distinction.
+$6.7 \times 10^{-19}$, below the early-stopping threshold; the loop never ran and
+the control returned $1.000000$ because it \emph{began at the answer}. It
+verified that the optimizer does not wander away from a perfect solution, never
+that the procedure can \emph{find} one it does not start at. Cold-starting the
+same refit is a ceiling that requires search, and under it recovery of a target
+the architecture realizes \emph{exactly} falls to held-out $R^2 \approx 0.45$ at
+depth 3 (Appendix~\ref{app:ceiling}). Separately, an experiment reported ``no
+witness found'' after examining zero candidates, every cell having had an empty
+candidate set for structural reasons. Searched-and-found-nothing is a result;
+never-searched is not, and the second was reported as the first. We now emit a
+\textsc{void} verdict whenever a negative would be drawn from an empty candidate
+set, with a regression test pinning the distinction.
 
 \subsection{Boundary conditions}
 \label{sec:boundary}
@@ -452,9 +449,8 @@ the shape of the degradation, which is measurable and consistent.
   safe.} Top-3 divergence rises monotonically with depth: $43$--$74\%$ at depth
   1, $73$--$88\%$ at depth 2, $90$--$94\%$ at depth 3, a rank correlation of
   $+0.80$ with depth against $-0.06$ with width. Within depth 1 it improves with
-  width, from $74\%$ at width 16 to $43\%$ at width 128, but it never falls
-  below $43\%$ anywhere in the grid. We looked for a low-capacity exemption and
-  found the opposite: the narrowest models are among the worst.
+  width, from $74\%$ to $43\%$, but never falls below $43\%$ anywhere. We looked
+  for a low-capacity exemption and found the opposite.
 \item \textbf{Fit quality predicts agreement but does not explain it.} The
   correlation between held-out $R^2$ and agreement is $+0.650$: real, but far
   from explanatory, and the best-fitting cell still shows the failure.
@@ -465,10 +461,13 @@ the shape of the degradation, which is measurable and consistent.
   is the direction one would want and the opposite of what the twin comparison
   shows (Appendix~\ref{gen:twin-sec}). The failure is therefore not a by-product of
   the two fits being nearly identical.
-\item \textbf{Scope.} One assay, one phenotype, sequence length 9. We do not
-  claim this generalizes to longer contexts or to models with strong
-  architectural priors, and we tested only in-silico mutagenesis, not gradient
-  or Shapley-based attribution.
+\item \textbf{Scope.} One assay, one phenotype, sequence length 9, and each fit
+  draws $4000$ of the library's $30{,}483$ sequences, so we have not established
+  whether the instability persists at full-library scale. We tested only
+  in-silico mutagenesis, not gradient or Shapley-based attribution. The result
+  is a reproducibility failure --- the same data and procedure return different
+  top-$k$ sets --- not evidence that any particular attributed position is
+  biologically wrong, which agreement between models cannot settle either way.
 \end{itemize}
 
 \subsection{Actionable takeaways}
@@ -476,17 +475,17 @@ the shape of the degradation, which is measurable and consistent.
 
 \begin{enumerate}
 \item \textbf{Report per-instance top-$k$ sets, not a library-averaged rank
-  correlation.} By Proposition~\ref{prop:rank} the averaged correlation cannot
-  distinguish perfect agreement from substantial disagreement.
-\item \textbf{Report the concentration of the attribution.} Without it a rank
-  correlation cannot be interpreted at all: the reference value under perfect
-  agreement depends on it.
+  correlation}, which by Proposition~\ref{prop:rank} cannot distinguish perfect
+  agreement from substantial disagreement.
+\item \textbf{Report the concentration of the attribution.} Without it the
+  reference value for a rank correlation is unknown, so the correlation cannot
+  be interpreted at all.
 \item \textbf{Derive the noise scale from the assay where counts are available},
-  and check the count model. Ours was wrong in the direction that made the
-  problem disappear.
+  and check the count model. Ours was wrong in the direction that hid the
+  problem.
 \item \textbf{Train more than one seed and report top-$k$ set agreement across
   them.} A constant-factor cost, and the cheapest check that catches this.
-\item \textbf{Verify that a passing control required a search.} A control that
+\item \textbf{Verify that a passing control required a search}, since one that
   starts at its own target passes by arithmetic.
 \item \textbf{Refuse to report a negative from an empty candidate set.}
 \end{enumerate}
@@ -756,6 +755,13 @@ directories, as are all tables in this paper.
 
 \input{tex/tab_full}
 
+Table~\ref{tab:robustfull} repeats the accuracy-match tightening of
+Table~\ref{tab:robust} in every cell. The pair population falls by roughly an
+order of magnitude and the top-$k$ disagreement does not move anywhere in the
+grid.
+
+\input{tex/tab_robust_full}
+
 \section{Protocol and pre-registration}
 \label{app:protocol}
 
@@ -767,6 +773,21 @@ the first $3000$ form the fit split and the remaining $1000$ are held out, and
 the indices are recorded in the run directory. All twelve cells use ten seeds.
 
 \input{tex/tab_protocol}
+
+\paragraph{Architecture and optimizer.}
+The latent map is a fully-connected stack of \texttt{depth} $\times$
+[\texttt{Linear}, $\tanh$] followed by a linear projection to a scalar, in
+\texttt{float64}, over a one-hot encoding of the nine-position site. Its output
+is passed through a MAVE-NN-style monotone global-epistasis nonlinearity: a sum
+of $5$ sigmoids with non-negative weights, hence strictly increasing, fitted
+jointly with the latent map. All parameters are initialized i.i.d.\
+$\mathcal{N}(0, 0.3^2)$ from the per-model seed, which is the \emph{only} thing
+that differs between the $K = 20$ models in a cell. Training minimizes
+mean-squared error on the fit split with Adam, full-batch, for the fixed epoch
+budget in Table~\ref{tab:protocol}, with no weight decay, no dropout and no
+early stopping; the learning rate is the one chosen by the per-cell pilot. In-silico
+mutagenesis is evaluated on $400$ held-out sequences per pair, so the
+per-sequence fractions in this paper have that denominator.
 
 Claims, thresholds and go/no-go criteria were written and committed before any
 result existed: \texttt{PREREGISTRATION.md} has a single commit, dated
@@ -780,6 +801,8 @@ carries the git SHA and configuration hash of the run that produced it.
 
 \section{The vacuous ceiling, in full}
 \label{app:ceiling}
+
+\input{tex/tab_validation}
 
 The refit loads the reference weights, then evaluates the loss and snapshots
 the best iterate \emph{before} entering the optimization loop. For the null
