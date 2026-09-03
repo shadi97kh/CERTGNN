@@ -156,9 +156,9 @@ split. Within a cell we train $K = 20$ models differing \emph{only} in
 initialization seed: same architecture, same split, same budget, same learning
 rate. All reported quantities use at least 5 seeds with bootstrap intervals;
 enumerations are exact and reported as exact. Claims and thresholds were
-pre-registered and frozen by a commit hook before the runs
-(Appendix~\ref{app:protocol}). Total compute is on the order of GPU-days on a
-single mid-range machine.
+pre-registered and committed before any run existed, and their single-commit
+history predates the earliest run directory (Appendix~\ref{app:protocol}).
+Total compute is on the order of GPU-days on a single mid-range machine.
 
 \section{Observed outcome}
 
@@ -181,7 +181,7 @@ resolution.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.86\linewidth]{figures/fig1_not_weak_models.pdf}
+  \includegraphics[width=0.86\linewidth]{figures/fig1_not_weak_models.png}
   \caption{\textbf{The failure is not an artifact of poorly-fitting models.}
   Each point is one architecture cell: held-out predictive $R^2$ against top-3
   attributed-set divergence between accuracy-matched models. \textbf{The
@@ -253,7 +253,7 @@ anyway --- is a different population, reported in Appendix~\ref{gen:twin-sec}.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.86\linewidth]{figures/fig3_occurrence_separability.pdf}
+  \includegraphics[width=0.86\linewidth]{figures/fig3_occurrence_separability.png}
   \caption{\textbf{Accuracy-tied models are cheap to tell apart as functions,
   yet disagree about which positions matter.} Held-out measurements required to
   reject that two \emph{independently trained} accuracy-matched models are the
@@ -316,7 +316,7 @@ also with substantial disagreement. The statistic cannot distinguish the two.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.98\linewidth]{figures/fig2_concentration.pdf}
+  \includegraphics[width=0.98\linewidth]{figures/fig2_concentration.png}
   \caption{\textbf{A low rank correlation has two incompatible readings, and the
   top-$k$ set separates them.} Accuracy-tied independently trained pairs at
   width 128, depth 1; three seeds, $203{,}200$ (sequence, pair) points.

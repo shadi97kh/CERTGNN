@@ -2,9 +2,9 @@
   "figure": "fig2_concentration.pdf",
   "cell": "128x1",
   "source": {
-    "run": "20260902T214242Z_a6fb514_3353d957",
+    "run": "20260903T013725Z_ca95530_3353d957",
     "experiment": "occurrence",
-    "git_sha": "a6fb514",
+    "git_sha": "ca95530",
     "git_dirty": false,
     "config_hash": "3353d957",
     "seeds": [
@@ -12,7 +12,7 @@
       1,
       2
     ],
-    "timestamp_utc": "20260902T214242Z"
+    "timestamp_utc": "20260903T013725Z"
   },
   "dumped_seeds": [
     0,

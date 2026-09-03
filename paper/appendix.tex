@@ -73,7 +73,7 @@ width & depth & held-out $R^2$ & per-instance median $\rho$ & $Z$ to separate \\
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\linewidth]{figures/figA_twin_separability.pdf}
+\includegraphics[width=0.85\linewidth]{figures/figA_twin_separability.png}
 \caption{\textbf{Separability and top-3 divergence for a fit against its own reparameterized twin, not for independently trained pairs.} The requirement spans nine orders of magnitude here and two cells exceed the full library, where the main-text population separates with fewer than three measurements in every cell (Figure~\ref{fig:sep}). Left axis logarithmic; the dashed line is the full library.}
 \label{gen:twin}
 \end{figure}
@@ -115,7 +115,7 @@ width & depth & cold-start null, held-out $R^2$ & warm warp refit, held-out $R^2
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.92\linewidth]{figures/figA2_vacuous_ceiling.pdf}
+\includegraphics[width=0.92\linewidth]{figures/figA2_vacuous_ceiling.png}
 \caption{\textbf{The warm-start control cannot fail, so it measures nothing.} Held-out $R^2$ recovering the null target, a function the architecture realizes exactly, with the ten per-seed values overlaid. The warm-started control returns $1.000000$ in every cell and every seed --- all $120$ values are exactly $1.0$, not approximately --- because it is initialized at the reference and its initial loss of $6.7 \times 10^{-19}$ is already below the $10^{-10}$ stopping threshold, so the optimization loop never runs and best-iterate selection keeps the initial state. The cold-started arm must actually search for the same target and its per-seed spread shows how much the basin varies: at $128\times3$ restarts land between $0.21$ and $0.87$. Warm bars are flat by construction; that flatness is the finding, not a plotting artefact.}
 \label{gen:ceiling-fig}
 \end{figure}

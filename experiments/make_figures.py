@@ -51,6 +51,12 @@ DEPTH_COLOR = {1: "#0072B2", 2: "#D55E00", 3: "#009E73"}
 DEPTH_MARKER = {1: "o", 2: "s", 3: "^"}
 SECOND_SERIES_COLOR = "#CC79A7"
 
+# The paper includes these as PNG rather than PDF. At the widths they are set
+# to (0.86 to 0.98 of a 5.5in line) a 200 dpi raster lands near 220 dpi on the
+# page, which is visibly soft in print. 400 keeps every figure above 400 dpi
+# effective. The workflow figure stays vector and is unaffected.
+PNG_DPI = 400
+
 # Keys each figure needs. A run that lacks one of these is rejected loudly
 # rather than silently plotted with a substituted quantity.
 OCC_CELL_KEYS = (
@@ -317,7 +323,7 @@ def figure1(run: pathlib.Path, out: pathlib.Path) -> dict:
     ax.legend(frameon=False, loc="upper right", handletextpad=0.3, borderpad=0.2)
 
     fig.savefig(out, format="pdf")
-    fig.savefig(out.with_suffix(".png"), format="png")
+    fig.savefig(out.with_suffix(".png"), format="png", dpi=PNG_DPI)
     plt.close(fig)
 
     payload = {
@@ -514,7 +520,7 @@ def figure_separability(run: pathlib.Path, out: pathlib.Path, kind: str) -> dict
     )
 
     fig.savefig(out, format="pdf")
-    fig.savefig(out.with_suffix(".png"), format="png")
+    fig.savefig(out.with_suffix(".png"), format="png", dpi=PNG_DPI)
     plt.close(fig)
 
     payload = {
@@ -682,7 +688,7 @@ def figure2(
 
     fig.tight_layout(pad=0.4, w_pad=1.4)
     fig.savefig(out, format="pdf")
-    fig.savefig(out.with_suffix(".png"), format="png", dpi=200)
+    fig.savefig(out.with_suffix(".png"), format="png", dpi=PNG_DPI)
     plt.close(fig)
 
     payload = {
@@ -831,7 +837,7 @@ def figureA2(warm_run: pathlib.Path, cold_run: pathlib.Path, out: pathlib.Path) 
 
     fig.tight_layout(pad=0.4)
     fig.savefig(out, format="pdf")
-    fig.savefig(out.with_suffix(".png"), format="png", dpi=200)
+    fig.savefig(out.with_suffix(".png"), format="png", dpi=PNG_DPI)
     plt.close(fig)
 
     payload = {
