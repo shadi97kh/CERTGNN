@@ -23,6 +23,24 @@ A Negative Result on Attribution Reliability in a Multiplexed Splicing Assay}
 \newtheorem{proposition}{Proposition}
 \newtheorem{remark}{Remark}
 
+% Caption spacing. Every caption in this paper sits BELOW its float. The style
+% file swaps \abovecaptionskip and \belowcaptionskip inside the table
+% environment, on the assumption that table captions sit above the body; with
+% the caption below, that swap leaves zero space above it and the caption jams
+% against the bottom rule. Undo the swap so tables and figures behave alike,
+% and open both gaps a little.
+\makeatletter
+\setlength{\@neuripsabovecaptionskip}{7\p@}
+\setlength{\@neuripsbelowcaptionskip}{\z@}
+\setlength{\abovecaptionskip}{\@neuripsabovecaptionskip}
+\setlength{\belowcaptionskip}{\@neuripsbelowcaptionskip}
+\renewenvironment{table}
+  {\setlength{\abovecaptionskip}{\@neuripsabovecaptionskip}%
+   \setlength{\belowcaptionskip}{\@neuripsbelowcaptionskip}%
+   \@float{table}}
+  {\end@float}
+\makeatother
+
 % Float placement. Every main-text float carries [!tb]. The bare [t] this
 % previously used means "top of a page only"; a float that will not fit at a top
 % is deferred, deferred floats accumulate, and LaTeX flushes them all at the end
