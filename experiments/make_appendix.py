@@ -463,13 +463,26 @@ def section_twin(sep: pathlib.Path) -> str:
         r"\section{Separability against a reparameterized twin}",
         r"\label{gen:twin-sec}",
         "",
-        r"The main text measures \emph{independently trained} models that the "
-        r"held-out data cannot separate. A different question, and a different "
-        r"population, is how a single fit compares against a reparameterized "
-        r"twin of itself. Both are reported because they answer different "
-        r"things and because their numbers are not interchangeable: the twin "
-        r"comparison finds substantially more agreement, so quoting it for the "
-        r"main-text population would understate the failure.",
+        r"The main text measures \emph{independently trained} models that "
+        r"predictive accuracy cannot separate, and shows that the assay itself "
+        r"separates them cheaply --- fewer than three held-out measurements. "
+        r"This section reports the complementary case: a single fit against a "
+        r"\emph{reparameterized twin} of itself, where the data genuinely "
+        r"cannot adjudicate.",
+        "",
+        r"\textbf{The two cases bracket the problem.} In the main-text "
+        r"population the divergence is avoidable: one measurement would settle "
+        r"which of the two models is right, and the selection procedure simply "
+        r"does not ask. Here it is not avoidable --- at width 128 depth 3 the "
+        r"twin needs $8.8 \times 10^7$ measurements, more than three orders of "
+        r"magnitude beyond the full library --- and the top-3 sets diverge "
+        r"regardless. Attribution therefore fails in both regimes, for "
+        r"different reasons, and only the first has a cheap remedy.",
+        "",
+        r"The two sets of numbers are not interchangeable. The twin comparison "
+        r"finds substantially more top-3 agreement than independently trained "
+        r"pairs do, so quoting a twin figure for the main-text population would "
+        r"understate the failure.",
         "",
         f"Run \\texttt{{{tex_escape(sep.name)}}}, git "
         f"\\texttt{{{sm['git_sha']}}}, config "

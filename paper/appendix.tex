@@ -38,7 +38,11 @@ This models sequencing noise only. Library preparation and biological variation 
 \section{Separability against a reparameterized twin}
 \label{gen:twin-sec}
 
-The main text measures \emph{independently trained} models that the held-out data cannot separate. A different question, and a different population, is how a single fit compares against a reparameterized twin of itself. Both are reported because they answer different things and because their numbers are not interchangeable: the twin comparison finds substantially more agreement, so quoting it for the main-text population would understate the failure.
+The main text measures \emph{independently trained} models that predictive accuracy cannot separate, and shows that the assay itself separates them cheaply --- fewer than three held-out measurements. This section reports the complementary case: a single fit against a \emph{reparameterized twin} of itself, where the data genuinely cannot adjudicate.
+
+\textbf{The two cases bracket the problem.} In the main-text population the divergence is avoidable: one measurement would settle which of the two models is right, and the selection procedure simply does not ask. Here it is not avoidable --- at width 128 depth 3 the twin needs $8.8 \times 10^7$ measurements, more than three orders of magnitude beyond the full library --- and the top-3 sets diverge regardless. Attribution therefore fails in both regimes, for different reasons, and only the first has a cheap remedy.
+
+The two sets of numbers are not interchangeable. The twin comparison finds substantially more top-3 agreement than independently trained pairs do, so quoting a twin figure for the main-text population would understate the failure.
 
 Run \texttt{20260830T030657Z\_972496a\_5da8cb38}, git \texttt{972496a}, config \texttt{5da8cb38}, 10 seeds, sequence length 9.
 

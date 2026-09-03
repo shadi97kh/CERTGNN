@@ -104,16 +104,21 @@ property of the sequence--activity relationship rather than of the particular
 model that happened to be trained.
 
 \paragraph{Target metric.}
-Agreement of the top-$k$ attributed position \emph{set} between models that the
-data cannot distinguish on predictive accuracy, measured per-sequence rather
-than averaged over the library. We use $k = 3$ throughout, justified in
+Agreement of the top-$k$ attributed position \emph{set} between models that
+\emph{predictive accuracy} cannot distinguish, measured per-sequence rather
+than averaged over the library. The qualifier matters and is the subject of
+this paper: accuracy-matching is a statement about one aggregate scalar, not
+about the functions being close. We use $k = 3$ throughout, justified in
 Section~\ref{sec:why} by the measured concentration of attribution mass and by
 Proposition~\ref{prop:rank} in Appendix~\ref{app:formal}.
 
 \paragraph{Desired outcome.}
 For the practice to be sound, accuracy-matched models should agree on the top-$k$
 set for nearly all sequences. A designer should not get a different answer
-because a different seed was used.
+because a different seed was used. If they disagree, either the assay cannot
+tell the models apart --- in which case more data is the remedy --- or it can,
+and the selection procedure is discarding information the data already holds. We
+find the second.
 
 \section{Proposed approach}
 \label{sec:approach}
@@ -158,8 +163,14 @@ single mid-range machine.
 
 \section{Observed outcome}
 
-Models the data cannot separate on accuracy assign different top-3 positions for
-a large fraction of held-out sequences.
+Models that predictive accuracy cannot separate assign different top-3 positions
+for $43\%$ to $94\%$ of held-out sequences. They are not, however, hard to tell
+apart: fewer than three held-out measurements reject that any such pair is the
+same function. \textbf{The practice fails by discarding recoverable
+information.} Selection interrogates one aggregate scalar, held-out squared
+error, and two models can sit inside its resolution while predicting pointwise
+differences on the scale of the assay's own noise. Whichever model the seed
+produced is then read for attributions as though the data had chosen it.
 
 \paragraph{Accuracy matching.}
 We filter to pairs whose held-out performance a paired $t$-test on per-point
@@ -210,20 +221,18 @@ populations must not be quoted interchangeably.
 
 \input{tex/tab_topk}
 
-\paragraph{The data adjudicates cheaply, which sharpens the result rather than
-softening it.}
-Proposition~\ref{prop:sep} gives the number of
-held-out measurements needed to reject that two accuracy-tied models are the
-same function, under a noise scale derived from the assay's own read counts
-(Proposition~\ref{prop:noise}). For \emph{independently trained} accuracy-tied
-pairs the requirement is small in every cell: a median of $0.3$ to $2.1$
-measurements, so all twelve cells sit four orders of magnitude below the
-$30{,}483$-sequence library (Figure~\ref{fig:sep}). These models are therefore
-\emph{easily} distinguishable as functions while being tied on predictive
-accuracy, and they still assign different top-3 sets in $43$--$94\%$ of
-sequences. The $8.8 \times 10^7$ figure previously quoted here belongs to the
-twin comparison (Appendix~\ref{gen:twin}), where the requirement does span nine
-orders of magnitude and two cells do exceed the library.
+\paragraph{How cheaply the data adjudicates.}
+\label{sec:sep-scale}
+Proposition~\ref{prop:sep} gives the measurements needed to reject that two
+accuracy-tied models are the same function, under a noise scale derived from the
+assay's own read counts (Proposition~\ref{prop:noise}). The requirement is a
+median of $0.3$ to $2.1$ in every cell, four orders of magnitude below the
+$30{,}483$-sequence library (Figure~\ref{fig:sep}); the median pointwise
+prediction difference runs $0.5$ to $2.5$ times the observation noise. One
+held-out measurement would settle which model is right, and selection never
+takes it. The complementary case --- a fit against its own \emph{reparameterized
+twin}, needing up to $8.8 \times 10^7$ measurements yet diverging on top-3
+anyway --- is a different population, reported in Appendix~\ref{gen:twin-sec}.
 
 \begin{figure}[t]
   \centering
@@ -250,7 +259,19 @@ which of the many equally-accurate functions is selected, and that selection is
 made by the initialization seed (Remark~\ref{rem:nonid}). This is the Rashomon
 effect~[2,\,3,\,4,\,7] instantiated on a real assay. What is new here is not
 that multiplicity exists but its magnitude \emph{at the level of the top-$k$
-set}, and the demonstration that the data cannot resolve it.
+set}, and --- the point this paper turns on --- that the multiplicity is
+\emph{not} forced by the data.
+
+\paragraph{The selection criterion is too coarse, which is a different problem
+from too little data.}
+The accuracy filter cannot resolve a held-out $R^2$ gap below $0.032$ even at
+the best-fitting cell, yet two models inside that gap are separable as functions
+by fewer than three measurements (Section~\ref{sec:sep-scale}). The assay
+distinguishes them cheaply and the procedure that picked one never asked: the
+information is in the data and the selection step discards it. Had the models
+been genuinely indistinguishable the remedy would be a larger assay; because
+they are not, it is to interrogate the functions rather than only their
+aggregate error (Section~\ref{sec:takeaways}).
 
 The consequence is that precondition (iii) of Section~2 is false, and it is the
 precondition nobody states. Faithfulness of the attribution to the model
@@ -398,6 +419,7 @@ the shape of the degradation, which is measurable and consistent.
 \end{itemize}
 
 \subsection{Actionable takeaways}
+\label{sec:takeaways}
 
 \begin{enumerate}
 \item \textbf{Report per-instance top-$k$ sets, not a library-averaged rank
