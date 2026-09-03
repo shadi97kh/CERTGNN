@@ -177,14 +177,23 @@ def _collect_per_instance(
         sink[f"{key}__top1_same"] = np.stack(top1_rows)
         sink[f"{key}__pairs"] = np.asarray(pair_ids, dtype=np.int16)
 
+    # `rankprofile` sorts each row by magnitude, which answers "how concentrated"
+    # but destroys WHICH position carried the mass. Keep the position-indexed
+    # matrix too: the library holds position 4 fixed at G and position 5 to
+    # {C,U}, so five of the 36 one-hot inputs are identically zero and their
+    # weights never leave initialization. Asking what that does to the top-k
+    # sets needs position identity, not just the spectrum.
     prof = []
+    ism = []
     for pi in per_inst:
         m = np.abs(np.asarray(pi, float))
+        ism.append(m.astype(np.float32))
         tot = m.sum(axis=1, keepdims=True)
         tot = np.where(tot <= 0, np.nan, tot)
         prof.append(np.sort(m / tot, axis=1)[:, ::-1].astype(np.float32))
     if prof:
         sink[f"{key}__rankprofile"] = np.stack(prof)
+        sink[f"{key}__ism"] = np.stack(ism)
 
 
 def run_seed(
