@@ -214,7 +214,26 @@ pairs and leaves top-3 divergence at $43\%$, inside the unrestricted interval
 (Table~\ref{tab:robust}). The disagreement is not carried by pairs that differ
 in predictive quality and merely escaped detection.
 
-\input{tex/tab_robust}
+% >>> GENERATED tab_robust -- experiments/make_tables.py writes between
+% >>> these markers. Do not edit by hand; rerun the generator.
+\begin{table}[!tb]
+  \centering
+  \small
+  \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
+  \begin{tabular}{lrrrr}
+    \toprule
+    matching rule & pairs/seed & top-1 differs & top-2 differs & top-3 differs \\
+    \midrule
+    accuracy-tied ($t$-test) & 154 & 18\% & 29\% & 43\% \tiny[41, 45] \\
+    $|\Delta R^2| < 0.01$ & 83 & 18\% & 29\% & 42\% \tiny[40, 45] \\
+    $|\Delta R^2| < 0.005$ & 43 & 18\% & 30\% & 43\% \tiny[41, 46] \\
+    $|\Delta R^2| < 0.001$ & 9 & 19\% & 29\% & 43\% \tiny[41, 46] \\
+    \bottomrule
+  \end{tabular}}
+  \caption{\textbf{The disagreement does not come from pairs that merely slipped past a $t$-test: tightening the accuracy match by a factor of 18 leaves it statistically unchanged.} Best-fitting cell (128$\times$1); each row re-reads the same per-pair records under a stricter cap on the held-out $R^2$ gap. Entries are the mean over the 10 data-split seeds of that seed's median over qualifying pairs, bootstrapped over seeds rather than pairs, since pairs within a seed share a split. The top-1 column shows the disagreement is not confined to a negligible third position. All twelve cells: Table~\ref{tab:robustfull}.}
+  \label{tab:robust}
+\end{table}
+% <<< END tab_robust
 
 \begin{figure}[!tb]
   \centering
@@ -231,7 +250,28 @@ in predictive quality and merely escaped detection.
   \label{fig:headline}
 \end{figure}
 
-\input{tex/tab_tied}
+% >>> GENERATED tab_tied -- experiments/make_tables.py writes between
+% >>> these markers. Do not edit by hand; rerun the generator.
+\begin{table}[!tb]
+  \centering
+  \small
+  \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
+  \begin{tabular}{lrrrrr}
+    \toprule
+    cell & held-out $R^2$ & tied pairs & resolution ($\Delta R^2$) & $\rho$ p10 / median & frac $\rho<0.5$ \\
+    \midrule
+    16$\times$1 & 0.6011 & 162/190 & 0.0699 & +0.217 / +0.650 & 30\% \\
+    16$\times$2 & 0.5591 & 158/190 & 0.1059 & -0.167 / +0.417 & 58\% \\
+    16$\times$3 & 0.5349 & 134/190 & 0.1161 & -0.300 / +0.283 & 69\% \\
+    128$\times$1 & 0.6372 & 154/190 & 0.0318 & +0.700 / +0.883 & 2\% \\
+    128$\times$2 & 0.5836 & 144/190 & 0.0461 & +0.400 / +0.750 & 16\% \\
+    128$\times$3 & 0.4761 & 95/190 & 0.0937 & -0.267 / +0.317 & 67\% \\
+    \bottomrule
+  \end{tabular}}
+  \caption{\textbf{Models the held-out data cannot tell apart still rank a sequence's positions differently.} Accuracy-tied pairs and their attribution agreement. A pair is \emph{tied} when a paired two-sided $t$-test on per-point held-out squared errors does not reject at $\alpha = 0.05$; \emph{resolution} is the smallest held-out $R^2$ gap that test could have detected at $80\%$ power, so a tie is a failure to reject at a stated resolution rather than a claim of equality. Per-instance $\rho$ is a Spearman correlation between two models' 9-position attribution vectors \emph{for a single held-out sequence}, pooled over sequences and over tied pairs. \textbf{Rows are the two extreme widths at each depth}, which bracket both axes the argument turns on; all twelve cells, with bootstrap intervals, are in Table~\ref{tab:full}.}
+  \label{tab:tied}
+\end{table}
+% <<< END tab_tied
 
 \paragraph{It is not an artifact of weak models.}
 Held-out $R^2$ does correlate with agreement across cells (Spearman $+0.650$
@@ -270,7 +310,28 @@ against its own reparameterized twin are much smaller --- 46\%, 47\%, 34\% and
 21\% --- and are reported separately in Appendix~\ref{gen:twin-sec}; the two
 populations must not be quoted interchangeably.
 
-\input{tex/tab_topk}
+% >>> GENERATED tab_topk -- experiments/make_tables.py writes between
+% >>> these markers. Do not edit by hand; rerun the generator.
+\begin{table}[!tb]
+  \centering
+  \small
+  \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
+  \begin{tabular}{lrrrrr}
+    \toprule
+    cell & top-3 mass & effective positions & top-1 differs & top-3 exact match & mean Jaccard \\
+    \midrule
+    16$\times$1 & 0.926 & 3.03 & 45\% & 26\% & 0.57 \\
+    16$\times$2 & 0.819 & 4.44 & 60\% & 13\% & 0.43 \\
+    16$\times$3 & 0.768 & 5.11 & 68\% & 9\% & 0.37 \\
+    128$\times$1 & 0.976 & 2.20 & 18\% & 57\% & 0.78 \\
+    128$\times$2 & 0.918 & 3.16 & 36\% & 27\% & 0.60 \\
+    128$\times$3 & 0.728 & 5.67 & 68\% & 10\% & 0.38 \\
+    \bottomrule
+  \end{tabular}}
+  \caption{\textbf{The disagreement is about which positions carry the mass, not about the ordering of a negligible tail.} Top-3 set agreement and attribution concentration. \emph{top-3 mass} is the median fraction of a sequence's total $|\Delta|$ in its three strongest positions and \emph{effective positions} is $\exp$ of the entropy of the normalized magnitudes, where $9$ means all positions contribute equally. Jaccard on 3-element sets takes only $\{0, 0.2, 0.5, 1\}$, so its median is near-useless as a summary and the \emph{mean} is reported, alongside the fraction of sequences whose top-3 sets match exactly. \textbf{top-1 differs} is the fraction of sequences on which the two models' single \emph{strongest} position is a different position --- a stronger form of disagreement than a reordering beneath a shared leader, and not implied by the top-3 columns, which are over unordered sets. Rows are the same bracketing subset as Table~\ref{tab:tied}; all twelve cells are in Table~\ref{tab:full}.}
+  \label{tab:topk}
+\end{table}
+% <<< END tab_topk
 
 \paragraph{How cheaply the data adjudicates.}
 \label{sec:sep-scale}
@@ -753,14 +814,92 @@ columns that admit them. It is generated by
 \texttt{experiments/make\_tables.py} directly from the committed run
 directories, as are all tables in this paper.
 
-\input{tex/tab_full}
+% >>> GENERATED tab_full -- experiments/make_tables.py writes between
+% >>> these markers. Do not edit by hand; rerun the generator.
+\begin{table}[!htb]
+  \centering
+  \small
+  \textbf{(a) accuracy-tied pairs and per-instance agreement}\\[2pt]
+  \begin{tabular}{lllrrr}
+    \toprule
+    cell & held-out $R^2$ & tied pairs & resolution & $\rho$ p10 / median & frac $\rho{<}0.5$ \\
+    \midrule
+    16$\times$1 & 0.6011 \tiny[0.5725, 0.6274] & 162 \tiny[156, 169] & 0.0699 & +0.217 / +0.650 & 30\% \\
+    16$\times$2 & 0.5591 \tiny[0.5243, 0.5880] & 158 \tiny[147, 167] & 0.1059 & -0.167 / +0.417 & 58\% \\
+    16$\times$3 & 0.5349 \tiny[0.4948, 0.5677] & 134 \tiny[122, 147] & 0.1161 & -0.300 / +0.283 & 69\% \\
+    32$\times$1 & 0.6019 \tiny[0.5754, 0.6263] & 167 \tiny[160, 172] & 0.0651 & +0.365 / +0.717 & 19\% \\
+    32$\times$2 & 0.5537 \tiny[0.5110, 0.5909] & 143 \tiny[128, 158] & 0.1032 & -0.168 / +0.408 & 58\% \\
+    32$\times$3 & 0.4792 \tiny[0.4128, 0.5349] & 102 \tiny[97, 108] & 0.1256 & -0.317 / +0.258 & 71\% \\
+    64$\times$1 & 0.6278 \tiny[0.6003, 0.6544] & 160 \tiny[151, 169] & 0.0402 & +0.600 / +0.833 & 4\% \\
+    64$\times$2 & 0.5381 \tiny[0.4846, 0.5861] & 100 \tiny[81, 120] & 0.0882 & -0.183 / +0.417 & 57\% \\
+    64$\times$3 & 0.3929 \tiny[0.3309, 0.4483] & 92 \tiny[86, 97] & 0.1267 & -0.383 / +0.175 & 78\% \\
+    128$\times$1 & 0.6372 \tiny[0.6122, 0.6585] & 154 \tiny[138, 166] & 0.0318 & +0.700 / +0.883 & 2\% \\
+    128$\times$2 & 0.5836 \tiny[0.5369, 0.6259] & 144 \tiny[119, 168] & 0.0461 & +0.400 / +0.750 & 16\% \\
+    128$\times$3 & 0.4761 \tiny[0.3949, 0.5456] & 95 \tiny[71, 117] & 0.0937 & -0.267 / +0.317 & 67\% \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{8pt}
+
+  \textbf{(b) top-$k$ set agreement and concentration}\\[2pt]
+  \begin{tabular}{lrrrrr}
+    \toprule
+    cell & top-3 mass & effective positions & top-1 differs & top-3 exact & mean Jaccard \\
+    \midrule
+    16$\times$1 & 0.926 & 3.03 & 45\% & 26\% & 0.57 \\
+    16$\times$2 & 0.819 & 4.44 & 60\% & 13\% & 0.43 \\
+    16$\times$3 & 0.768 & 5.11 & 68\% & 9\% & 0.37 \\
+    32$\times$1 & 0.956 & 2.56 & 37\% & 32\% & 0.62 \\
+    32$\times$2 & 0.851 & 4.05 & 62\% & 12\% & 0.42 \\
+    32$\times$3 & 0.759 & 5.28 & 69\% & 8\% & 0.36 \\
+    64$\times$1 & 0.969 & 2.36 & 24\% & 48\% & 0.73 \\
+    64$\times$2 & 0.873 & 3.79 & 61\% & 14\% & 0.43 \\
+    64$\times$3 & 0.540 & 7.80 & 74\% & 6\% & 0.31 \\
+    128$\times$1 & 0.976 & 2.20 & 18\% & 57\% & 0.78 \\
+    128$\times$2 & 0.918 & 3.16 & 36\% & 27\% & 0.60 \\
+    128$\times$3 & 0.728 & 5.67 & 68\% & 10\% & 0.38 \\
+    \bottomrule
+  \end{tabular}
+  \caption{\textbf{No cell is withheld: the pattern in Tables~\ref{tab:tied} and~\ref{tab:topk} holds across the whole grid.} All twelve cells. The upper panel carries the columns of Table~\ref{tab:tied}, the lower those of Table~\ref{tab:topk}. \textbf{Which columns carry intervals, and why the rest do not:} held-out $R^2$ and the tied-pair count are per-seed quantities and are given as mean with a $95\%$ bootstrap interval over the ten seeds. The remaining columns are medians pooled over every tied pair across all seeds rather than per-seed values, so a seed-level bootstrap interval is not defined for them and none is invented here.}
+  \label{tab:full}
+\end{table}
+% <<< END tab_full
 
 Table~\ref{tab:robustfull} repeats the accuracy-match tightening of
 Table~\ref{tab:robust} in every cell. The pair population falls by roughly an
 order of magnitude and the top-$k$ disagreement does not move anywhere in the
 grid.
 
-\input{tex/tab_robust_full}
+% >>> GENERATED tab_robust_full -- experiments/make_tables.py writes between
+% >>> these markers. Do not edit by hand; rerun the generator.
+\begin{table}[!htb]
+  \centering
+  \small
+  \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
+  \begin{tabular}{llrrrrrrrr}
+    \toprule
+    width & depth & \multicolumn{4}{c}{accuracy-tied ($t$-test)} & \multicolumn{4}{c}{$|\Delta R^2| < 0.001$} \\
+    \cmidrule(lr){3-6}\cmidrule(lr){7-10}
+    & & pairs & top-1 & top-2 & top-3 & pairs & top-1 & top-2 & top-3 \\
+    \midrule
+    16 & 1 & 162 & 45\% & 62\% & 74\% \tiny[73, 76] & 6 & 43\% & 60\% & 72\% \tiny[68, 76] \\
+    16 & 2 & 158 & 60\% & 79\% & 87\% \tiny[86, 89] & 3 & 58\% & 77\% & 86\% \tiny[83, 88] \\
+    16 & 3 & 134 & 67\% & 84\% & 90\% \tiny[88, 92] & 2 & 65\% & 82\% & 88\% \tiny[84, 91] \\
+    32 & 1 & 167 & 36\% & 55\% & 68\% \tiny[67, 70] & 5 & 35\% & 52\% & 66\% \tiny[63, 69] \\
+    32 & 2 & 143 & 59\% & 80\% & 87\% \tiny[86, 89] & 3 & 62\% & 81\% & 88\% \tiny[86, 90] \\
+    32 & 3 & 102 & 68\% & 86\% & 92\% \tiny[91, 93] & 1 & 69\% & 86\% & 92\% \tiny[91, 94] \\
+    64 & 1 & 160 & 24\% & 38\% & 52\% \tiny[47, 57] & 6 & 24\% & 37\% & 49\% \tiny[44, 54] \\
+    64 & 2 & 100 & 57\% & 79\% & 86\% \tiny[82, 89] & 2 & 53\% & 76\% & 85\% \tiny[80, 90] \\
+    64 & 3 & 92 & 73\% & 89\% & 94\% \tiny[94, 95] & 1 & 67\% & 84\% & 90\% \tiny[82, 94] \\
+    128 & 1 & 154 & 18\% & 29\% & 43\% \tiny[41, 45] & 9 & 19\% & 29\% & 43\% \tiny[41, 46] \\
+    128 & 2 & 144 & 38\% & 61\% & 74\% \tiny[71, 77] & 6 & 29\% & 55\% & 72\% \tiny[68, 76] \\
+    128 & 3 & 95 & 68\% & 86\% & 91\% \tiny[89, 92] & 2 & 63\% & 85\% & 92\% \tiny[89, 94] \\
+    \bottomrule
+  \end{tabular}}
+  \caption{Tightening the accuracy match to $|\Delta R^2| < 0.001$ in every cell. The pair population falls by roughly an order of magnitude and the top-$k$ disagreement does not move, so the failure is not an artifact of the $t$-test's resolution. Columns as in Table~\ref{tab:robust}; intervals bootstrap over data-split seeds.}
+  \label{tab:robustfull}
+\end{table}
+% <<< END tab_robust_full
 
 \section{Protocol and pre-registration}
 \label{app:protocol}
@@ -772,7 +911,34 @@ with $1{,}000{,}003 + k$ draws a permutation of the $4000$ subsampled sequences,
 the first $3000$ form the fit split and the remaining $1000$ are held out, and
 the indices are recorded in the run directory. All twelve cells use ten seeds.
 
-\input{tex/tab_protocol}
+% >>> GENERATED tab_protocol -- experiments/make_tables.py writes between
+% >>> these markers. Do not edit by hand; rerun the generator.
+\begin{table}[!htb]
+  \centering
+  \small
+  \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
+  \begin{tabular}{lllrr}
+    \toprule
+    cell & learning rate chosen (seeds) & configs & epochs & grad.\ steps \\
+    \midrule
+    16$\times$1 & 0.01 & 4 & 1,200 & 1,200 \\
+    16$\times$2 & 0.01 & 4 & 1,200 & 1,200 \\
+    16$\times$3 & 0.01 ($\times$9), 0.003 ($\times$1) & 4 & 1,200 & 1,200 \\
+    32$\times$1 & 0.01 & 4 & 1,200 & 1,200 \\
+    32$\times$2 & 0.01 & 4 & 1,200 & 1,200 \\
+    32$\times$3 & 0.01 & 4 & 1,200 & 1,200 \\
+    64$\times$1 & 0.01 ($\times$4), 0.003 ($\times$6) & 4 & 1,200 & 1,200 \\
+    64$\times$2 & 0.01 ($\times$9), 0.003 ($\times$1) & 4 & 1,200 & 1,200 \\
+    64$\times$3 & 0.01 ($\times$9), 0.003 ($\times$1) & 4 & 1,200 & 1,200 \\
+    128$\times$1 & 0.003 ($\times$9), 0.001 ($\times$1) & 4 & 1,200 & 1,200 \\
+    128$\times$2 & 0.003 ($\times$4), 0.001 ($\times$6) & 4 & 1,200 & 1,200 \\
+    128$\times$3 & 0.003 ($\times$4), 0.001 ($\times$6) & 4 & 1,200 & 1,200 \\
+    \bottomrule
+  \end{tabular}}
+  \caption{\textbf{The tuning budget is four learning rates per cell and nothing else, so the disagreement cannot be an artifact of unequal search.} Per-cell protocol, read from \texttt{tuning\_budget.json} and the per-seed records. The search space is ``learning rate over [0.01, 0.003, 0.001, 0.0003], selected once per cell and shared by all models in it''. The selection rule is identical in every cell --- ``no model selection: every trained model is kept and enters the pairwise analysis'' --- so it is stated here rather than repeated as a column. \textbf{The chosen rate is not constant across seeds:} it varies in 7 of 12 cells, and the multiplicities are given. Within any one seed a single rate is shared by all 20 models in the cell, so the models still differ only in initialization; across seeds the rate is re-selected.}
+  \label{tab:protocol}
+\end{table}
+% <<< END tab_protocol
 
 \paragraph{Architecture and optimizer.}
 The latent map is a fully-connected stack of \texttt{depth} $\times$
@@ -802,7 +968,24 @@ carries the git SHA and configuration hash of the run that produced it.
 \section{The vacuous ceiling, in full}
 \label{app:ceiling}
 
-\input{tex/tab_validation}
+% >>> GENERATED tab_validation -- experiments/make_tables.py writes between
+% >>> these markers. Do not edit by hand; rerun the generator.
+\begin{table}[!tb]
+  \centering
+  \small
+  \resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
+  \begin{tabular}{p{0.10\linewidth}p{0.24\linewidth}p{0.30\linewidth}p{0.28\linewidth}}
+    \toprule
+    check & what it reported & what it actually tested & corrected control \\
+    \midrule
+    \textbf{Ceiling control} & Held-out $R^2 = 1.000000$ recovering a target the architecture realizes exactly, in every cell and every seed. & That Adam does not leave a perfect solution. Warm-started \emph{at} the target, its initial loss was already below the stopping threshold and best-iterate selection kept the initial state, so the loop never ran. & Cold-started on the same target, the worst cell reaches only $0.4501$ and 11 of 12 cells fall below the $0.999$ threshold. \\
+    \textbf{Noise model} & A required sample size of zero: any two fits separable with no data at all. & Inverse-variance weighting under a count model undefined on this library: the pools are not a proportion, $\mathrm{ex} \ge \mathrm{tot}$ on $4.9\%$ of rows, so binomial variance is zero or negative there and a few near-saturated sequences carried the statistic. & Under the Poisson log-ratio the weights are ordinary (mean $1/\sigma^2$ is $3.0\times$ its median) and the requirement is finite, $0.5$ to $87{,}751{,}464$ measurements. \\
+    \bottomrule
+  \end{tabular}}
+  \caption{\textbf{Both controls we relied on were passing for reasons unrelated to what they were meant to test.} Neither failure was visible from the reported number alone: a control that cannot fail and a weighting scheme that silently concentrates on a few points both look like success.}
+  \label{tab:validation}
+\end{table}
+% <<< END tab_validation
 
 The refit loads the reference weights, then evaluates the loss and snapshots
 the best iterate \emph{before} entering the optimization loop. For the null

@@ -84,12 +84,12 @@
     "run": "20260830T030657Z_972496a_5da8cb38"
   },
   "fragments": [
-    "tab_full.tex",
-    "tab_protocol.tex",
-    "tab_robust.tex",
-    "tab_robust_full.tex",
-    "tab_tied.tex",
-    "tab_topk.tex",
-    "tab_validation.tex"
+    "tab_full",
+    "tab_protocol",
+    "tab_robust",
+    "tab_robust_full",
+    "tab_tied",
+    "tab_topk",
+    "tab_validation"
   ]
 }
