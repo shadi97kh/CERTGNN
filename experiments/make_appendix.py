@@ -209,6 +209,7 @@ def section_a1(occ: pathlib.Path, sep: pathlib.Path) -> str:
         r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
+        r"\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%",
         r"\begin{tabular}{llrlrrrr}",
         r"\toprule",
         r"width & depth & params & held-out $R^2$ & indist. & median $\rho$ & "
@@ -227,7 +228,7 @@ def section_a1(occ: pathlib.Path, sep: pathlib.Path) -> str:
         )
     L += [
         r"\bottomrule",
-        r"\end{tabular}",
+        r"\end{tabular}}",
         r"\caption{Occurrence grid, all twelve cells. \emph{indist.} is the mean "
         r"number of accuracy-indistinguishable pairs out of all pairs. "
         r"\emph{median $\rho$} is the median per-instance Spearman correlation "
@@ -250,6 +251,7 @@ def section_a1(occ: pathlib.Path, sep: pathlib.Path) -> str:
         r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
+        r"\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%",
         r"\begin{tabular}{llrllrr}",
         r"\toprule",
         r"width & depth & params & held-out $R^2$ & per-instance median $\rho$ & "
@@ -265,7 +267,7 @@ def section_a1(occ: pathlib.Path, sep: pathlib.Path) -> str:
         )
     L += [
         r"\bottomrule",
-        r"\end{tabular}",
+        r"\end{tabular}}",
         r"\caption{Separation grid, all twelve cells. $Z$ is a lower bound: it "
         r"counts sequencing noise only (Appendix~\ref{gen:noise}).}",
         r"\end{table}",
@@ -497,6 +499,7 @@ def section_twin(sep: pathlib.Path) -> str:
         r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
+        r"\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%",
         r"\begin{tabular}{llllr}",
         r"\toprule",
         r"width & depth & held-out $R^2$ & per-instance median $\rho$ & "
@@ -511,7 +514,7 @@ def section_twin(sep: pathlib.Path) -> str:
         )
     L += [
         r"\bottomrule",
-        r"\end{tabular}",
+        r"\end{tabular}}",
         r"\caption{\textbf{A fit and its own twin are far closer than two "
         r"independently trained fits, which is why the two populations must "
         r"not be quoted interchangeably.} $Z$ is the number of held-out "
@@ -588,6 +591,7 @@ def section_a4(cs: pathlib.Path, ch: pathlib.Path) -> str:
         r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
+        r"\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%",
         r"\begin{tabular}{llll}",
         r"\toprule",
         r"width & depth & cold-start null, held-out $R^2$ & warm warp refit, "
@@ -603,7 +607,7 @@ def section_a4(cs: pathlib.Path, ch: pathlib.Path) -> str:
     init = [cells[k]["arm1_cold_init_loss"]["mean"] for k in order]
     L += [
         r"\bottomrule",
-        r"\end{tabular}",
+        r"\end{tabular}}",
         r"\caption{The ceiling that requires search. The cold-start column is an "
         r"upper bound on what this procedure can say about any target, because "
         r"its target is in the class by construction. Mean cold-start initial "
@@ -706,6 +710,7 @@ def section_a5(runs: dict[str, pathlib.Path]) -> str:
         r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
+        r"\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%",
         r"\begin{tabular}{lllll}",
         r"\toprule",
         r"experiment & run directory & git SHA & config hash & seeds \\",
@@ -722,7 +727,7 @@ def section_a5(runs: dict[str, pathlib.Path]) -> str:
         )
     L += [
         r"\bottomrule",
-        r"\end{tabular}",
+        r"\end{tabular}}",
         r"\caption{Every run directory cited in this paper. A run recorded "
         r"against a dirty tree is marked; none of the runs cited here is.}",
         r"\end{table}",

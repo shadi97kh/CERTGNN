@@ -49,6 +49,7 @@ Run \texttt{20260830T030657Z\_972496a\_5da8cb38}, git \texttt{972496a}, config \
 \begin{table}[!htb]
 \centering
 \small
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{llllr}
 \toprule
 width & depth & held-out $R^2$ & per-instance median $\rho$ & $Z$ to separate \\
@@ -66,7 +67,7 @@ width & depth & held-out $R^2$ & per-instance median $\rho$ & $Z$ to separate \\
 128 & 2 & 1.000000 \small[1.000000, 1.000000] & 0.905 \small[0.888, 0.920] & 3,158,529 \small[1,402,633, 5,004,083] \\
 128 & 3 & 1.000000 \small[1.000000, 1.000000] & 0.890 \small[0.885, 0.895] & 87,751,464 \small[39,140,215, 138,392,840] \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \caption{\textbf{A fit and its own twin are far closer than two independently trained fits, which is why the two populations must not be quoted interchangeably.} $Z$ is the number of held-out measurements needed to reject that the two are the same function at $\alpha = 0.05$ with power 0.8, under the noise model of Appendix~\ref{gen:noise}. It is a lower bound: it counts sequencing noise only.}
 \label{gen:twin-tab}
 \end{table}
@@ -92,6 +93,7 @@ Run \texttt{20260829T191427Z\_94dd5a2\_2267b74e}, git \texttt{94dd5a2}, config \
 \begin{table}[!htb]
 \centering
 \small
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{%
 \begin{tabular}{llll}
 \toprule
 width & depth & cold-start null, held-out $R^2$ & warm warp refit, held-out $R^2$ \\
@@ -109,7 +111,7 @@ width & depth & cold-start null, held-out $R^2$ & warm warp refit, held-out $R^2
 128 & 2 & 0.8997 \small[0.8316, 0.9529] & 0.9575 \small[0.9381, 0.9734] \\
 128 & 3 & 0.5328 \small[0.4000, 0.6714] & 0.9247 \small[0.9108, 0.9394] \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \caption{The ceiling that requires search. The cold-start column is an upper bound on what this procedure can say about any target, because its target is in the class by construction. Mean cold-start initial loss ranges from $1.826$ to $2.093$, against $6.7 \times 10^{-19}$ for the warm-started control it replaces.}
 \end{table}
 
