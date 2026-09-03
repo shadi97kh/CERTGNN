@@ -593,6 +593,15 @@ def table_robust_full(occ: pathlib.Path) -> str:
     """The same tightening, every cell, at the loosest and strictest match."""
     seeds = _seed_records(occ)
     cells = cells_of(occ)
+    # Grid-wide, the tightening is far sharper than the per-cell factor of 18
+    # the main text quotes at the best-fitting cell; say which is which.
+    tied_tot = tight_tot = 0
+    for k in order(cells):
+        lo = _match_row(seeds, k, None)
+        ti = _match_row(seeds, k, 0.001)
+        tied_tot += round(lo["n_pairs"]) if lo else 0
+        tight_tot += round(ti["n_pairs"]) if ti else 0
+    shrink = tied_tot / tight_tot if tight_tot else float("nan")
     body = []
     for k in order(cells):
         loose = _match_row(seeds, k, None)
@@ -622,8 +631,9 @@ def table_robust_full(occ: pathlib.Path) -> str:
         "    \\cmidrule(lr){3-6}\\cmidrule(lr){7-10}\n"
         "    & & pairs & top-1 & top-2 & top-3 & pairs & top-1 & top-2 & top-3",
         "Tightening the accuracy match to $|\\Delta R^2| < 0.001$ in every cell. "
-        "The pair population falls by roughly an order of magnitude and the "
-        "top-$k$ disagreement does not move, so the failure is not an artifact "
+        f"The pair population falls {shrink:.0f}-fold across the grid, from "
+        f"{tied_tot:,} tied pairs per seed to {tight_tot:,}, and the top-$k$ "
+        "disagreement does not move, so the failure is not an artifact "
         "of the $t$-test's resolution. Columns as in "
         "Table~\\ref{tab:robust}; intervals bootstrap over data-split seeds. "
         "The top-$k$ columns here are recomputed \\emph{per seed} and then "

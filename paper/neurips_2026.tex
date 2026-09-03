@@ -67,7 +67,8 @@ real multiplexed splicing assay and report that it is not reproducible. Models
 whose held-out accuracy is statistically indistinguishable assign different top-3
 positions for $43\%$ of held-out sequences at the best-fitting cell, rising to
 $94\%$ at the worst; no cell escapes it. Tightening the accuracy match until 17
-of every 18 surviving pairs are discarded leaves that unchanged. We find three
+of every 18 surviving pairs at that cell are discarded, 34 of 35 grid-wide,
+leaves it unchanged. We find three
 compounding causes. The fitting objective does not identify the
 attribution, so the choice among equally-accurate models is made by the
 initialization seed. Attribution mass is concentrated, a median $98\%$ of a
@@ -84,7 +85,8 @@ own validation nearly hid the result: a control that read as passing because the
 refit began at its own target, and a negative from a search that examined zero
 candidates. This is a reproducibility failure, not evidence that the attributed
 positions are biologically wrong. We report the conditions under which it is
-worst, having found none under which the practice is safe, and a checklist.
+worst, having found none under which the practice is safe, and a four-item
+checklist.
 \end{abstract}
 
 \begin{figure}[!tb]
@@ -189,8 +191,9 @@ Total compute is on the order of GPU-days on a single mid-range machine.
 \section{Observed outcome}
 
 Models that predictive accuracy cannot separate assign different top-3 positions
-for $43\%$ to $94\%$ of held-out sequences, yet at most three held-out
-measurements determine which of the \emph{median} such pair generated the data. This mirrors
+for $43\%$ to $94\%$ of held-out sequences, yet for the median such pair at most
+three held-out measurements determine which model generated the data. This
+mirrors
 the disagreement problem documented for general-purpose explainers~[12], and
 joins results showing genomic sequence models can score well while generalizing
 poorly~[16]. \textbf{The practice fails by discarding recoverable
@@ -440,7 +443,7 @@ alike.
 
 \begin{figure}[!tb]
   \centering
-  \includegraphics[width=0.84\linewidth]{figures/fig2_concentration.png}
+  \includegraphics[width=0.80\linewidth]{figures/fig2_concentration.png}
   \caption{\textbf{A low rank correlation has two incompatible readings, and the
   top-$k$ set separates them.} Accuracy-tied independently trained pairs at
   width 128, depth 1; five seeds, $329{,}600$ (sequence, pair) points from $824$
@@ -498,13 +501,13 @@ code (Appendix~\ref{gen:noise}).
 
 \subsection{Two ways our validation nearly hid the failure}
 
-Both are errors we committed and caught, and we report them because the
-controls that catch them are cheap and appear not to be standard, in the spirit
-of the randomization checks that exposed saliency methods insensitive to their
-own model~[1]. Table~\ref{tab:validation} states the ceiling control and the
-noise model of Section~\ref{sec:noise} as what was reported, what was actually
+Both are errors we committed and caught, reported because the controls that
+catch them are cheap and appear not to be standard, in the spirit of the
+randomization checks that exposed saliency methods insensitive to their own
+model~[1]. Table~\ref{tab:validation} states the ceiling control and the noise
+model of Section~\ref{sec:noise} as what was reported, what was actually
 tested, and what the corrected check reports. The empty-search failure changed
-a verdict rather than a measurement, so it has no row there.
+a verdict rather than a measurement, so it has no row.
 
 \paragraph{A ceiling that was arithmetic, and a negative from an empty search.}
 To check that a refit can recover a target, one refits to a target the class
@@ -516,7 +519,7 @@ verified that the optimizer does not wander away from a perfect solution, never
 that the procedure can \emph{find} one it does not start at. Cold-starting the
 same refit is a ceiling that requires search, and under it recovery of a target
 the architecture realizes \emph{exactly} falls to held-out $R^2 \approx 0.45$ at
-depth 3 (Appendix~\ref{app:ceiling}). Separately, an experiment reported ``no
+depth 3 (Appendix~\ref{gen:ceiling}). Separately, an experiment reported ``no
 witness found'' after examining zero candidates, every cell having had an empty
 candidate set for structural reasons. Searched-and-found-nothing is a result;
 never-searched is not, and the second was reported as the first. We now emit a
@@ -532,10 +535,9 @@ the shape of the degradation.
 \begin{itemize}
 \item \textbf{Depth is what tracks the failure; width is not, and no cell is
   safe.} Pooled top-3 divergence rises with depth: $43$--$74\%$, $73$--$88\%$,
-  $90$--$94\%$, a rank correlation of $+0.92$ with depth against $-0.28$ with
-  width. Within depth 1 it improves with width, $74\%$ to $43\%$, but never
-  falls below $43\%$. We looked for a low-capacity exemption and found the
-  opposite.
+  $90$--$94\%$, rank-correlated $+0.92$ with depth against $-0.28$ with width.
+  Within depth 1 it improves with width, $74\%$ to $43\%$, but never falls
+  below $43\%$: we looked for a low-capacity exemption and found the opposite.
 \item \textbf{Fit quality predicts agreement but does not explain it.} Held-out
   $R^2$ correlates $+0.650$ with agreement: real, far from explanatory, and the
   best-fitting cell still fails.
@@ -548,7 +550,9 @@ the shape of the degradation.
   being nearly identical.
 \item \textbf{The grid does not reach the noise ceiling.} The assay's own count
   noise caps achievable held-out $R^2$ at $1 - \overline{\sigma_i^2} = 0.740$
-  $[0.727, 0.749]$, against $0.637$ at our best cell. The grid sits below the
+  $[0.727, 0.749]$, against $0.637$ at our best cell. That uses the mean of
+  $\sigma_i^2$; squaring the median scale of Appendix~\ref{gen:noise} instead
+  gives $0.903$, higher because the noise is right-skewed. The grid sits below the
   ceiling, so this result shows the failure is not confined to the worst-fitting
   models rather than that it survives at the ceiling. Counting noise is a lower
   bound, so the true ceiling is lower and the gap narrower, but we have not
@@ -557,10 +561,9 @@ the shape of the degradation.
   draws $4000$ of the library's $30{,}483$ sequences, so we cannot say whether
   the instability persists at full-library scale. The class tested is a one-hot
   MLP with a MAVE-NN-style monotone link, not the convolutional architectures
-  the practice is usually run on, and we tested only in-silico mutagenesis. The
-  result is a reproducibility failure, in that the same data and procedure
-  return different top-$k$ sets, not evidence that any attributed position is
-  biologically wrong, which model agreement cannot settle.
+  the practice is usually run on, and we tested only in-silico mutagenesis. This
+  is a reproducibility failure, the same data and procedure returning different
+  top-$k$ sets, not evidence that any attributed position is biologically wrong.
 \end{itemize}
 
 \subsection{Actionable takeaways}
@@ -904,9 +907,8 @@ directories, as are all tables in this paper.
 % <<< END tab_full
 
 Table~\ref{tab:robustfull} repeats the accuracy-match tightening of
-Table~\ref{tab:robust} in every cell. The pair population falls by roughly an
-order of magnitude and the top-$k$ disagreement does not move anywhere in the
-grid.
+Table~\ref{tab:robust} in every cell. The pair population falls 35-fold across
+the grid and the top-$k$ disagreement does not move anywhere.
 
 % >>> GENERATED tab_robust_full -- experiments/make_tables.py writes between
 % >>> these markers. Do not edit by hand; rerun the generator.
@@ -934,7 +936,7 @@ grid.
     128 & 3 & 95 & 68\% & 86\% & 91\% \tiny[89, 92] & 2 & 63\% & 85\% & 92\% \tiny[89, 94] \\
     \bottomrule
   \end{tabular}}
-  \caption{Tightening the accuracy match to $|\Delta R^2| < 0.001$ in every cell. The pair population falls by roughly an order of magnitude and the top-$k$ disagreement does not move, so the failure is not an artifact of the $t$-test's resolution. Columns as in Table~\ref{tab:robust}; intervals bootstrap over data-split seeds. The top-$k$ columns here are recomputed \emph{per seed} and then averaged, which is why they carry seed-level intervals where the pooled columns of Table~\ref{tab:full} cannot, and why a cell may differ from that table by a point.}
+  \caption{Tightening the accuracy match to $|\Delta R^2| < 0.001$ in every cell. The pair population falls 35-fold across the grid, from 1,611 tied pairs per seed to 46, and the top-$k$ disagreement does not move, so the failure is not an artifact of the $t$-test's resolution. Columns as in Table~\ref{tab:robust}; intervals bootstrap over data-split seeds. The top-$k$ columns here are recomputed \emph{per seed} and then averaged, which is why they carry seed-level intervals where the pooled columns of Table~\ref{tab:full} cannot, and why a cell may differ from that table by a point.}
   \label{tab:robustfull}
 \end{table}
 % <<< END tab_robust_full
@@ -1003,7 +1005,7 @@ precisely because it constrains our workflow rather than the repository, and
 the durable evidence is the single-commit history. Every reported number
 carries the git SHA and configuration hash of the run that produced it.
 
-\section{The vacuous ceiling, in full}
+\section{Validation controls}
 \label{app:ceiling}
 
 % >>> GENERATED tab_validation -- experiments/make_tables.py writes between
