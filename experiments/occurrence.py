@@ -142,6 +142,7 @@ def _collect_per_instance(
     """
     rho_rows: list[np.ndarray] = []
     jac_rows: list[np.ndarray] = []
+    top1_rows: list[np.ndarray] = []
     pair_ids: list[tuple[int, int]] = []
     for p in pairs:
         a, b = per_inst[int(p["i"])], per_inst[int(p["j"])]
@@ -149,6 +150,13 @@ def _collect_per_instance(
         n = A.shape[0]
         rho = np.full(n, np.nan)
         jac = np.full(n, np.nan)
+        # Whether the two models' single STRONGEST position is the same one.
+        # The top-k Jaccard is over unordered SETS, so it cannot answer this:
+        # two models can select the same three positions and still disagree
+        # about which of them dominates. Disagreeing about the dominant
+        # position is a much stronger claim than disagreeing about the
+        # ordering beneath it, and the two have to be reported separately.
+        top1 = np.zeros(n, dtype=np.float32)
         ia = np.argsort(-A, axis=1)[:, :k_top]
         ib = np.argsort(-B, axis=1)[:, :k_top]
         for r in range(n):
@@ -156,14 +164,17 @@ def _collect_per_instance(
             rho[r] = float(v) if np.isfinite(v) else np.nan
             sa, sb = set(ia[r].tolist()), set(ib[r].tolist())
             jac[r] = len(sa & sb) / len(sa | sb)
+            top1[r] = float(ia[r, 0] == ib[r, 0])
         rho_rows.append(rho.astype(np.float32))
         jac_rows.append(jac.astype(np.float32))
+        top1_rows.append(top1)
         pair_ids.append((int(p["i"]), int(p["j"])))
 
     key = f"{cell}_seed{seed}"
     if rho_rows:
         sink[f"{key}__rho"] = np.stack(rho_rows)
         sink[f"{key}__jaccard"] = np.stack(jac_rows)
+        sink[f"{key}__top1_same"] = np.stack(top1_rows)
         sink[f"{key}__pairs"] = np.asarray(pair_ids, dtype=np.int16)
 
     prof = []
