@@ -36,8 +36,9 @@ A Negative Result on Attribution Reliability in a Multiplexed Splicing Assay}
 
 \begin{abstract}
 Reading the top attributed positions off a trained sequence--activity model is
-standard practice for guiding RNA therapeutic design. We set out to validate
-that practice on a real multiplexed splicing assay and report that it fails.
+standard practice for guiding RNA therapeutic design~[14], and that community
+has argued such claims are validated anecdotally~[22]. We set out to validate
+the practice on a real multiplexed splicing assay and report that it fails.
 Models whose held-out accuracy is statistically indistinguishable assign
 different top-3 positions for $43\%$ of held-out sequences at the best-fitting
 cell in our grid, rising to $94\%$ at the worst. The failure is therefore not
@@ -92,7 +93,7 @@ rest fixed.
 \paragraph{Data modality and setting.}
 A multiplexed assay of variant effect: each sequence is assayed in a pooled
 library and read out as a ratio of two sequencing count pools. We use the BRCA2
-exon 17--19 5$'$ splice-site assay of Wong et al.~[9], which quantifies
+exon 17--19 5$'$ splice-site assay of Wong et al.~[20], which quantifies
 $\sim$30{,}483 nine-nucleotide sites with $\log_{10}$ percent-spliced-in
 readouts and retains per-sequence read counts. We subsample $n = 4000$ per seed,
 split 3000 fit / 1000 held out by a fixed seeded permutation recorded with each
@@ -122,7 +123,7 @@ information the data already holds. We find the second.
 \section{Proposed approach}
 \label{sec:approach}
 
-The approach under investigation is standard practice~[1,\,8], not a method we
+The approach under investigation is standard practice~[2,\,19], applied in genomics with in-silico mutagenesis since~[21] and still standard~[3,\,11,\,17], not a method we
 invented: fit a genotype--phenotype model to the assay, compute per-position
 attributions by in-silico mutagenesis, and read the top-ranked positions as the
 determinants.
@@ -140,7 +141,7 @@ Positions are ranked by $A_j$ and the top $k$ reported.
 \paragraph{Preconditions.}
 (i) The model fits the assay well enough that its sensitivities are meaningful.
 (ii) The attribution is faithful to the model, in the sense that it reflects the
-model's own dependence on each position. (iii) Implicitly, that the model is
+model's own dependence on each position~[10]. (iii) Implicitly, that the model is
 \emph{the} model --- that the fitting procedure selects a function determined by
 the data.
 
@@ -165,8 +166,10 @@ Total compute is on the order of GPU-days on a single mid-range machine.
 Models that predictive accuracy cannot separate assign different top-3 positions
 for $43\%$ to $94\%$ of held-out sequences. They are not, however, hard to tell
 apart: fewer than three held-out measurements reject that any such pair is the
-same function. \textbf{The practice fails by discarding recoverable
-information.} Selection interrogates one aggregate scalar, and two models can
+same function. This mirrors the disagreement problem documented for general-purpose
+explainers~[12], and joins results showing genomic sequence models can score
+well while generalizing poorly~[16]. \textbf{The practice
+fails by discarding recoverable information.} Selection interrogates one aggregate scalar, and two models can
 sit inside its resolution while predicting pointwise differences on the scale of
 the assay's noise. Whichever model the seed produced is then read for
 attributions as though the data had chosen it.
@@ -274,7 +277,7 @@ anyway --- is a different population, reported in Appendix~\ref{gen:twin-sec}.
 Predictive loss constrains $f$ on the observed points. It places no constraint on
 which of the many equally-accurate functions is selected, and that selection is
 made by the initialization seed (Remark~\ref{rem:nonid}). This is the Rashomon
-effect~[2,\,3,\,4,\,7] instantiated on a real assay. What is new here is not
+effect~[5,\,7,\,9,\,13,\,18] instantiated on a real assay, and the same underspecification documented across ML pipelines~[6]. What is new here is not
 that multiplicity exists but its magnitude \emph{at the level of the top-$k$
 set}, and --- the point this paper turns on --- that the multiplicity is
 \emph{not} forced by the data.
@@ -308,7 +311,10 @@ than ten points here --- and match the population, since the twin comparison
 gives a grid median of $82\%$ and $4.38$.
 
 This is not merely a nuisance; it makes the standard check uninformative, and we
-can say by how much. Proposition~\ref{prop:rank} shows that if two models agree
+can say by how much. Attribution is already known to be fragile to small
+perturbations~[8], and there are limits on what any attribution method can
+certify about a model~[4]; the point here is narrower and empirical --- the
+statistic normally used to \emph{check} agreement cannot see the failure. Proposition~\ref{prop:rank} shows that if two models agree
 \emph{exactly} on the top 3 of 9 positions and order the remaining 6 at random,
 the expected Spearman correlation is $0.708$. A reported $\rho$ of $0.7$ is
 therefore consistent with perfect agreement about which positions matter, and
@@ -376,7 +382,9 @@ total noise, so every reported requirement is a lower bound.
 \subsection{Cause 4: two ways our validation nearly hid the failure}
 
 Both are errors we committed and caught. We report them because the controls that
-catch them are cheap and appear not to be standard. Table~\ref{tab:validation}
+catch them are cheap and appear not to be standard, in the spirit of the
+randomization checks that exposed saliency methods insensitive to their own
+model~[1]. Table~\ref{tab:validation}
 states each one as what was reported, what was actually tested, and what the
 corrected check reports.
 
@@ -456,6 +464,9 @@ the shape of the degradation, which is measurable and consistent.
 \item \textbf{Verify that a passing control required a search.} A control that
   starts at its own target passes by arithmetic.
 \item \textbf{Refuse to report a negative from an empty candidate set.}
+\item \textbf{Where the top-$k$ set is the deliverable, consider a model
+  interpretable by construction}~[15]. Our result indicts the post-hoc route
+  here, not the design goal.
 \end{enumerate}
 
 \section*{References}
@@ -464,45 +475,98 @@ the shape of the degradation, which is measurable and consistent.
 {
 \small
 
-[1] Alipanahi, B., Delong, A., Weirauch, M.T.\ \& Frey, B.J.\ (2015) Predicting
+[1] Adebayo, J., Gilmer, J., Muelly, M., Goodfellow, I., Hardt, M.\ \& Kim, B.\
+(2018) Sanity checks for saliency maps. In {\it Advances in Neural Information
+Processing Systems 31}. arXiv:1810.03292.
+
+[2] Alipanahi, B., Delong, A., Weirauch, M.T.\ \& Frey, B.J.\ (2015) Predicting
 the sequence specificities of DNA- and RNA-binding proteins by deep learning.
 {\it Nature Biotechnology} {\bf 33}(8):831--838.
 
-[2] Breiman, L.\ (2001) Statistical modeling: the two cultures. {\it Statistical
+[3] Avsec, \v{Z}., Weilert, M., Shrikumar, A., Krueger, S., Alexandari, A.,
+Dalal, K., Fropf, R., McAnany, C., Gagneur, J., Kundaje, A.\ \& Zeitlinger, J.\
+(2021) Base-resolution models of transcription-factor binding reveal soft motif
+syntax. {\it Nature Genetics} {\bf 53}:354--366.
+
+[4] Bilodeau, B., Jaques, N., Koh, P.W.\ \& Kim, B.\ (2024) Impossibility
+theorems for feature attribution. {\it Proceedings of the National Academy of
+Sciences} {\bf 121}(2):e2304406120.
+
+[5] Breiman, L.\ (2001) Statistical modeling: the two cultures. {\it Statistical
 Science} {\bf 16}(3):199--231.
 
-[3] Fisher, A., Rudin, C.\ \& Dominici, F.\ (2019) All models are wrong, but many
+[6] D'Amour, A., Heller, K., Moldovan, D., Adlam, B., Alipanahi, B., Beutel, A.,
+et al.\ (2020) Underspecification presents challenges for credibility in modern
+machine learning. arXiv:2011.03395.
+
+[7] Fisher, A., Rudin, C.\ \& Dominici, F.\ (2019) All models are wrong, but many
 are useful: learning a variable's importance by studying an entire class of
 prediction models simultaneously. {\it Journal of Machine Learning Research}
 {\bf 20}(177):1--81.
 
-[4] Hsu, H.\ \& Calmon, F.P.\ (2022) Rashomon capacity: a metric for predictive
+[8] Ghorbani, A., Abid, A.\ \& Zou, J.\ (2019) Interpretation of neural networks
+is fragile. In {\it Proceedings of the AAAI Conference on Artificial
+Intelligence} {\bf 33}:3681--3688.
+
+[9] Hsu, H.\ \& Calmon, F.P.\ (2022) Rashomon capacity: a metric for predictive
 multiplicity in classification. In {\it Advances in Neural Information
 Processing Systems 35}, pp.\ 28988--29000.
 
-[5] Marx, C., Calmon, F.\ \& Ustun, B.\ (2020) Predictive multiplicity in
+[10] Jacovi, A.\ \& Goldberg, Y.\ (2020) Towards faithfully interpretable NLP
+systems: how should we define and evaluate faithfulness? In {\it Proceedings of
+the 58th Annual Meeting of the Association for Computational Linguistics},
+pp.\ 4198--4205.
+
+[11] Koo, P.K.\ \& Eddy, S.R.\ (2019) Representation learning of genomic
+sequence motifs with convolutional neural networks. {\it PLOS Computational
+Biology} {\bf 15}(12):e1007560.
+
+[12] Krishna, S., Han, T., Gu, A., Pombra, J., Jabbari, S., Wu, S.\ \&
+Lakkaraju, H.\ (2022) The disagreement problem in explainable machine learning:
+a practitioner's perspective. arXiv:2202.01602.
+
+[13] Marx, C., Calmon, F.\ \& Ustun, B.\ (2020) Predictive multiplicity in
 classification. In {\it Proceedings of the 37th International Conference on
 Machine Learning}, PMLR {\bf 119}:6765--6774.
 
-[6] Seitz, E.E., McCandlish, D.M., Kinney, J.B.\ \& Koo, P.K.\ (2024)
+[14] Novakovsky, G., Dexter, N., Libbrecht, M.W., Wasserman, W.W.\ \&
+Mostafavi, S.\ (2023) Obtaining genetics insights from deep learning via
+explainable artificial intelligence. {\it Nature Reviews Genetics}
+{\bf 24}:125--137.
+
+[15] Rudin, C.\ (2019) Stop explaining black box machine learning models for
+high stakes decisions and use interpretable models instead. {\it Nature Machine
+Intelligence} {\bf 1}:206--215.
+
+[16] Sasse, A., Ng, B., Spiro, A.E., Tasaki, S., Bennett, D.A., Gaiteri, C.,
+De Jager, P.L., Chikina, M.\ \& Mostafavi, S.\ (2023) Benchmarking of deep
+neural networks for predicting personal gene expression from DNA sequence
+highlights shortcomings. {\it Nature Genetics} {\bf 55}:2060--2064.
+
+[17] Seitz, E.E., McCandlish, D.M., Kinney, J.B.\ \& Koo, P.K.\ (2024)
 Interpreting cis-regulatory mechanisms from genomic deep neural networks using
 surrogate models. {\it Nature Machine Intelligence} {\bf 6}:701--713.
 
-[7] Semenova, L., Rudin, C.\ \& Parr, R.\ (2022) On the existence of simpler
+[18] Semenova, L., Rudin, C.\ \& Parr, R.\ (2022) On the existence of simpler
 machine learning models. In {\it Proceedings of the 2022 ACM Conference on
 Fairness, Accountability, and Transparency}, pp.\ 1827--1858.
 
-[8] Tareen, A., Kooshkbaghi, M., Posfai, A., Ireland, W.T., McCandlish, D.M.\ \&
+[19] Tareen, A., Kooshkbaghi, M., Posfai, A., Ireland, W.T., McCandlish, D.M.\ \&
 Kinney, J.B.\ (2022) MAVE-NN: learning genotype--phenotype maps from multiplex
 assays of variant effect. {\it Genome Biology} {\bf 23}:98.
 
-[9] Wong, M.S., Kinney, J.B.\ \& Krainer, A.R.\ (2018) Quantitative activity
+[20] Wong, M.S., Kinney, J.B.\ \& Krainer, A.R.\ (2018) Quantitative activity
 profile and context dependence of all human 5$'$ splice sites. {\it Molecular
 Cell} {\bf 71}(6):1012--1026.
 
-[10] Zhou, S., Huang, M.\ \& Li, K.\ (2026) Position: genomic model research must
-move beyond anecdotal evaluation of interpretability methods. In {\it Proceedings
-of the 43rd International Conference on Machine Learning}. arXiv:2606.07607.
+[21] Zhou, J.\ \& Troyanskaya, O.G.\ (2015) Predicting effects of noncoding
+variants with deep learning-based sequence model. {\it Nature Methods}
+{\bf 12}:931--934.
+
+[22] Zhou, S., Huang, M.\ \& Li, K.\ (2026) Position: genomic model research
+must move beyond anecdotal evaluation of interpretability methods. In {\it
+Proceedings of the 43rd International Conference on Machine Learning}.
+arXiv:2606.07607.
 
 }
 
