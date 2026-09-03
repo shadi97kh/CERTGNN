@@ -1,0 +1,18 @@
+[
+  {
+    "model": "neural_128x1",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 1200,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], selected once per cell and shared by all models in it",
+    "selection": "no model selection: every trained model is kept and enters the pairwise analysis"
+  },
+  {
+    "model": "neural_128x3",
+    "configs_tried": 4,
+    "epochs": 1200,
+    "gradient_steps": 1200,
+    "search_space": "learning rate over [0.01, 0.003, 0.001, 0.0003], selected once per cell and shared by all models in it",
+    "selection": "no model selection: every trained model is kept and enters the pairwise analysis"
+  }
+]

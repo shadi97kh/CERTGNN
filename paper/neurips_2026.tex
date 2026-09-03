@@ -45,10 +45,10 @@ confined to poorly-fitting models; no cell in the grid escapes it. Diagnosing
 why, we find three compounding causes.
 The fitting objective does not identify the attribution, so the choice among
 equally-accurate models is made by the initialization seed. Attribution mass is
-concentrated, with a median 86\% of a sequence's total in 3 of 9 positions; we
-show in closed form that under this concentration a Spearman correlation of
-$0.71$ is what \emph{perfect} agreement about which positions matter already
-produces, so the rank correlations normally used to check agreement cannot
+concentrated --- a median $98\%$ of a sequence's total in 3 of 9 positions at
+the best-fitting cell --- and we show in closed form that under such
+concentration a Spearman correlation of $0.71$ is what \emph{perfect} agreement
+about which positions matter already produces, so the rank correlations normally used to check agreement cannot
 distinguish success from failure. And the criterion the field selects on does
 not constrain the function: tied models differ pointwise on the scale of the
 assay's own Poisson observation noise, a median prediction difference of $0.5$
@@ -116,9 +116,8 @@ Proposition~\ref{prop:rank} in Appendix~\ref{app:formal}.
 For the practice to be sound, accuracy-matched models should agree on the top-$k$
 set for nearly all sequences. A designer should not get a different answer
 because a different seed was used. If they disagree, either the assay cannot
-tell the models apart --- in which case more data is the remedy --- or it can,
-and the selection procedure is discarding information the data already holds. We
-find the second.
+tell the models apart, or it can and the selection procedure is discarding
+information the data already holds. We find the second.
 
 \section{Proposed approach}
 \label{sec:approach}
@@ -167,10 +166,10 @@ Models that predictive accuracy cannot separate assign different top-3 positions
 for $43\%$ to $94\%$ of held-out sequences. They are not, however, hard to tell
 apart: fewer than three held-out measurements reject that any such pair is the
 same function. \textbf{The practice fails by discarding recoverable
-information.} Selection interrogates one aggregate scalar, held-out squared
-error, and two models can sit inside its resolution while predicting pointwise
-differences on the scale of the assay's own noise. Whichever model the seed
-produced is then read for attributions as though the data had chosen it.
+information.} Selection interrogates one aggregate scalar, and two models can
+sit inside its resolution while predicting pointwise differences on the scale of
+the assay's noise. Whichever model the seed produced is then read for
+attributions as though the data had chosen it.
 
 \paragraph{Accuracy matching.}
 We filter to pairs whose held-out performance a paired $t$-test on per-point
@@ -209,9 +208,27 @@ reaching $+0.350$ (Figure~\ref{fig:headline}).
 The top-3 set differs for 73\% and 90\% of held-out sequences at width 128,
 depths 2 and 3; restricted to sequences where the concentration diagnostic
 (Section~\ref{sec:why}) says the comparison is meaningful, 71\% and 80\%. The
-conditioned figure is reported for completeness but carries little weight at
-depth 3: only $11\%$ of sequences at width 128 depth 3 have a well-defined
-top-3 under both models, and at width 64 depth 3 none do.
+conditioned figure carries little weight at depth 3, where only $11\%$ of
+sequences at width 128 and none at width 64 have a well-defined top-3 under
+both models.
+
+\paragraph{Dominant position, or the order beneath it?} A shuffle of ranks 2
+and 3 is a far weaker finding than a change of leader, and the top-$k$ Jaccard
+cannot separate them: it is over unordered sets, so two models can select the
+same three positions and still disagree about which dominates. We therefore
+report the strongest position separately (Table~\ref{tab:topk}). \textbf{The two
+models pick a different strongest position for $18\%$ of sequences at width 128
+depth 1, rising to $68\%$ at depth 3} --- at the best cell, one sequence in five
+whose dominant position, carrying a median $71\%$ of the mass on its own, is not
+the same position under a model tied on accuracy. Pooling the $203{,}200$
+sequence--pair observations at that cell rather than taking a median over pairs
+gives $19.7\%$ and a $44.2\%$ set disagreement, which decomposes as $35.0$
+points agreeing on the leader but differing at ranks 2--3, $9.2$ differing on
+both, and $10.5$ selecting the same three positions but a different leader.
+\textbf{So at the best-fitting cell most of the top-3 disagreement is about
+ranks 2 and 3, and we say so rather than claim the stronger result;} at depth 3
+the balance inverts, with $63.9$ of the $91.0$ points of set disagreement also
+involving a different leader.
 These are accuracy-tied pairs of \emph{independently trained} models, the
 population described in Section~\ref{sec:approach}. The corresponding figures
 for a fit
@@ -269,9 +286,8 @@ the best-fitting cell, yet two models inside that gap are separable as functions
 by fewer than three measurements (Section~\ref{sec:sep-scale}). The assay
 distinguishes them cheaply and the procedure that picked one never asked: the
 information is in the data and the selection step discards it. Had the models
-been genuinely indistinguishable the remedy would be a larger assay; because
-they are not, it is to interrogate the functions rather than only their
-aggregate error (Section~\ref{sec:takeaways}).
+been indistinguishable the remedy would be a larger assay; because they are not,
+it is to compare functions, not aggregate error (Section~\ref{sec:takeaways}).
 
 The consequence is that precondition (iii) of Section~2 is false, and it is the
 precondition nobody states. Faithfulness of the attribution to the model
@@ -280,13 +296,16 @@ arbitrarily-selected model is an arbitrary answer.
 
 \subsection{Cause 2: attribution is concentrated, so the usual check cannot detect the failure}
 
-Attribution is not spread evenly across positions. Among accuracy-tied
-independently trained pairs, a median 86\% of a sequence's total $|\Delta|$ sits
-in its three strongest positions, with an effective 3.9 contributing positions
-of 9 by the exponentiated entropy of the normalized magnitudes
-(Figure~\ref{fig:concentration}a). The twin comparison gives 82\% and 4.4; the
-argument below is unchanged by which is used, but the number quoted must match
-the population under discussion.
+Attribution is not spread evenly across positions, and how unevenly depends
+strongly on the cell. The median fraction of a sequence's $|\Delta|$ in its three
+strongest positions runs from $54\%$ (width 64 depth 3) to $98\%$ (width 128
+depth 1), grid median $86\%$; effective positions run $7.80$ to $2.20$ of 9,
+grid median $3.92$ (Table~\ref{tab:topk}, Proposition~\ref{prop:eff}).
+Figure~\ref{fig:concentration}a shows the most concentrated cell, width 128
+depth 1: a median $97\%$ in three positions, $0.71$ at the single strongest.
+Quote a per-cell value or a grid median deliberately --- they differ by more
+than ten points here --- and match the population, since the twin comparison
+gives a grid median of $82\%$ and $4.38$.
 
 This is not merely a nuisance; it makes the standard check uninformative, and we
 can say by how much. Proposition~\ref{prop:rank} shows that if two models agree
@@ -634,8 +653,11 @@ contribute equally and $N_{\mathrm{eff}} \to 1$ as one position dominates.
 
 \noindent This is the exponentiated Shannon entropy of the normalized attribution
 and is reported per-sequence in Table~\ref{tab:topk}; the median over held-out
-sequences is $3.9$ of $9$ for accuracy-tied
-independently trained pairs, and $4.4$ of $9$ for the twin comparison.
+sequences is $3.92$ of $9$ for accuracy-tied independently trained pairs and
+$4.38$ for the twin comparison, both medians \emph{across cells}; per cell the
+value ranges from $2.20$ to $7.80$, so the reference value in
+Proposition~\ref{prop:rank} must be read against the cell in question rather
+than against the grid median.
 
 \section{Full per-cell results}
 \label{app:full}

@@ -225,6 +225,7 @@ def table_topk(occ: pathlib.Path) -> str:
             f"{e['hidden']}$\\times${e['depth']} & "
             f"{e['pooled_conc_top3']:.3f} & "
             f"{e['pooled_eff_pos']:.2f} & "
+            f"{pct(1 - e['pooled_tk_ex1'])} & "
             f"{pct(e['pooled_tk_ex3'])} & "
             f"{e['pooled_tk_j3']:.2f}"
         )
@@ -237,15 +238,19 @@ def table_topk(occ: pathlib.Path) -> str:
         r"magnitudes, where $9$ means all positions contribute equally. Jaccard "
         r"on 3-element sets takes only $\{0, 0.2, 0.5, 1\}$, so its median is "
         r"near-useless as a summary and the \emph{mean} is reported, alongside "
-        r"the fraction of sequences whose top-3 sets match exactly. Rows are "
+        r"the fraction of sequences whose top-3 sets match exactly. \textbf{top-1 "
+        r"differs} is the fraction of sequences on which the two models' single "
+        r"\emph{strongest} position is a different position --- a stronger form "
+        r"of disagreement than a reordering beneath a shared leader, and not "
+        r"implied by the top-3 columns, which are over unordered sets. Rows are "
         r"the same bracketing subset as Table~\ref{tab:tied}; all twelve cells "
         r"are in Table~\ref{tab:full}."
     )
     return fragment(
         body,
-        "lrrrr",
-        r"cell & top-3 mass & effective positions & top-3 exact match & "
-        r"mean Jaccard",
+        "lrrrrr",
+        r"cell & top-3 mass & effective positions & top-1 differs & "
+        r"top-3 exact match & mean Jaccard",
         cap,
         "tab:topk",
     )
@@ -266,38 +271,35 @@ def table_validation(cs: pathlib.Path, sep: pathlib.Path) -> str:
             r"\textbf{Ceiling control}",
             r"Held-out $R^2 = 1.000000$ recovering a target the architecture "
             r"realizes exactly, in every cell and every seed.",
-            r"That Adam does not leave a perfect solution. The refit was "
-            r"warm-started \emph{at} the target, its initial loss was already "
-            r"below the stopping threshold, and best-iterate selection kept the "
-            r"initial state, so the optimization loop never ran.",
-            rf"Cold-started on the same in-class target, the worst cell reaches "
-            rf"only ${worst_v:.4f}$ (${worst.replace('x', r'\times')}$) and "
-            rf"{below} of {len(c)} cells fall below the $0.999$ threshold.",
+            r"That Adam does not leave a perfect solution. Warm-started "
+            r"\emph{at} the target, its initial loss was already below the "
+            r"stopping threshold and best-iterate selection kept the initial "
+            r"state, so the loop never ran.",
+            rf"Cold-started on the same target, the worst cell reaches only "
+            rf"${worst_v:.4f}$ and {below} of {len(c)} cells fall below the "
+            rf"$0.999$ threshold.",
         ),
         (
             r"\textbf{Noise model}",
             r"A required sample size of zero: any two fits separable with no "
             r"data at all.",
-            r"Inverse-variance weighting under a count model that is undefined "
-            r"on this library. The two pools are not a proportion --- "
-            r"$\mathrm{ex} \ge \mathrm{tot}$ on $4.9\%$ of rows --- so the "
-            r"binomial variance is zero or negative there and a handful of "
-            r"near-saturated sequences carried the whole statistic.",
-            rf"Under the Poisson log-ratio the weight distribution is ordinary "
-            rf"(mean $1/\sigma^2$ is $3.0$ times its median) and the "
-            rf"requirement becomes finite and cell-dependent, spanning "
-            rf"${min(z):.1f}$ to ${mathnum(max(z))}$ measurements.",
+            r"Inverse-variance weighting under a count model undefined on "
+            r"this library: the pools are not a proportion, "
+            r"$\mathrm{ex} \ge \mathrm{tot}$ on $4.9\%$ of rows, so binomial "
+            r"variance is zero or negative there and a few near-saturated "
+            r"sequences carried the statistic.",
+            rf"Under the Poisson log-ratio the weights are ordinary (mean "
+            rf"$1/\sigma^2$ is $3.0\times$ its median) and the requirement is "
+            rf"finite, ${min(z):.1f}$ to ${mathnum(max(z))}$ measurements.",
         ),
     ]
     body = [" & ".join(r) for r in rows]
     cap = (
-        r"\textbf{Both controls we relied on were passing for reasons unrelated "
-        r"to what they were meant to test.} Each row is a check that reported a "
-        r"clean result, the property it actually verified, and what the "
-        r"corrected check reports. Neither failure was visible from the "
-        r"reported number alone: a control that cannot fail and a weighting "
-        r"scheme that silently concentrates on a few points both look like "
-        r"success."
+        r"\textbf{Both controls we relied on were passing for reasons "
+        r"unrelated to what they were meant to test.} Neither failure was "
+        r"visible from the reported number alone: a control that cannot fail "
+        r"and a weighting scheme that silently concentrates on a few points "
+        r"both look like success."
     )
     return fragment(
         body,
@@ -326,6 +328,7 @@ def table_full(occ: pathlib.Path) -> str:
             f"{pct(e['pooled_pi_frac_below_05'])} & "
             f"{e['pooled_conc_top3']:.3f} & "
             f"{e['pooled_eff_pos']:.2f} & "
+            f"{pct(1 - e['pooled_tk_ex1'])} & "
             f"{pct(e['pooled_tk_ex3'])} & "
             f"{e['pooled_tk_j3']:.2f}"
         )
@@ -342,9 +345,9 @@ def table_full(occ: pathlib.Path) -> str:
     )
     return fragment(
         body,
-        "lllrrrrrrr",
+        "lllrrrrrrrr",
         r"cell & held-out $R^2$ & tied pairs & res.\ & $\rho$ p10 / med & "
-        r"$\rho{<}0.5$ & top-3 mass & eff.\ pos & exact & Jaccard",
+        r"$\rho{<}0.5$ & top-3 mass & eff.\ pos & top-1 diff & exact & Jaccard",
         cap,
         "tab:full",
         placement="h",
