@@ -264,7 +264,7 @@ def table_topk(occ: pathlib.Path) -> str:
         r"near-useless as a summary and the \emph{mean} is reported, alongside "
         r"the fraction of sequences whose top-3 sets match exactly. \textbf{top-1 "
         r"differs} is the fraction of sequences on which the two models' single "
-        r"\emph{strongest} position is a different position --- a stronger form "
+        r"\emph{strongest} position is a different position, a stronger form "
         r"of disagreement than a reordering beneath a shared leader, and not "
         r"implied by the top-3 columns, which are over unordered sets. Rows are "
         r"the same bracketing subset as Table~\ref{tab:tied}; all twelve cells "
@@ -458,8 +458,8 @@ def table_protocol(occ: pathlib.Path) -> str:
         r"else, so the disagreement cannot be an artifact of unequal search.} "
         r"Per-cell protocol, read from \texttt{tuning\_budget.json} and the "
         r"per-seed records. The search space is "
-        rf"``{space}''. The selection rule is identical in every cell --- "
-        rf"``{sel}'' --- so it is stated here rather than repeated as a column. "
+        rf"``{space}''. The selection rule is identical in every cell, "
+        rf"``{sel}'', so it is stated here rather than repeated as a column. "
         rf"\textbf{{The chosen rate is not constant across seeds:}} it varies in "
         rf"{varies} of {len(c)} cells, and the multiplicities are given. Within "
         r"any one seed a single rate is shared by all 20 models in the cell, so "
@@ -605,7 +605,7 @@ def table_robust_full(occ: pathlib.Path) -> str:
             f"{tight['top2'] * 100:.0f}\\% & {tight['top3'] * 100:.0f}\\% "
             f"\\tiny[{tight['top3_lo'] * 100:.0f}, {tight['top3_hi'] * 100:.0f}]"
             if tight is not None
-            else "0 & --- & --- & ---"
+            else "0 & -- & -- & --"
         )
         body.append(
             f"{e['hidden']} & {e['depth']} & "
