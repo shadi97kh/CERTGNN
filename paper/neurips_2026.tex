@@ -49,13 +49,18 @@ concentrated, with a median 86\% of a sequence's total in 3 of 9 positions; we
 show in closed form that under this concentration a Spearman correlation of
 $0.71$ is what \emph{perfect} agreement about which positions matter already
 produces, so the rank correlations normally used to check agreement cannot
-distinguish success from failure. And the data required to adjudicate between
-two models, computed from the assay's own Poisson count noise rather than
-assumed, exceeds the full library by up to three orders of magnitude. We also
-report two ways our own validation nearly hid the result: a control that read as
-passing because the refit began at its own target, and a negative reported from a
-search that examined zero candidates. We give boundary conditions under which the
-practice does survive, and a reporting checklist.
+distinguish success from failure. And the criterion the field selects on does
+not constrain the function: tied models differ pointwise on the scale of the
+assay's own Poisson observation noise, a median prediction difference of $0.5$
+to $2.5$ times the noise standard deviation, so one or two held-out measurements
+separate them as functions even though their aggregate accuracy is
+indistinguishable --- the data could choose, and the accuracy criterion does
+not. We also report two
+ways our own validation nearly hid the result: a control that read as passing
+because the refit began at its own target, and a negative reported from a search
+that examined zero candidates. We report the conditions under which the failure
+is worst rather than any under which the practice is safe, since we found none,
+and a reporting checklist.
 \end{abstract}
 
 \begin{figure}[t]
@@ -365,7 +370,8 @@ pinning the distinction.
 \subsection{Boundary conditions}
 \label{sec:boundary}
 
-The practice is not always unsound, and the conditions are measurable.
+We found no regime in this grid where the practice is safe. What we can give is
+the shape of the degradation, which is measurable and consistent.
 
 \begin{itemize}
 \item \textbf{Depth is what tracks the failure; width is not, and no cell is
@@ -375,7 +381,7 @@ The practice is not always unsound, and the conditions are measurable.
   width, from $74\%$ at width 16 to $43\%$ at width 128, but it never falls
   below $43\%$ anywhere in the grid. We looked for a low-capacity exemption and
   found the opposite: the narrowest models are among the worst.
-\item \textbf{It degrades with capacity, not with fit quality alone.} The
+\item \textbf{Fit quality predicts agreement but does not explain it.} The
   correlation between held-out $R^2$ and agreement is $+0.650$: real, but far
   from explanatory, and the best-fitting cell still shows the failure.
 \item \textbf{Pairs that are harder to tell apart agree more, not less.} Across

@@ -114,11 +114,31 @@ Because the pairs differ by eight orders of magnitude in prediction distance.
 | tied independent pair, 128x1 | 0.1598 |
 | tied independent pair, 64x3 | 0.8448 |
 
-Median `|d| / sigma` for tied independent pairs runs 0.47 (128x1) to 2.48
-(64x3). Their prediction differences are **comparable to or larger than the
-observation noise itself**. Two such models are trivially separable. The twin at
-128x3 differs by 6.7e-5, four orders below the noise, which is why it needs 8.8e7
-measurements.
+Median `|d| / sigma` for tied independent pairs, seed 0, sigma = 0.3413:
+
+| cell | median RMS \|d\| | \|d\|/sigma | n_separate |
+|---|---|---|---|
+| 16x1 | 0.3200 | 0.94 | 0.553 |
+| 16x2 | 0.4704 | 1.38 | 0.338 |
+| 16x3 | 0.5684 | 1.67 | 0.307 |
+| 32x1 | 0.3115 | 0.91 | 0.638 |
+| 32x2 | 0.5111 | 1.50 | 0.394 |
+| 32x3 | 0.7473 | 2.19 | 0.304 |
+| 64x1 | 0.1644 | 0.48 | 1.507 |
+| 64x2 | 0.6248 | 1.83 | 0.548 |
+| 64x3 | 0.8448 | 2.48 | 0.313 |
+| 128x1 | 0.1598 | 0.47 | 2.106 |
+| 128x2 | 0.2156 | 0.63 | 1.168 |
+| 128x3 | 0.7918 | 2.32 | 0.454 |
+
+**Be precise about this, because the obvious phrasing is wrong.** It is
+tempting to say tied pairs "differ by more than the noise". They do not: in 5
+of 12 cells (16x1, 32x1, 64x1, 128x1, 128x2) the median prediction difference
+is *below* the noise standard deviation. The accurate statement is that the
+difference is **on the scale of** the noise, 0.5x to 2.5x, which is enough for
+one or two measurements to separate them once the pointwise inverse-variance
+weighting is applied. The twin at 128x3 differs by 6.7e-5, four orders *below*
+the noise, which is why it needs 8.8e7 measurements.
 
 ## 6. What the occurrence experiment actually supports
 
