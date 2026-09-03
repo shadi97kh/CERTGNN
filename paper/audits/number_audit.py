@@ -1,9 +1,13 @@
-import json, glob, statistics as st
+import glob
+import json
+import math
+import statistics as st
 import numpy as np
 from scipy.stats import spearmanr
 
 OCC = "results/runs/20260830T002223Z_6f98de3_6e25cf7d"
-r = json.load(open(f"{OCC}/results.json")); C = r["cells"]
+r = json.load(open(f"{OCC}/results.json"))
+C = r["cells"]
 seeds = [json.load(open(f)) for f in sorted(glob.glob(f"{OCC}/seed_*.json"))]
 ok = fail = 0
 def chk(label, asserted, actual, tol=0.0):
@@ -19,8 +23,9 @@ print("== headline ==")
 chk("top-3 divergence min (best cell)", 0.43, round(min(div.values()),2), 0.005)
 chk("top-3 divergence max (worst cell)", 0.94, round(max(div.values()),2), 0.005)
 chk("nsep median max over cells < 3", True, max(C[k]["pooled_nsep_median"] for k in C) < 3)
-chk("nsep median min over cells", 0.3, round(min(C[k]["pooled_nsep_median"] for k in C),1), 0.05)
-chk("nsep median max over cells", 2.1, round(max(C[k]["pooled_nsep_median"] for k in C),1), 0.05)
+nsep_ceil = [max(1, math.ceil(C[k]["n_separate_median"]["mean"])) for k in C]
+chk("separation, ceil with floor 1, min", 1, min(nsep_ceil))
+chk("separation, ceil with floor 1, max", 3, max(nsep_ceil))
 
 print("\n== accuracy matching ==")
 tot = sum(C[k]["n_pairs_total"]["mean"] for k in C)
@@ -41,11 +46,11 @@ chk("Spearman(R2, min rho) across cells", 0.650, round(spearmanr(r2s, rhomin).st
 
 print("\n== top-k set ==")
 chk("128x2 top-3 differs", 0.73, round(div["128x2"],2), 0.005)
-chk("128x3 top-3 differs", 0.90, round(div["128x3"],2), 0.005)
+chk("128x3 top-3 differs (pooled)", 0.905, round(div["128x3"],3), 0.0005)
 chk("128x2 conditioned", 0.71, round(1-C["128x2"]["pooled_tk_cex3"],2), 0.005)
 chk("128x3 conditioned", 0.80, round(1-C["128x3"]["pooled_tk_cex3"],2), 0.005)
 chk("128x3 cond frac instances", 0.11, round(C["128x3"]["pooled_tk_cfrac"],2), 0.005)
-chk("64x3 cond frac instances == 0", True, C["64x3"]["pooled_tk_cfrac"] == 0)
+chk("64x3 cond frac instances", 0.003, round(C["64x3"]["pooled_tk_cfrac"],3), 0.0005)
 chk("128x1 top-1 differs", 0.18, round(t1["128x1"],2), 0.005)
 chk("128x3 top-1 differs", 0.68, round(t1["128x3"],2), 0.005)
 
@@ -62,18 +67,20 @@ chk("min effective positions", 2.20, round(min(eff.values()),2), 0.005)
 chk("grid median effective positions", 3.92, round(st.median(eff.values()),2), 0.005)
 
 print("\n== boundary conditions ==")
-for d,(lo,hi) in {1:(0.43,0.74), 2:(0.73,0.88), 3:(0.90,0.94)}.items():
+for d,(lo,hi) in {1:(0.43,0.74), 2:(0.73,0.88), 3:(0.91,0.94)}.items():
     v=[div[k] for k in C if C[k]["depth"]==d]
     chk(f"depth {d} divergence range", f"{lo}-{hi}", f"{min(v):.2f}-{max(v):.2f}")
-depths=[C[k]["depth"] for k in C]; widths=[C[k]["hidden"] for k in C]; dv=[div[k] for k in C]
-chk("rank corr divergence~depth", 0.80, round(spearmanr(depths,dv).statistic,2), 0.005)
-chk("rank corr divergence~width", -0.06, round(spearmanr(widths,dv).statistic,2), 0.005)
+depths = [C[k]["depth"] for k in C]
+widths = [C[k]["hidden"] for k in C]
+dv = [div[k] for k in C]
+chk("rank corr divergence~depth", 0.92, round(spearmanr(depths,dv).statistic,2), 0.005)
+chk("rank corr divergence~width", -0.28, round(spearmanr(widths,dv).statistic,2), 0.005)
 nsep=[C[k]["pooled_nsep_median"] for k in C]
 chk("rank corr nsep~divergence", -0.94, round(spearmanr(nsep,dv).statistic,2), 0.005)
 ex3={k:C[k]["pooled_tk_ex3"] for k in C}
 for d,(lo,hi) in {1:(0.26,0.57), 2:(0.12,0.27), 3:(0.06,0.10)}.items():
     v=[ex3[k] for k in C if C[k]["depth"]==d]
-    chk(f"depth {d} exact top-3 agreement", f"{lo}-{hi}", f"{min(v):.2f}-{max(v):.2f}")
+    chk(f"depth {d} exact top-3 agreement", f"{lo:.2f}-{hi:.2f}", f"{min(v):.2f}-{max(v):.2f}")
 
 print("\n== tightened match (this session) ==")
 def rows(cell, thr):
@@ -81,10 +88,13 @@ def rows(cell, thr):
     for s in seeds:
         c=next(x for x in s["cells"] if f"{x['hidden']}x{x['depth']}"==cell)
         ps=[p for p in c["pairs"] if thr is None or p["r2_gap"]<thr]
-        if ps: out.append((len(ps), st.median(1-p["tk_exact_top3_frac"] for p in ps),
+        if ps:
+            out.append((len(ps), st.median(1-p["tk_exact_top3_frac"] for p in ps),
                            st.median(1-p["tk_exact_top2_frac"] for p in ps)))
-    n=np.mean([o[0] for o in out]); return n, np.mean([o[1] for o in out]), np.mean([o[2] for o in out])
-nl,d3l,d2l = rows("128x1", None); nt,d3t,_ = rows("128x1", 0.001)
+    n=np.mean([o[0] for o in out])
+    return n, np.mean([o[1] for o in out]), np.mean([o[2] for o in out])
+nl, d3l, d2l = rows("128x1", None)
+nt, d3t, _ = rows("128x1", 0.001)
 chk("128x1 tightening factor", 18, round(nl/nt))
 chk("discarded fraction ~ 17/18", 0.944, round(1-nt/nl,3), 0.006)
 chk("128x1 top-3 differs at |dR2|<0.001", 0.43, round(d3t,2), 0.005)

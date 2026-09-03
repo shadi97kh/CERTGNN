@@ -233,6 +233,22 @@ def read_library_size() -> tuple[float, str]:
     raise SystemExit(f"library_size not found in {path}")
 
 
+def n_floor(v: float) -> float:
+    """Report a sample size as a whole number of measurements, at least one.
+
+    The bound of Proposition 3 divides by a per-point average, so it can return
+    a value below 1. Such a value does not name a number of measurements -- it
+    says the average standardized difference already clears the threshold at a
+    single point -- and 0 cannot be placed on a log axis at all. Every reported
+    requirement is therefore ceil'd with a floor of 1.
+    """
+    import math
+
+    if not math.isfinite(v):
+        return v
+    return float(max(1, math.ceil(v)))
+
+
 def _mean_lo_hi(entry: dict) -> tuple[float, float, float]:
     return float(entry["mean"]), float(entry["lo"]), float(entry["hi"])
 
@@ -361,7 +377,7 @@ def figure_separability(run: pathlib.Path, out: pathlib.Path, kind: str) -> dict
 
     rows = []
     for name, c in cells.items():
-        mean, lo, hi = _mean_lo_hi(c[sp["n_key"]])
+        mean, lo, hi = (n_floor(v) for v in _mean_lo_hi(c[sp["n_key"]]))
         raw = c[sp["div_key"]]
         agree = float(raw["mean"]) if sp["div_is_dict"] else float(raw)
         rows.append(

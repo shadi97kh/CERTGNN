@@ -1,0 +1,229 @@
+{
+ "dump_only": true,
+ "n_seeds": 5,
+ "n": 4000,
+ "n_fit": 3000,
+ "n_heldout": 1000,
+ "n_models": 20,
+ "seq_len": 9,
+ "filter_alpha": 0.05,
+ "cells": {
+  "128x1": {
+   "hidden": 128,
+   "depth": 1,
+   "n_params": 4865,
+   "n_pairs_total": {
+    "mean": 190.0,
+    "lo": 190.0,
+    "hi": 190.0,
+    "n": 5
+   },
+   "n_pairs_indistinguishable": {
+    "mean": 164.8,
+    "lo": 156.6,
+    "hi": 175.0,
+    "n": 5
+   },
+   "heldout_r2_min": {
+    "mean": 0.5952787217346618,
+    "lo": 0.5467930405607857,
+    "hi": 0.6329852788695396,
+    "n": 5
+   },
+   "heldout_r2_max": {
+    "mean": 0.6429376241083409,
+    "lo": 0.6024172569017698,
+    "hi": 0.672323089737882,
+    "n": 5
+   },
+   "heldout_r2_mean": {
+    "mean": 0.6217773839818317,
+    "lo": 0.5795858766595069,
+    "hi": 0.6524985208760009,
+    "n": 5
+   },
+   "attr_rho_min": {
+    "mean": 0.51,
+    "lo": 0.38,
+    "hi": 0.64,
+    "n": 5
+   },
+   "attr_rho_max": {
+    "mean": 1.0,
+    "lo": 1.0,
+    "hi": 1.0,
+    "n": 5
+   },
+   "attr_rho_median": {
+    "mean": 0.9366666666666668,
+    "lo": 0.9099999999999999,
+    "hi": 0.9633333333333333,
+    "n": 5
+   },
+   "n_separate_median": {
+    "mean": 1.8897958911228012,
+    "lo": 1.36808796672919,
+    "hi": 2.62234140151142,
+    "n": 5
+   },
+   "latent_r2_median": {
+    "mean": 0.9558261738223074,
+    "lo": 0.9517596939561506,
+    "hi": 0.959892653688464,
+    "n": 5
+   },
+   "pooled_pairs": 824,
+   "top_pairs": 223,
+   "top_pair_r2_median": 0.6500802502933682,
+   "all_pair_r2_median": 0.6371057083391474,
+   "pooled_rho_min": 0.35,
+   "pooled_rho_max": 1.0,
+   "pooled_rho_median": 0.9500000000000001,
+   "pooled_nsep_median": 1.676119622117794,
+   "pooled_pi_median": 0.8833333333333333,
+   "top_pi_median": 0.8833333333333333,
+   "pooled_pi_p10": 0.7,
+   "top_pi_p10": 0.7,
+   "pooled_pi_frac_below_05": 0.0225,
+   "top_pi_frac_below_05": 0.0225,
+   "pooled_attr_rho_sub": 0.9012605042016806,
+   "top_attr_rho_sub": 0.9084033613445379,
+   "pooled_mde_r2": 0.03326573023777206,
+   "top_mde_r2": 0.029693852356312708,
+   "pooled_conc_top3": 0.9760851232310968,
+   "top_conc_top3": 0.9783303686796736,
+   "pooled_eff_pos": 2.2061741063706064,
+   "top_eff_pos": 2.177267795681586,
+   "pooled_tk_j2": 0.7983333333333333,
+   "top_tk_j2": 0.8133333333333332,
+   "pooled_tk_j3": 0.78,
+   "top_tk_j3": 0.7922499999999999,
+   "pooled_tk_ex1": 0.81875,
+   "top_tk_ex1": 0.815,
+   "pooled_tk_ex3": 0.575,
+   "top_tk_ex3": 0.5975,
+   "pooled_tk_cj3": 0.7961606029695114,
+   "top_tk_cj3": 0.8071022727272728,
+   "pooled_tk_cex3": 0.5977332562768896,
+   "top_tk_cex3": 0.6182336182336182,
+   "pooled_tk_cfrac": 0.87,
+   "top_tk_cfrac": 0.8775,
+   "pooled_tk_rho": 0.7999999999999999,
+   "top_tk_rho": 0.7999999999999999,
+   "pooled_tk_union": 3.0,
+   "top_tk_union": 3.0,
+   "pooled_frac_below_9": 0.3483009708737864,
+   "pooled_frac_below_8": 0.16019417475728157,
+   "pooled_frac_below_7": 0.08616504854368932
+  },
+  "128x3": {
+   "hidden": 128,
+   "depth": 3,
+   "n_params": 37889,
+   "n_pairs_total": {
+    "mean": 190.0,
+    "lo": 190.0,
+    "hi": 190.0,
+    "n": 5
+   },
+   "n_pairs_indistinguishable": {
+    "mean": 108.4,
+    "lo": 85.2,
+    "hi": 129.8,
+    "n": 5
+   },
+   "heldout_r2_min": {
+    "mean": 0.3337971397022631,
+    "lo": 0.16576914193346864,
+    "hi": 0.4474175447976506,
+    "n": 5
+   },
+   "heldout_r2_max": {
+    "mean": 0.5925163270593288,
+    "lo": 0.5488449913878835,
+    "hi": 0.6347054561396341,
+    "n": 5
+   },
+   "heldout_r2_mean": {
+    "mean": 0.4737648075399907,
+    "lo": 0.34667465039953743,
+    "hi": 0.5599082523152024,
+    "n": 5
+   },
+   "attr_rho_min": {
+    "mean": 0.23666666666666672,
+    "lo": 0.19,
+    "hi": 0.29000000000000004,
+    "n": 5
+   },
+   "attr_rho_max": {
+    "mean": 0.9933333333333334,
+    "lo": 0.9800000000000001,
+    "hi": 1.0,
+    "n": 5
+   },
+   "attr_rho_median": {
+    "mean": 0.8083333333333333,
+    "lo": 0.7766666666666667,
+    "hi": 0.8399999999999999,
+    "n": 5
+   },
+   "n_separate_median": {
+    "mean": 0.4064820613120423,
+    "lo": 0.3309205565862463,
+    "hi": 0.5050795295401669,
+    "n": 5
+   },
+   "latent_r2_median": {
+    "mean": 0.43643940988701174,
+    "lo": 0.34946998657356637,
+    "hi": 0.5009906732267504,
+    "n": 5
+   },
+   "pooled_pairs": 542,
+   "top_pairs": 184,
+   "top_pair_r2_median": 0.5406479750139823,
+   "all_pair_r2_median": 0.5126744492800606,
+   "pooled_rho_min": 0.18333333333333335,
+   "pooled_rho_max": 1.0,
+   "pooled_rho_median": 0.8166666666666667,
+   "pooled_nsep_median": 0.41038898440457877,
+   "pooled_pi_median": 0.30833333333333335,
+   "top_pi_median": 0.35,
+   "pooled_pi_p10": -0.26833333333333326,
+   "top_pi_p10": -0.2333333333333333,
+   "pooled_pi_frac_below_05": 0.67,
+   "top_pi_frac_below_05": 0.645,
+   "pooled_attr_rho_sub": 0.773809523809524,
+   "top_attr_rho_sub": 0.7904761904761906,
+   "pooled_mde_r2": 0.09952332673765746,
+   "top_mde_r2": 0.08406645219528353,
+   "pooled_conc_top3": 0.7180504857996259,
+   "top_conc_top3": 0.7582978177224391,
+   "pooled_eff_pos": 5.78969994051264,
+   "top_eff_pos": 5.248172521687761,
+   "pooled_tk_j2": 0.32916666666666666,
+   "top_tk_j2": 0.34875,
+   "pooled_tk_j3": 0.37750000000000006,
+   "top_tk_j3": 0.3947500000000001,
+   "pooled_tk_ex1": 0.3175,
+   "top_tk_ex1": 0.345,
+   "pooled_tk_ex3": 0.0925,
+   "top_tk_ex3": 0.10375,
+   "pooled_tk_cj3": 0.51,
+   "top_tk_cj3": 0.5093023255813954,
+   "pooled_tk_cex3": 0.19597736001617141,
+   "top_tk_cex3": 0.1836734693877551,
+   "pooled_tk_cfrac": 0.09,
+   "top_tk_cfrac": 0.1675,
+   "pooled_tk_rho": -0.19999999999999998,
+   "top_tk_rho": -0.19999999999999998,
+   "pooled_tk_union": 4.0,
+   "top_tk_union": 4.0,
+   "pooled_frac_below_9": 0.7287822878228782,
+   "pooled_frac_below_8": 0.47601476014760147,
+   "pooled_frac_below_7": 0.23800738007380073
+  }
+ },
+ "verdict": "**273 of 380 pairs are not separable by predictive accuracy** at the resolution this held-out set provides (paired t-test, \u03b1 = 0.05, uncorrected and therefore strict). This is a failure to reject, not a demonstration of equivalence, and its resolution is stated rather than implied: with 1000 held-out points the test could detect a held-out R\u00b2 difference of about 0.0664 at 80% power, so smaller differences in accuracy would not have been seen. Nothing below depends on accepting that null. **The claim is the conjunction, and each part is measured.** These pairs share an architecture, a fit split, a budget and a learning-rate selection, differing only in initialization seed. Their predictive ACCURACY is not separable at the resolution above. Their identity as FUNCTIONS is separable, and cheaply: the median pair needs about 1 held-out measurements to reject that the two are the same function under the Poisson log-ratio noise model. So these are not near-identical models -- they are models that predict differently while scoring the same. **And they attribute differently -- measured per instance.** For a given splice site, do the two models rank ITS positions the same way? Median agreement is +0.308 in the worst cell (128x3), and in 128x3 67% of held-out sites the two rankings agree at \u03c1 below 0.5. Averaging attributions across instances first, as an earlier version did, discards exactly this variation. **And the disagreement is about which positions matter, not about an irrelevant tail.** Attribution is concentrated \u2014 a median 85% of |\u0394| mass in three positions, an effective 4.00 contributing positions of 9 \u2014 yet the models differ on which those are: median top-3 Jaccard falls to 0.09 (128x3) and the single strongest position matches exactly in only 32% of sequences there. Restricted to the union of the two top-3 sets, the positions that carry the signal, median rank agreement is -0.200. **This is the occurrence result, and top-k set overlap is the statistic to lead with**, since a reader asks which positions matter for a site, not how the bottom of the list is ordered. It needs no constructed twin, no reparameterization and no refit, so it is immune to the search and warm-start confounds `paper/tables/closure_search.md` found in the warp-based route. Per cell, the median number of held-out measurements needed to separate an indistinguishable pair as functions is 128x3 0, 128x1 2 (four smallest). The latent agreement among surviving pairs has median 128x1 0.9558, 128x3 0.4364, so where the rankings differ the underlying latents differ too. **Is the depth split just fit quality?** Depth and held-out R\u00b2 are confounded in this grid, so the question is answered on pairs matched for quality rather than argued. Restricting to pairs where both models are in their cell's better-fitting half lifts the median pair R\u00b2 at depth 3 from 0.5127 to 0.5406, and top-3 exact agreement goes from 9\u20139% to 10\u201310% (mean Jaccard 0.39\u20130.39). Note what this does and does not match: the restriction equalises quality WITHIN a cell, while the confound is BETWEEN depths. Depth-1 pairs sit at a median R\u00b2 of 0.6371, and the best depth-3 pairs reach 0.5406, so the two still do NOT overlap. The depth-3 models remain the worse fits even after restriction, so this test bounds the confound rather than eliminating it: it shows how much of the split survives a quality improvement of +0.0280, not what would happen at equal fit. **The split is not a quality artifact.** Well-fitting depth-3 pairs still disagree about which positions matter, so the effect is expressivity rather than fit. This matches `paper/tables/closure_search.md`, where a cold-started refit recovers an in-class target at depth 1 and fails at depths 2 and 3: one mechanism -- what the optimiser can reach in a deeper class -- would produce both results. **Does the disagreement survive where a top-3 exists?** Agreement tracks concentration across this grid \u2014 cells with few effective positions agree most \u2014 so a flat attribution profile is a live alternative explanation. Effective positions range 2.21 to 5.79 of 9. Restricting to instances where both models put at least 80% of their magnitude in their own top 3, exact top-3 agreement moves from 9\u201357% to 20\u201360% (mean Jaccard up to 0.80), with 9\u201387% of instances qualifying. **These cells are excluded from the claim, not caveated**: 128x3 retain under 10% of instances, meaning almost no sequence has a well-defined top-3 under either model. For them the question of which positions matter is not well posed, so their low agreement is not evidence of disagreement about anything; a near-uniform attribution profile is simply what those models produce. **The claim is therefore made on 128x1**, where 87% to 87% of instances have a well-defined top-3 under both models. There, models tied on accuracy still pick different top-3 position sets in 40% to 40% of sequences. **Is this just weak models?** Partly, but not mainly, and the question deserves the number rather than a reassurance. Across cells the held-out predictive R\u00b2 does correlate with agreement (Spearman +1.000 against the minimum \u03c1, +1.000 against the median), so better-fitting cells do agree more. The claim therefore rests on the best-fitting cell, not the worst: at 128x1, held-out R\u00b2 0.6218, the highest in the grid, 165 of 190 pairs are indistinguishable and among them 35% rank the loci at \u03c1 below 0.9, 16% below 0.8 and 9% below 0.7, reaching +0.350. The disagreement is not confined to the cells that predict badly. This experiment corrects the Part B reading in the original identifiability probe, which recorded multi-restart fits differing as a negative on the grounds that they were different fits rather than different representatives. Two fits that explain the data equally well are the identifiability problem; what that analysis lacked was the performance filter applied here."
+}

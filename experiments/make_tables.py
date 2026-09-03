@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import math
 import pathlib
 import statistics
 from collections import Counter
@@ -186,6 +187,13 @@ def mathnum(x: float, fmt: str = "{:,.0f}") -> str:
     return fmt.format(x).replace(",", "{,}")
 
 
+def nfloor(v: float) -> int:
+    """Whole measurements, at least one. See the remark under Proposition 3:
+    the bound divides by a per-point average, so it can fall below 1, and a
+    value below 1 does not name a number of measurements."""
+    return v if not math.isfinite(v) else max(1, math.ceil(v))
+
+
 def pct(x: float) -> str:
     return f"{x * 100:.0f}\\%"
 
@@ -275,12 +283,17 @@ def table_topk(occ: pathlib.Path) -> str:
 # --------------------------------------------------------------------- table 3
 
 
-def table_validation(cs: pathlib.Path, sep: pathlib.Path) -> str:
+def table_validation(
+    cs: pathlib.Path, sep: pathlib.Path, occ: pathlib.Path
+) -> str:
     c = cells_of(cs)
     worst = min(c, key=lambda k: c[k]["arm1_cold_heldout"]["mean"])
     worst_v = c[worst]["arm1_cold_heldout"]["mean"]
     below = sum(1 for k in c if c[k]["arm1_cold_heldout"]["mean"] < 0.999)
-    z = [v["n_separate"]["mean"] for v in cells_of(sep).values()]
+    # Two populations, never one range. The twin figures come from the
+    # separation run; the accuracy-tied independent pairs from occurrence.
+    z = [nfloor(v["n_separate"]["mean"]) for v in cells_of(sep).values()]
+    zo = [nfloor(v["n_separate_median"]["mean"]) for v in cells_of(occ).values()]
 
     rows = [
         (
@@ -306,7 +319,11 @@ def table_validation(cs: pathlib.Path, sep: pathlib.Path) -> str:
             r"sequences carried the statistic.",
             rf"Under the Poisson log-ratio the weights are ordinary (mean "
             rf"$1/\sigma^2$ is $3.0\times$ its median) and the requirement is "
-            rf"finite, ${min(z):.1f}$ to ${mathnum(max(z))}$ measurements.",
+            rf"finite and population-specific: ${min(zo):.0f}$ to "
+            rf"${max(zo):.0f}$ measurements for accuracy-tied independently "
+            rf"trained pairs, and ${min(z):.0f}$ to ${mathnum(max(z))}$ for a "
+            rf"fit against its reparameterized twin. The two must not be "
+            rf"quoted as one range.",
         ),
     ]
     body = [" & ".join(r) for r in rows]
@@ -608,7 +625,11 @@ def table_robust_full(occ: pathlib.Path) -> str:
         "The pair population falls by roughly an order of magnitude and the "
         "top-$k$ disagreement does not move, so the failure is not an artifact "
         "of the $t$-test's resolution. Columns as in "
-        "Table~\\ref{tab:robust}; intervals bootstrap over data-split seeds.",
+        "Table~\\ref{tab:robust}; intervals bootstrap over data-split seeds. "
+        "The top-$k$ columns here are recomputed \\emph{per seed} and then "
+        "averaged, which is why they carry seed-level intervals where the "
+        "pooled columns of Table~\\ref{tab:full} cannot, and why a cell may "
+        "differ from that table by a point.",
         "tab:robustfull",
         placement="!htb",
     )
@@ -668,7 +689,7 @@ def main() -> None:
     frags: dict[str, str] = {
         "tab_tied": table_tied(occ),
         "tab_topk": table_topk(occ),
-        "tab_validation": table_validation(cs, sep),
+        "tab_validation": table_validation(cs, sep, occ),
         "tab_full": table_full(occ),
         "tab_protocol": table_protocol(occ),
         "tab_robust": table_robust(occ),

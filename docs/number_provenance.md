@@ -36,8 +36,8 @@ row of four closed-form values).
 
 | verdict | rows |
 |---|---|
-| verified | 98 |
-| mismatch | 1 |
+| verified | 99 |
+| mismatch | 0 |
 | unverifiable | 0 |
 
 One mismatch, and it is a seed-count claim: see C1 below. Nothing in the prose
@@ -50,11 +50,14 @@ raw library, the source code, or closed form.
 
 Values the brief singled out, checked for two magnitudes anywhere in the document.
 
-### C1 — `mismatch` · seed count: "at least 5" vs "three seeds"
+### C1 — `resolved` · seed count: the dump was re-run at five seeds
 
-`neurips_2026.tex:183` states **"All reported quantities use at least 5 seeds
-with bootstrap intervals."** `neurips_2026.tex:422` describes Figure 2 as
-**"three seeds"**, and `DUMP` confirms `n_seeds = 3`, `seeds = [0, 1, 2]`.
+**Closed.** Section 2 now states the actual per-analysis seed counts, and the
+per-instance dump was re-executed at five seeds
+(`results/runs/20260903T051832Z_4684838_3353d957`, committed), so no reported
+quantity rests on fewer than five. Every Figure 4 number moved with it:
+329,600 (sequence, pair) points from 824 tied pairs, 40,000 profiles, 12,819
+highlighted, 3.9%, 29%, 44,504 left of the line.
 
 Figure 2 is the source of seven reported numbers: 203,200 · 24,000 · 97% ·
 8,861 · 4.4% · 30% · 29,310, plus the 44.2 / 35.0 / 63.9 / 91.0 decomposition
@@ -66,7 +69,7 @@ Two honest repairs, neither of which touches a number: qualify line 183 to
 exclude the per-instance dump and say so at Figure 2, or re-run the dump at
 5+ seeds. Flagged, not fixed, per instruction.
 
-### C2 — `verified, but two magnitudes` · top-3 mass at 128×1: 98% and 97%
+### C2 — `resolved` · top-3 mass at 128×1 is 98% everywhere
 
 | line | as written | value | source |
 |---|---|---|---|

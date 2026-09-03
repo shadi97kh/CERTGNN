@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import pathlib
 import subprocess
 from typing import Any
@@ -151,13 +152,20 @@ def ci(entry: dict, fmt: str = "{:.4f}") -> str:
     )
 
 
+def nfloor(v: float) -> float:
+    """Whole measurements, at least one. The bound of Proposition 3 divides by
+    a per-point average and can return a value below 1; that does not name a
+    number of measurements, and 0 cannot sit on a log axis."""
+    return v if not math.isfinite(v) else float(max(1, math.ceil(v)))
+
+
 def ci_int(entry: dict) -> str:
     return (
-        f"{entry['mean']:,.0f}"
+        f"{nfloor(entry['mean']):,.0f}"
         + r" \small["
-        + f"{entry['lo']:,.0f}"
+        + f"{nfloor(entry['lo']):,.0f}"
         + ", "
-        + f"{entry['hi']:,.0f}"
+        + f"{nfloor(entry['hi']):,.0f}"
         + "]"
     )
 
@@ -386,10 +394,16 @@ def section_a3(sep: pathlib.Path) -> str:
         r"\paragraph{The phenotype is affine in a log count ratio.}",
         "Each sequence carries two count pools, $\\mathrm{ex}$ and "
         "$\\mathrm{tot}$. Regressing the phenotype $y$ on "
-        "$\\log_{10}(\\mathrm{ex}/\\mathrm{tot})$ over the full library gives "
+        "$\\log_{10}(\\mathrm{ex}/\\mathrm{tot})$ gives "
         f"slope ${slope['mean']:.4f}$ "
         f"$[{slope['lo']:.4f}, {slope['hi']:.4f}]$ across seeds, and "
-        r"$r = 0.990$ over the full $30{,}483$-sequence library. The relationship "
+        r"$r = 0.990$ over the full $30{,}483$-sequence library. The slope is "
+        r"fitted per seed on that seed's own $4000$-row subsample and "
+        r"\emph{excludes} the $11.4\%$ of rows with $\mathrm{ex} = 0$, where the "
+        r"log ratio is undefined; the half-count continuity correction below is "
+        r"applied to the noise scale, not to this regression, so it does not put "
+        r"those rows back. The correlation is quoted over the full library on the "
+        r"same $\mathrm{ex} > 0$ rows. The relationship "
         r"is tight enough that the count ratio, not the phenotype, is the "
         r"quantity whose noise must be modelled.",
         "",
@@ -474,8 +488,11 @@ def section_twin(sep: pathlib.Path) -> str:
         r"predictive accuracy cannot separate, and shows that the assay itself "
         r"separates them cheaply --- fewer than three held-out measurements. "
         r"This section reports the complementary case: a single fit against a "
-        r"\emph{reparameterized twin} of itself, where the data genuinely "
-        r"cannot adjudicate.",
+        r"\emph{reparameterized twin} of itself. The cost of adjudication "
+        r"varies over more than eight orders of magnitude across the grid: it "
+        r"is under ten measurements at every depth-1 cell, and exceeds the "
+        r"full library only at width 128 depths 2 and 3. Those two cells are "
+        r"the ones where the data genuinely cannot adjudicate.",
         "",
         r"\textbf{The two cases bracket the problem.} In the main-text "
         r"population the divergence is avoidable: one measurement would settle "
@@ -486,10 +503,31 @@ def section_twin(sep: pathlib.Path) -> str:
         r"regardless. Attribution therefore fails in both regimes, for "
         r"different reasons, and only the first has a cheap remedy.",
         "",
+        r"\paragraph{How the twin is constructed, and what its $R^2$ measures.}",
+        r"The reference fit's latent $\hat\phi$ is passed through a fixed "
+        r"strictly monotone reparameterization $\psi$, and a second network of "
+        r"the same architecture is refit to reproduce $\psi(\hat\phi)$ on the "
+        r"fit split. Its phenotype prediction is its own latent put back on the "
+        r"reference's scale and pushed through the reference's readout, so a "
+        r"refit matching $\psi(\hat\phi)$ exactly would reproduce the "
+        r"reference's predictions exactly. The \emph{warm warp refit} is this "
+        r"same refit started from the reference weights rather than cold. The "
+        r"held-out $R^2$ column below is the affine $R^2$ between the refit's "
+        r"latent and $\psi(\hat\phi)$ on held-out points --- how faithfully "
+        r"the twin reproduces \emph{its own target} --- and not predictive "
+        r"accuracy on the assay. It is therefore not comparable with the "
+        r"$0.637$ held-out predictive $R^2$ of the main text, and a value of "
+        r"$1.000000$ means the reparameterization was matched, not that the "
+        r"phenotype was predicted perfectly.",
+        "",
         r"The two sets of numbers are not interchangeable. The twin comparison "
-        r"finds substantially more top-3 agreement than independently trained "
-        r"pairs do, so quoting a twin figure for the main-text population would "
-        r"understate the failure.",
+        r"finds more top-3 agreement than independently trained pairs in "
+        r"eleven of twelve cells, but \emph{not} at the best-fitting cell: at "
+        r"width 128 depth 1 the twin's top-3 set diverges on $46\%$ of "
+        r"sequences against $43\%$ for independently trained pairs. Quoting a "
+        r"twin figure for the main-text population would therefore understate "
+        r"the failure in most cells and overstate it at the one the paper's "
+        r"headline rests on.",
         "",
         f"Run \\texttt{{{tex_escape(sep.name)}}}, git "
         f"\\texttt{{{sm['git_sha']}}}, config "
@@ -518,7 +556,8 @@ def section_twin(sep: pathlib.Path) -> str:
         r"\caption{\textbf{A fit and its own twin are far closer than two "
         r"independently trained fits, which is why the two populations must "
         r"not be quoted interchangeably.} $Z$ is the number of held-out "
-        f"measurements needed to reject that the two are the same function at "
+        f"measurements needed to determine which of the two generated the data "
+        f"at "
         f"$\\alpha = {s['alpha']}$ with power {s['power']}, under the noise "
         r"model of Appendix~\ref{gen:noise}. It is a lower bound: it counts "
         r"sequencing noise only.}",
@@ -530,7 +569,8 @@ def section_twin(sep: pathlib.Path) -> str:
         r"\includegraphics[width=0.85\linewidth]{figures/figA_twin_separability.png}",
         r"\caption{\textbf{Separability and top-3 divergence for a fit against "
         r"its own reparameterized twin, not for independently trained pairs.} "
-        r"The requirement spans nine orders of magnitude here and two cells "
+        r"The requirement spans more than eight orders of magnitude here and "
+        r"two cells "
         r"exceed the full library, where the main-text population separates "
         r"with fewer than three measurements in every cell "
         r"(Figure~\ref{fig:sep}). Left axis logarithmic; the dashed line is "

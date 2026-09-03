@@ -72,21 +72,19 @@ surviving pairs are discarded leaves that figure unchanged. Diagnosing why, we
 find three compounding causes. The fitting objective does not identify the
 attribution, so the choice among equally-accurate models is made by the
 initialization seed. Attribution mass is concentrated --- a median $98\%$ of a
-sequence's total in 3 of 9 positions at the best cell --- and we show in closed
+sequence's total in 3 of 9 positions at the best cell, over ten seeds --- and we show in closed
 form that under such concentration a Spearman correlation of $0.71$ is what
-\emph{perfect} agreement about which positions matter already produces, so the
-rank correlations normally used to check agreement cannot distinguish success
-from failure. And the criterion the field selects on does not constrain the
-function: tied models differ pointwise on the scale of the assay's own Poisson
-observation noise, so one or two held-out measurements separate them as functions
-even though their aggregate accuracy is indistinguishable --- the data could
-choose, and the accuracy criterion does not. We also report two ways our own
-validation nearly hid the result: a control that read as passing because the
-refit began at its own target, and a negative reported from a search that
-examined zero candidates. This is a reproducibility failure, not evidence that
-the attributed positions are biologically wrong. We report the conditions under
-which it is worst, having found none under which the practice is safe, and a
-reporting checklist.
+\emph{perfect} agreement already produces, so the rank correlations normally
+used to check agreement cannot distinguish success from failure. And the
+criterion the field selects on does not constrain the function: tied models
+differ pointwise on the scale of the assay's own Poisson noise, so one to three
+held-out measurements determine which of them generated the data --- the data
+could choose, and the accuracy criterion does not. We also report two ways our
+own validation nearly hid the result: a control that read as passing because the
+refit began at its own target, and a negative from a search that examined zero
+candidates. This is a reproducibility failure, not evidence that the attributed
+positions are biologically wrong. We report the conditions under which it is
+worst, having found none under which the practice is safe, and a checklist.
 \end{abstract}
 
 \begin{figure}[!tb]
@@ -101,7 +99,8 @@ reporting checklist.
   survivors agree well on the full-position ranking and concentrate almost all
   their mass in three positions, yet they disagree about \emph{which} three
   for nearly half of held-out sequences. The two controls named above the
-  pipeline both reported success without testing what they were meant to test
+  pipeline both returned a clean-looking result without testing what they were
+  meant to test
   (Section~\ref{sec:why}, Table~\ref{tab:validation}).}
   \label{fig:workflow}
 \end{figure}
@@ -180,7 +179,9 @@ Feedforward genotype--phenotype maps over a grid of widths $\{16,32,64,128\}$ an
 depths $\{1,2,3\}$, with the per-cell learning rate chosen by pilot on the fit
 split. Within a cell we train $K = 20$ models differing \emph{only} in
 initialization seed: same architecture, same split, same budget, same learning
-rate. All reported quantities use at least 5 seeds with bootstrap intervals;
+rate. The occurrence grid, the twin comparison and the cold-start control each
+use ten seeds; the per-instance dump behind Figure~\ref{fig:concentration} uses
+five. Bootstrap intervals are over seeds;
 enumerations are exact and reported as exact. Claims and thresholds were
 pre-registered and committed before any run existed, and their single-commit
 history predates the earliest run directory (Appendix~\ref{app:protocol}).
@@ -190,8 +191,8 @@ Total compute is on the order of GPU-days on a single mid-range machine.
 
 Models that predictive accuracy cannot separate assign different top-3 positions
 for $43\%$ to $94\%$ of held-out sequences. They are not, however, hard to tell
-apart: fewer than three held-out measurements reject that any such pair is the
-same function. This mirrors the disagreement problem documented for general-purpose
+apart: at most three held-out measurements determine which of any such pair
+generated the data. This mirrors the disagreement problem documented for general-purpose
 explainers~[12], and joins results showing genomic sequence models can score
 well while generalizing poorly~[16]. \textbf{The practice
 fails by discarding recoverable information.} Selection interrogates one aggregate scalar, and two models can
@@ -204,8 +205,9 @@ We filter to pairs whose held-out performance a paired $t$-test on per-point
 squared errors cannot separate at $\alpha = 0.05$. This is a failure to reject,
 not a demonstration of equivalence, so we report the filter's resolution
 alongside it: the minimum detectable held-out $R^2$ difference at 80\% power
-given $n_{\text{held-out}} = 1000$. Of 2280 pairs, 1610 are not separable at this
-resolution.
+given $n_{\text{held-out}} = 1000$. The grid holds 2280 pairs per seed, of which
+1610 are not separable at this resolution; pooled over the ten seeds that is
+$22{,}800$ and $16{,}102$.
 
 \textbf{Tightening the match does not change the result.} Re-reading the same
 per-pair records under stricter caps on the held-out $R^2$ gap itself, moving
@@ -237,7 +239,7 @@ in predictive quality and merely escaped detection.
 
 \begin{figure}[!tb]
   \centering
-  \includegraphics[width=0.86\linewidth]{figures/fig1_not_weak_models.png}
+  \includegraphics[width=0.80\linewidth]{figures/fig1_not_weak_models.png}
   \caption{\textbf{The failure is not an artifact of poorly-fitting models.}
   Each point is one architecture cell: held-out predictive $R^2$ against top-3
   attributed-set divergence between accuracy-matched models. \textbf{The
@@ -277,12 +279,22 @@ in predictive quality and merely escaped detection.
 Held-out $R^2$ does correlate with agreement across cells (Spearman $+0.650$
 against the minimum $\rho$), so we state the result at the \emph{best}-fitting
 cell rather than the worst. At width 128, depth 1 --- held-out $R^2 = 0.637$,
-the highest in the grid --- 154 of 190 pairs are accuracy-tied, and among them
-37\% rank positions at $\rho$ below 0.9, 15\% below 0.8, and 6\% below 0.7,
-reaching $+0.350$ (Figure~\ref{fig:headline}).
+the highest in the grid --- 154 of 190 pairs per seed are accuracy-tied, and
+among them 37\% rank positions at $\rho$ below 0.9, 15\% below 0.8, and 6\%
+below 0.7, reaching $+0.350$ (Figure~\ref{fig:headline}). \textbf{Those
+are fractions of tied \emph{pairs}}, one Spearman correlation each between the
+models' library-averaged 9-position profiles. Table~\ref{tab:full}'s $\rho$
+column counts \emph{per-sequence} correlations over (sequence, pair)
+observations instead, 10th percentile $+0.700$, as does
+Figure~\ref{fig:concentration}b, where $44{,}504$ of $329{,}600$ fall below
+$0.708$. The denominators are not comparable.
 
 \paragraph{The top-$k$ set, which is what gets used.}
-The top-3 set differs for 73\% and 90\% of held-out sequences at width 128,
+All prose and Tables~\ref{tab:topk} and~\ref{tab:full} report the
+\emph{pooled} estimator, one median over every tied pair with seeds pooled;
+Table~\ref{tab:robustfull} alone reports the \emph{per-seed} estimator, and the
+two differ by up to a point.
+The top-3 set differs, pooled, for 73\% and 90\% of held-out sequences at width 128,
 depths 2 and 3; restricted to sequences where the concentration diagnostic
 (Section~\ref{sec:why}) says the comparison is meaningful, 71\% and 80\%. The
 conditioned figure carries little weight at depth 3, where only $11\%$ of
@@ -290,25 +302,27 @@ sequences at width 128 and $0.3\%$ at width 64 have a well-defined top-3
 under both models.
 
 \paragraph{Dominant position, or the order beneath it?} A shuffle of ranks 2
-and 3 is a far weaker finding than a change of leader, and the top-$k$ Jaccard
-cannot separate them: it is over unordered sets, so two models can select the
-same three positions and still disagree about which dominates. We therefore
-report the strongest position separately (Tables~\ref{tab:topk}
-and~\ref{tab:robust}). \textbf{The two models pick a different strongest position
+and 3 is a weaker finding than a change of leader, and the top-$k$ Jaccard
+cannot separate them: over unordered sets, two models can select the same three
+positions and still disagree about which dominates. We therefore report the
+strongest position separately (Tables~\ref{tab:topk} and~\ref{tab:robust}). \textbf{The two models pick a different strongest position
 for $18\%$ of sequences at width 128 depth 1, rising to $68\%$ at depth 3;} the
 top-2 set differs for $29\%$, so the disagreement is not confined to a negligible
-third position. Pooling the $203{,}200$ sequence--pair observations at that cell
-gives a $44.2\%$ set disagreement, of which $35.0$ points agree on the leader and
+third position. Pooling the $329{,}600$ sequence--pair observations at that cell
+gives a $44.6\%$ set disagreement, of which $35.8$ points agree on the leader and
 differ only at ranks 2--3. \textbf{So at the best-fitting cell most of the top-3
 disagreement is about ranks 2 and 3, and we say so rather than claim the stronger
-result;} at depth 3 the balance inverts, $63.9$ of the $91.0$ points also
+result;} at depth 3 the balance inverts, $63.3$ of the $90.5$ points also
 involving a different leader.
 These are accuracy-tied pairs of \emph{independently trained} models, the
-population described in Section~\ref{sec:approach}. The corresponding figures
-for a fit
-against its own reparameterized twin are much smaller --- 46\%, 47\%, 34\% and
-21\% --- and are reported separately in Appendix~\ref{gen:twin-sec}; the two
-populations must not be quoted interchangeably.
+population described in Section~\ref{sec:approach}. A fit against its own
+reparameterized twin gives, for the same four quantities at width 128, a top-3
+set divergence of $46\%$ at depth 2 and $47\%$ at depth 3 against the $73\%$
+and $90\%$ above, and a conditioned divergence of $34\%$ and $21\%$ against
+$71\%$ and $80\%$. The twin diverges less in eleven of twelve cells but
+\emph{more} at the best-fitting cell, $46\%$ against $43\%$. The two
+populations must not be quoted interchangeably; the twin is reported separately
+in Appendix~\ref{gen:twin-sec}.
 
 % >>> GENERATED tab_topk -- experiments/make_tables.py writes between
 % >>> these markers. Do not edit by hand; rerun the generator.
@@ -335,12 +349,16 @@ populations must not be quoted interchangeably.
 
 \paragraph{How cheaply the data adjudicates.}
 \label{sec:sep-scale}
-Proposition~\ref{prop:sep} gives the measurements needed to reject that two
-accuracy-tied models are the same function, under a noise scale derived from the
-assay's own read counts (Proposition~\ref{prop:noise}). The requirement is a
-median of $0.3$ to $2.1$ in every cell, four orders of magnitude below the
-$30{,}483$-sequence library (Figure~\ref{fig:sep}); the median pointwise
-prediction difference runs $0.5$ to $2.4$ times the observation noise. One
+Proposition~\ref{prop:sep} gives the measurements needed to determine which of
+two accuracy-tied models generated the data, under a noise scale derived from the
+assay's own read counts (Proposition~\ref{prop:noise}). Every requirement is
+reported as a whole number of measurements with a floor of one
+(Remark~\ref{rem:floor}): the median is 1 to 3 in every cell, four orders of
+magnitude below the $30{,}483$-sequence library (Figure~\ref{fig:sep}). The
+quantity the bound divides by, $\overline{(d_i/\sigma_i)^2}$, runs $4.5$ to
+$28.0$ across cells --- a root-mean-square standardized difference of $2.1$ to
+$5.3$ noise standard deviations --- and is not tail-dominated, exceeding its own
+median by only $1.05$ to $1.21\times$. One
 held-out measurement would settle which model is right, and selection never
 takes it. The complementary case --- a fit against its own \emph{reparameterized
 twin}, needing up to $8.8 \times 10^7$ measurements yet diverging on top-3
@@ -348,16 +366,17 @@ anyway --- is a different population, reported in Appendix~\ref{gen:twin-sec}.
 
 \begin{figure}[!tb]
   \centering
-  \includegraphics[width=0.86\linewidth]{figures/fig3_occurrence_separability.png}
+  \includegraphics[width=0.80\linewidth]{figures/fig3_occurrence_separability.png}
   \caption{\textbf{Accuracy-tied models are cheap to tell apart as functions,
   yet disagree about which positions matter.} Held-out measurements required to
-  reject that two \emph{independently trained} accuracy-matched models are the
-  same function (Proposition~\ref{prop:sep}), under the assay's own Poisson
+  determine which of two \emph{independently trained} accuracy-matched models
+  generated the data (Proposition~\ref{prop:sep}), under the assay's own Poisson
   count-noise model, with the top-3 set divergence on the right axis. Every cell
-  needs fewer than three measurements, against a library of $30{,}483$, so the
+  needs at most three measurements, against a library of $30{,}483$, so the
   reference line is off scale and is stated in the panel rather than drawn. The
   companion figure for a fit against its own reparameterized twin, where the
-  requirement spans nine orders of magnitude, is Figure~\ref{gen:twin}.}
+  requirement spans more than eight orders of magnitude, is
+  Figure~\ref{gen:twin}.}
   \label{fig:sep}
 \end{figure}
 
@@ -366,19 +385,19 @@ anyway --- is a different population, reported in Appendix~\ref{gen:twin-sec}.
 
 \subsection{Cause 1: the fitting objective does not identify the attribution}
 
-Predictive loss constrains $f$ on the observed points. It places no constraint on
-which of the many equally-accurate functions is selected, and that selection is
-made by the initialization seed (Remark~\ref{rem:nonid}). This is the Rashomon
-effect~[5,\,7,\,9,\,13,\,18] instantiated on a real assay, and the same underspecification documented across ML pipelines~[6]. What is new here is not
-that multiplicity exists but its magnitude \emph{at the level of the top-$k$
-set}, and --- the point this paper turns on --- that the multiplicity is
-\emph{not} forced by the data.
+Predictive loss constrains $f$ on the observed points, not which of the many
+equally-accurate functions is selected; that is settled by the initialization
+seed (Remark~\ref{rem:nonid}). This is the Rashomon
+effect~[5,\,7,\,9,\,13,\,18] on a real assay, and the underspecification
+documented across ML pipelines~[6]. What is new is not that multiplicity exists
+but its magnitude \emph{at the level of the top-$k$ set}, and --- the point this
+paper turns on --- that it is \emph{not} forced by the data.
 
 \paragraph{The selection criterion is too coarse, which is a different problem
 from too little data.}
 The accuracy filter cannot resolve a held-out $R^2$ gap below $0.032$ even at
 the best-fitting cell, yet two models inside that gap are separable as functions
-by fewer than three measurements (Section~\ref{sec:sep-scale}). The assay
+by at most three measurements (Section~\ref{sec:sep-scale}). The assay
 distinguishes them cheaply and the procedure that picked one never asked: the
 information is in the data and the selection step discards it. Had the models
 been indistinguishable the remedy would be a larger assay; because they are not,
@@ -395,42 +414,45 @@ arbitrarily-selected model is an arbitrary answer.
 
 Attribution is not spread evenly across positions, and how unevenly depends
 strongly on the cell. The median fraction of a sequence's $|\Delta|$ in its three
-strongest positions runs from $54\%$ (width 64 depth 3) to $98\%$ (width 128
+strongest positions runs, over ten seeds, from $54\%$ to $98\%$ (width 128
 depth 1), grid median $86\%$; effective positions run $7.80$ to $2.20$ of 9,
 grid median $3.92$ (Table~\ref{tab:topk}, Proposition~\ref{prop:eff}).
 Figure~\ref{fig:concentration}a shows the most concentrated cell, width 128
-depth 1: a median $97\%$ in three positions, $0.71$ at the single strongest.
+depth 1: a median $98\%$ in three positions, $0.71$ at the single strongest,
+over the five seeds behind that figure and over all ten alike.
 Quote a per-cell value or a grid median deliberately --- they differ by more
 than ten points here --- and match the population, since the twin comparison
 gives a grid median of $82\%$ and $4.38$.
 
-This is not merely a nuisance; it makes the standard check uninformative, and we
-can say by how much. Attribution is already known to be fragile to small
-perturbations~[8], and there are limits on what any attribution method can
-certify about a model~[4]; the point here is narrower and empirical --- the
-statistic normally used to \emph{check} agreement cannot see the failure. Proposition~\ref{prop:rank} shows that if two models agree
+This makes the standard check uninformative, and we can say by how much.
+Attribution is known to be fragile to small perturbations~[8], and there are
+limits on what any attribution method can certify~[4]; the point here is
+narrower --- the statistic used to \emph{check} agreement cannot see the
+failure. Proposition~\ref{prop:rank} shows that if two models agree
 \emph{exactly} on the top 3 of 9 positions and order the remaining 6 at random,
 the expected Spearman correlation is $0.708$. A reported $\rho$ of $0.7$ is
-therefore consistent with perfect agreement about which positions matter, and
-also with substantial disagreement. The statistic cannot distinguish the two.
+therefore consistent with perfect agreement and with substantial disagreement
+alike.
 
 \begin{figure}[!tb]
   \centering
-  \includegraphics[width=0.98\linewidth]{figures/fig2_concentration.png}
+  \includegraphics[width=0.90\linewidth]{figures/fig2_concentration.png}
   \caption{\textbf{A low rank correlation has two incompatible readings, and the
   top-$k$ set separates them.} Accuracy-tied independently trained pairs at
-  width 128, depth 1; three seeds, $203{,}200$ (sequence, pair) points.
-  (a) Normalized attribution mass by rank position, median over $24{,}000$
-  held-out sequence profiles with interquartile band: a median $97\%$ of the
+  width 128, depth 1; five seeds, $329{,}600$ (sequence, pair) points from $824$
+  tied pairs. Those seeds pass the same $\alpha = 0.05$ filter as everywhere
+  else and average $165$ tied pairs against the ten-seed mean of $154$.
+  (a) Normalized attribution mass by rank position, median over $40{,}000$
+  held-out sequence profiles with interquartile band: a median $98\%$ of the
   mass sits in the top three positions and the remainder collapses to near
   zero. (b) Per-sequence full-rank $\rho$ against per-sequence top-3 set
   Jaccard. The dashed line is $\rho = 0.708$, the value Proposition~\ref{prop:rank}
   gives for two models that agree \emph{exactly} on the top 3 and order the
   remaining 6 at random. Points left of it with Jaccard $= 1$ (highlighted) are
   cases where the two models pick the same three positions while the rank
-  correlation reads as disagreement. \textbf{There are $8{,}861$ such
-  (sequence, pair) observations: $4.4\%$ of all $203{,}200$ plotted, and
-  $30\%$ of the $29{,}310$ that fall left of the line.} Each observation is one
+  correlation reads as disagreement. \textbf{There are $12{,}819$ such
+  (sequence, pair) observations: $3.9\%$ of all $329{,}600$ plotted, and
+  $29\%$ of the $44{,}504$ that fall left of the line.} Each observation is one
   held-out sequence under one accuracy-tied pair, so the region is a substantial
   population rather than a handful of outliers. The statistic cannot distinguish
   the two readings; the top-$k$ set can.}
@@ -439,8 +461,10 @@ also with substantial disagreement. The statistic cannot distinguish the two.
 
 \paragraph{Diagnostic.}
 Report the top-$k$ position \emph{set} overlap and the concentration alongside
-it. Under that diagnostic, ten of twelve cells show genuine disagreement about
-which positions matter, and it does so in every cell of the grid. Exact top-3
+it. The conditioned form of that diagnostic rests on a usable population in
+eleven of twelve cells; at width 64 depth 3 only $0.3\%$ of sequences have a
+well-defined top-3 under both models, so it says little there. The
+unconditioned top-3 set disagreement is present in all twelve. Exact top-3
 agreement runs 26--57\% at depth 1, 12--27\% at depth 2 and 6--10\% at depth 3.
 The best cell in the grid, width 128 depth 1, still assigns a different top-3
 set for $43\%$ of held-out sequences. We had expected a low-capacity exemption
@@ -448,6 +472,7 @@ and there is none: the smallest models are among the \emph{worst}, not the
 best. See Section~\ref{sec:boundary}.
 
 \subsection{Cause 3: the noise model, and a silent failure in ours}
+\label{sec:noise}
 
 Asking how much data would separate two models requires a noise scale, and this
 assay supplies one rather than needing an assumption. The phenotype is affine in
@@ -457,30 +482,31 @@ count pools, not a proportion --- \text{ex} exceeds \text{tot} in 4.9\% of rows,
 by up to $20.9\times$ --- so a binomial model is wrong here.
 Proposition~\ref{prop:noise} gives the Poisson log-ratio scale.
 
-\paragraph{Our first noise model failed silently, in the direction that hides the
-result.}
-Under a binomial form, a near-saturated sequence receives $\sigma \to 0$; since
-the separation test of Proposition~\ref{prop:sep} weights points by
-$1/\sigma^2$, a handful of such points dominated and the required sample size
-collapsed to zero --- that is, the analysis reported that the models were
-trivially separable. The binomial model is also inapplicable on its own terms
-here: $N_{\mathrm{ex}} \ge N_{\mathrm{tot}}$ on $4.9\%$ of rows, where the
-binomial variance is zero or negative. Under the Poisson log-ratio the weight
-distribution is unremarkable --- the mean of $1/\sigma^2$ is $3.0$ times its
-median --- and the requirement becomes meaningful. We do not quote a magnitude
-for the binomial inflation: that model was replaced before the separation
-experiment was first committed, so the figure cannot be regenerated from
-released code (Appendix~\ref{gen:noise}). Counting noise is a lower bound on
-total noise, so every reported requirement is a lower bound.
+\paragraph{Our first noise model failed silently, in the direction that would
+have overstated the result.}
+Under a binomial form a near-saturated sequence receives $\sigma \to 0$; since
+Proposition~\ref{prop:sep} weights points by $1/\sigma^2$, a handful of such
+points dominated and the required sample size collapsed to zero --- the analysis
+reported the models trivially separable. That model is also inapplicable on its
+own terms: $N_{\mathrm{ex}} \ge N_{\mathrm{tot}}$ on $4.9\%$ of rows, where its
+variance is zero or negative. Under the Poisson log-ratio the weights are
+unremarkable --- mean $1/\sigma^2$ is $3.0$ times its median --- and the
+requirement becomes meaningful. We quote no magnitude for the binomial
+inflation: that model was replaced before the separation experiment was
+committed, so it cannot be regenerated from released code
+(Appendix~\ref{gen:noise}). Counting noise is a lower bound on total noise, so
+every reported requirement is one too.
 
-\subsection{Cause 4: two ways our validation nearly hid the failure}
+\subsection{Two ways our validation nearly hid the failure}
 
 Both are errors we committed and caught. We report them because the controls that
 catch them are cheap and appear not to be standard, in the spirit of the
 randomization checks that exposed saliency methods insensitive to their own
-model~[1]. Table~\ref{tab:validation}, in Appendix~\ref{app:ceiling}, states each
-one as what was reported, what was actually tested, and what the corrected check
-reports.
+model~[1]. Table~\ref{tab:validation}, in Appendix~\ref{app:ceiling}, states the
+ceiling control and the noise model of Section~\ref{sec:noise} in that form ---
+what was reported, what was actually tested, what the corrected check reports.
+The empty-search failure below changed a verdict rather than a measurement, so
+it has no row there.
 
 \paragraph{A ceiling that was arithmetic, and a negative from an empty search.}
 To check that a refit can recover a target, one refits to a target the class
@@ -503,32 +529,30 @@ set, with a regression test pinning the distinction.
 \label{sec:boundary}
 
 We found no regime in this grid where the practice is safe. What we can give is
-the shape of the degradation, which is measurable and consistent.
+the shape of the degradation.
 
 \begin{itemize}
 \item \textbf{Depth is what tracks the failure; width is not, and no cell is
-  safe.} Top-3 divergence rises monotonically with depth: $43$--$74\%$ at depth
-  1, $73$--$88\%$ at depth 2, $90$--$94\%$ at depth 3, a rank correlation of
-  $+0.92$ with depth against $-0.28$ with width. Within depth 1 it improves with
-  width, from $74\%$ to $43\%$, but never falls below $43\%$ anywhere. We looked
-  for a low-capacity exemption and found the opposite.
-\item \textbf{Fit quality predicts agreement but does not explain it.} The
-  correlation between held-out $R^2$ and agreement is $+0.650$: real, but far
-  from explanatory, and the best-fitting cell still shows the failure.
+  safe.} Pooled top-3 divergence rises with depth: $43$--$74\%$, $73$--$88\%$,
+  $90$--$94\%$, a rank correlation of $+0.92$ with depth against $-0.28$ with
+  width. Within depth 1 it improves with width, $74\%$ to $43\%$, but never
+  falls below $43\%$. We looked for a low-capacity exemption and found the
+  opposite.
+\item \textbf{Fit quality predicts agreement but does not explain it.} Held-out
+  $R^2$ correlates $+0.650$ with agreement: real, far from explanatory, and the
+  best-fitting cell still fails.
 \item \textbf{Pairs that are harder to tell apart agree more, not less.} Across
-  cells the median number of held-out measurements needed to separate a tied
-  pair as functions is rank-correlated $-0.94$ with top-3 divergence: where the
-  two fits are closer as functions they also pick more similar positions, which
-  is the direction one would want and the opposite of what the twin comparison
-  shows (Appendix~\ref{gen:twin-sec}). The failure is therefore not a by-product of
-  the two fits being nearly identical.
+  cells the measurements needed to separate a tied pair are rank-correlated
+  $-0.94$ with top-3 divergence: fits closer as functions pick more similar
+  positions, the opposite of what the twin comparison shows
+  (Appendix~\ref{gen:twin-sec}). The failure is not a by-product of the two fits
+  being nearly identical.
 \item \textbf{Scope.} One assay, one phenotype, sequence length 9, and each fit
-  draws $4000$ of the library's $30{,}483$ sequences, so we have not established
-  whether the instability persists at full-library scale. We tested only
-  in-silico mutagenesis, not gradient or Shapley-based attribution. The result
-  is a reproducibility failure --- the same data and procedure return different
-  top-$k$ sets --- not evidence that any particular attributed position is
-  biologically wrong, which agreement between models cannot settle either way.
+  draws $4000$ of the library's $30{,}483$ sequences, so we cannot say whether
+  the instability persists at full-library scale. We tested only in-silico
+  mutagenesis. The result is a reproducibility failure --- the same data and
+  procedure return different top-$k$ sets --- not evidence that any attributed
+  position is biologically wrong, which model agreement cannot settle.
 \end{itemize}
 
 \subsection{Actionable takeaways}
@@ -538,17 +562,15 @@ the shape of the degradation, which is measurable and consistent.
 \item \textbf{Report per-instance top-$k$ sets, not a library-averaged rank
   correlation}, which by Proposition~\ref{prop:rank} cannot distinguish perfect
   agreement from substantial disagreement.
-\item \textbf{Report the concentration of the attribution.} Without it the
-  reference value for a rank correlation is unknown, so the correlation cannot
-  be interpreted at all.
+\item \textbf{Report the concentration of the attribution}, without which a
+  rank correlation has no known reference value and cannot be interpreted.
 \item \textbf{Derive the noise scale from the assay where counts are available},
-  and check the count model. Ours was wrong in the direction that hid the
-  problem.
+  and check the count model. Ours would have overstated the result.
 \item \textbf{Train more than one seed and report top-$k$ set agreement across
-  them.} A constant-factor cost, and the cheapest check that catches this.
-\item \textbf{Verify that a passing control required a search}, since one that
-  starts at its own target passes by arithmetic.
-\item \textbf{Refuse to report a negative from an empty candidate set.}
+  them} --- a constant-factor cost, and the cheapest check that catches this.
+\item \textbf{Verify that a passing control required a search}, since one
+  starting at its own target passes by arithmetic, and \textbf{refuse to report
+  a negative from an empty candidate set.}
 \end{enumerate}
 
 \section*{References}
@@ -780,6 +802,16 @@ requirement $\bigl(\sum_i d_i^2/\sigma_i^2\bigr)^{1/2} \ge z_{1-\alpha/2} + z_{1
 rearranges to the stated bound.
 \end{proof}
 
+\begin{remark}[Whole measurements, with a floor of one]
+\label{rem:floor}
+The bound divides by $\overline{(d_i/\sigma_i)^2}$, an average over points, so
+it can return a value below 1. Such a value does not name a number of
+measurements: it says the average standardized difference already exceeds the
+threshold at a single point. Zero is also unplottable on a log axis. Every
+requirement reported in this paper is therefore $\lceil n \rceil$ with a floor
+of 1.
+\end{remark}
+
 \begin{remark}[The reported requirement is a lower bound]
 Proposition~\ref{prop:noise} accounts for sequencing count noise only. Library
 preparation, transfection and biological variation add further variance, which
@@ -896,7 +928,7 @@ grid.
     128 & 3 & 95 & 68\% & 86\% & 91\% \tiny[89, 92] & 2 & 63\% & 85\% & 92\% \tiny[89, 94] \\
     \bottomrule
   \end{tabular}}
-  \caption{Tightening the accuracy match to $|\Delta R^2| < 0.001$ in every cell. The pair population falls by roughly an order of magnitude and the top-$k$ disagreement does not move, so the failure is not an artifact of the $t$-test's resolution. Columns as in Table~\ref{tab:robust}; intervals bootstrap over data-split seeds.}
+  \caption{Tightening the accuracy match to $|\Delta R^2| < 0.001$ in every cell. The pair population falls by roughly an order of magnitude and the top-$k$ disagreement does not move, so the failure is not an artifact of the $t$-test's resolution. Columns as in Table~\ref{tab:robust}; intervals bootstrap over data-split seeds. The top-$k$ columns here are recomputed \emph{per seed} and then averaged, which is why they carry seed-level intervals where the pooled columns of Table~\ref{tab:full} cannot, and why a cell may differ from that table by a point.}
   \label{tab:robustfull}
 \end{table}
 % <<< END tab_robust_full
@@ -979,7 +1011,7 @@ carries the git SHA and configuration hash of the run that produced it.
     check & what it reported & what it actually tested & corrected control \\
     \midrule
     \textbf{Ceiling control} & Held-out $R^2 = 1.000000$ recovering a target the architecture realizes exactly, in every cell and every seed. & That Adam does not leave a perfect solution. Warm-started \emph{at} the target, its initial loss was already below the stopping threshold and best-iterate selection kept the initial state, so the loop never ran. & Cold-started on the same target, the worst cell reaches only $0.4501$ and 11 of 12 cells fall below the $0.999$ threshold. \\
-    \textbf{Noise model} & A required sample size of zero: any two fits separable with no data at all. & Inverse-variance weighting under a count model undefined on this library: the pools are not a proportion, $\mathrm{ex} \ge \mathrm{tot}$ on $4.9\%$ of rows, so binomial variance is zero or negative there and a few near-saturated sequences carried the statistic. & Under the Poisson log-ratio the weights are ordinary (mean $1/\sigma^2$ is $3.0\times$ its median) and the requirement is finite, $0.5$ to $87{,}751{,}464$ measurements. \\
+    \textbf{Noise model} & A required sample size of zero: any two fits separable with no data at all. & Inverse-variance weighting under a count model undefined on this library: the pools are not a proportion, $\mathrm{ex} \ge \mathrm{tot}$ on $4.9\%$ of rows, so binomial variance is zero or negative there and a few near-saturated sequences carried the statistic. & Under the Poisson log-ratio the weights are ordinary (mean $1/\sigma^2$ is $3.0\times$ its median) and the requirement is finite and population-specific: $1$ to $3$ measurements for accuracy-tied independently trained pairs, and $1$ to $87{,}751{,}464$ for a fit against its reparameterized twin. The two must not be quoted as one range. \\
     \bottomrule
   \end{tabular}}
   \caption{\textbf{Both controls we relied on were passing for reasons unrelated to what they were meant to test.} Neither failure was visible from the reported number alone: a control that cannot fail and a weighting scheme that silently concentrates on a few points both look like success.}
