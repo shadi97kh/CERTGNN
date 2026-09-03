@@ -297,7 +297,9 @@ by fewer than three measurements (Section~\ref{sec:sep-scale}). The assay
 distinguishes them cheaply and the procedure that picked one never asked: the
 information is in the data and the selection step discards it. Had the models
 been indistinguishable the remedy would be a larger assay; because they are not,
-it is to compare functions, not aggregate error (Section~\ref{sec:takeaways}).
+it is to compare functions rather than aggregate error
+(Section~\ref{sec:takeaways}), or to prefer a model interpretable by
+construction~[15].
 
 The consequence is that precondition (iii) of Section~2 is false, and it is the
 precondition nobody states. Faithfulness of the attribution to the model
@@ -398,16 +400,15 @@ corrected check reports.
 \input{tex/tab_validation}
 
 \paragraph{A ceiling that was arithmetic, not evidence.}
-To check that a refit procedure can recover a target, one refits to a target the
-model class provably contains and confirms recovery. Our implementation
-warm-started the refit from the reference weights. For the null target --- the
-reference's own latent --- the initial loss was already $6.7 \times 10^{-19}$,
-below the early-stopping threshold, so best-iterate selection kept the initial
-state and the optimization loop never ran. The control returned $1.000000$
-because it \emph{began at the answer}. It verified that the optimizer does not
-wander away from a perfect solution; it never verified that the procedure can
-\emph{find} a solution it does not start at, which is the capability every
-downstream conclusion assumed. Details in Appendix~\ref{app:ceiling}.
+To check that a refit can recover a target, one refits to a target the class
+provably contains. Ours warm-started from the reference weights, so for the null
+target --- the reference's own latent --- the initial loss was already
+$6.7 \times 10^{-19}$, below the early-stopping threshold; best-iterate
+selection kept the initial state and the loop never ran. The control returned
+$1.000000$ because it \emph{began at the answer}. It verified that the optimizer
+does not wander away from a perfect solution, never that the procedure can
+\emph{find} one it does not start at --- the capability every downstream
+conclusion assumed (Appendix~\ref{app:ceiling}).
 
 The fix is a ceiling that requires search: cold-start the same refit. Under that
 control, recovery of a target the architecture realizes \emph{exactly} falls to
@@ -459,21 +460,17 @@ the shape of the degradation, which is measurable and consistent.
 \item \textbf{Report per-instance top-$k$ sets, not a library-averaged rank
   correlation.} By Proposition~\ref{prop:rank} the averaged correlation cannot
   distinguish perfect agreement from substantial disagreement.
-\item \textbf{Report the concentration of the attribution.} Without it a reader
-  cannot interpret a rank correlation at all, because the reference value under
-  perfect agreement depends on it.
+\item \textbf{Report the concentration of the attribution.} Without it a rank
+  correlation cannot be interpreted at all: the reference value under perfect
+  agreement depends on it.
 \item \textbf{Derive the noise scale from the assay where counts are available},
   and check the count model. Ours was wrong in the direction that made the
   problem disappear.
 \item \textbf{Train more than one seed and report top-$k$ set agreement across
-  them.} This costs a constant factor and is the single cheapest check that would
-  have caught the failure.
+  them.} A constant-factor cost, and the cheapest check that catches this.
 \item \textbf{Verify that a passing control required a search.} A control that
   starts at its own target passes by arithmetic.
 \item \textbf{Refuse to report a negative from an empty candidate set.}
-\item \textbf{Where the top-$k$ set is the deliverable, consider a model
-  interpretable by construction}~[15]. Our result indicts the post-hoc route
-  here, not the design goal.
 \end{enumerate}
 
 \section*{References}
