@@ -387,7 +387,12 @@ def section_a3(sep: pathlib.Path) -> str:
         r"\section{Noise model derivation}",
         r"\label{gen:noise}",
         "",
-        r"$Z$ requires an observation-noise scale. This library supplies one "
+        r"Throughout this appendix $Z$ denotes the number of held-out "
+        r"measurements needed to determine which of two candidate fits "
+        r"generated the data, at $\alpha = 0.05$ with power $0.8$ "
+        r"(Proposition~\ref{prop:sep}), reported as $\lceil Z \rceil$ with a "
+        r"floor of 1. It requires an observation-noise scale. This library "
+        r"supplies one "
         r"rather than needing an assumption, and the derivation is given here "
         r"because the choice of count model changes $Z$ by orders of magnitude.",
         "",
@@ -486,18 +491,19 @@ def section_twin(sep: pathlib.Path) -> str:
         "",
         r"The main text measures \emph{independently trained} models that "
         r"predictive accuracy cannot separate, and shows that the assay itself "
-        r"separates them cheaply, in fewer than three held-out measurements. "
+        r"separates them cheaply, in at most three held-out measurements. "
         r"This section reports the complementary case: a single fit against a "
         r"\emph{reparameterized twin} of itself. The cost of adjudication "
-        r"varies over more than eight orders of magnitude across the grid: it "
+        r"varies over nearly eight orders of magnitude across the grid: it "
         r"is under ten measurements at every depth-1 cell, and exceeds the "
         r"full library only at width 128 depths 2 and 3. Those two cells are "
         r"the ones where the data genuinely cannot adjudicate.",
         "",
         r"\textbf{The two cases bracket the problem.} In the main-text "
-        r"population the divergence is avoidable: one measurement would settle "
-        r"which of the two models is right, and the selection procedure simply "
-        r"does not ask. Here it is not avoidable, since at width 128 depth 3 the "
+        r"population the divergence is avoidable: for the median tied pair one "
+        r"to three of the held-out points already in hand settle which of the "
+        r"two generated the data, and the selection procedure never asks. Here "
+        r"it is not avoidable, since at width 128 depth 3 the "
         r"twin needs $8.8 \times 10^7$ measurements, more than three orders of "
         r"magnitude beyond the full library, and the top-3 sets diverge "
         r"regardless. Attribution therefore fails in both regimes, for "
@@ -569,10 +575,10 @@ def section_twin(sep: pathlib.Path) -> str:
         r"\includegraphics[width=0.85\linewidth]{figures/figA_twin_separability.png}",
         r"\caption{\textbf{Separability and top-3 divergence for a fit against "
         r"its own reparameterized twin, not for independently trained pairs.} "
-        r"The requirement spans more than eight orders of magnitude here and "
+        r"The requirement spans nearly eight orders of magnitude here and "
         r"two cells "
         r"exceed the full library, where the main-text population separates "
-        r"with fewer than three measurements in every cell "
+        r"with at most three measurements in every cell "
         r"(Figure~\ref{fig:sep}). Left axis logarithmic; the dashed line is "
         r"the full library.}",
         r"\label{gen:twin}",

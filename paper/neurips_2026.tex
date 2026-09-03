@@ -190,7 +190,7 @@ Total compute is on the order of GPU-days on a single mid-range machine.
 
 Models that predictive accuracy cannot separate assign different top-3 positions
 for $43\%$ to $94\%$ of held-out sequences, yet at most three held-out
-measurements determine which of any such pair generated the data. This mirrors
+measurements determine which of the \emph{median} such pair generated the data. This mirrors
 the disagreement problem documented for general-purpose explainers~[12], and
 joins results showing genomic sequence models can score well while generalizing
 poorly~[16]. \textbf{The practice fails by discarding recoverable
@@ -206,7 +206,8 @@ not a demonstration of equivalence, so we report the filter's resolution
 alongside it: the minimum detectable held-out $R^2$ difference at 80\% power
 given $n_{\text{held-out}} = 1000$. The grid holds 2280 pairs per seed, of which
 1610 are not separable at this resolution; pooled over the ten seeds that is
-$22{,}800$ and $16{,}102$.
+$22{,}800$ and $16{,}102$. The per-cell means in Table~\ref{tab:full} are
+rounded and sum to 1611.
 
 \textbf{Tightening the match does not change the result.} Re-reading the same
 per-pair records under stricter caps on the held-out $R^2$ gap itself, moving
@@ -306,8 +307,8 @@ positions and still disagree about which dominates. We therefore report the
 strongest position separately (Tables~\ref{tab:topk} and~\ref{tab:robust}). \textbf{The two models pick a different strongest position
 for $18\%$ of sequences at width 128 depth 1, rising to $68\%$ at depth 3;} the
 top-2 set differs for $29\%$, so the disagreement is not confined to a negligible
-third position. Pooling the $329{,}600$ sequence--pair observations at that cell
-gives a $44.6\%$ set disagreement, of which $35.8$ points agree on the leader and
+third position. Averaged over all $329{,}600$ sequence--pair observations, a
+third estimator, set disagreement at that cell is $44.6\%$, of which $35.8$ points agree on the leader and
 differ only at ranks 2--3. \textbf{So at the best-fitting cell most of the top-3
 disagreement is about ranks 2 and 3, and we say so rather than claim the stronger
 result;} at depth 3 the balance inverts, $63.3$ of the $90.5$ points also
@@ -318,7 +319,8 @@ reparameterized twin gives, for the same four quantities at width 128, a top-3
 set divergence of $46\%$ at depth 2 and $47\%$ at depth 3 against the $73\%$
 and $90\%$ above, and a conditioned divergence of $34\%$ and $21\%$ against
 $71\%$ and $80\%$. The twin diverges less in eleven of twelve cells but
-\emph{more} at the best-fitting cell, $46\%$ against $43\%$. The two
+\emph{more} at the best-fitting cell, $46.1\%$ against $43.0\%$ (coincidentally
+rounding to the same $46\%$ as depth 2). The two
 populations must not be quoted interchangeably; the twin is reported separately
 in Appendix~\ref{gen:twin-sec}.
 
@@ -353,10 +355,11 @@ assay's own read counts (Proposition~\ref{prop:noise}). Every requirement is
 reported as a whole number of measurements with a floor of one
 (Remark~\ref{rem:floor}): the median is 1 to 3 in every cell, four orders of
 magnitude below the $30{,}483$-sequence library (Figure~\ref{fig:sep}). The
-quantity the bound divides by, $\overline{(d_i/\sigma_i)^2}$, runs $4.5$ to
-$28.0$ across cells, a root-mean-square standardized difference of $2.1$ to
-$5.3$ noise standard deviations, and is not tail-dominated, exceeding its own
-median by only $1.05$ to $1.21\times$. \textbf{No new data is needed to act on
+quantity the bound divides by, $\overline{(d_i/\sigma_i)^2}$, has a per-cell
+median over tied pairs of $4.0$ to $26.4$, and is not tail-dominated: its mean
+exceeds its median by only $1.05$ to $1.21\times$. Inverting those medians gives
+1 to 2; the 3 is width 128 depth 1, where per-seed medians are averaged before
+ceiling and averaging does not commute with the reciprocal. \textbf{No new data is needed to act on
 this.} The evidence is already in hand: the same $1000$ held-out points the
 accuracy test consumes. That test compresses them into one aggregate scalar
 before comparing, so the models are separated at the resolution of the scalar
@@ -366,7 +369,7 @@ anyway, is a different population, reported in Appendix~\ref{gen:twin-sec}.
 
 \begin{figure}[!tb]
   \centering
-  \includegraphics[width=0.74\linewidth]{figures/fig3_occurrence_separability.png}
+  \includegraphics[width=0.70\linewidth]{figures/fig3_occurrence_separability.png}
   \caption{\textbf{Accuracy-tied models are cheap to tell apart as functions,
   yet disagree about which positions matter.} Held-out measurements required to
   determine which of two \emph{independently trained} accuracy-matched models
@@ -375,7 +378,7 @@ anyway, is a different population, reported in Appendix~\ref{gen:twin-sec}.
   needs at most three measurements, against a library of $30{,}483$, so the
   reference line is off scale and is stated in the panel rather than drawn. The
   companion figure for a fit against its own reparameterized twin, where the
-  requirement spans more than eight orders of magnitude, is
+  requirement spans nearly eight orders of magnitude, is
   Figure~\ref{gen:twin}.}
   \label{fig:sep}
 \end{figure}
@@ -437,7 +440,7 @@ alike.
 
 \begin{figure}[!tb]
   \centering
-  \includegraphics[width=0.90\linewidth]{figures/fig2_concentration.png}
+  \includegraphics[width=0.84\linewidth]{figures/fig2_concentration.png}
   \caption{\textbf{A low rank correlation has two incompatible readings, and the
   top-$k$ set separates them.} Accuracy-tied independently trained pairs at
   width 128, depth 1; five seeds, $329{,}600$ (sequence, pair) points from $824$
@@ -495,14 +498,13 @@ code (Appendix~\ref{gen:noise}).
 
 \subsection{Two ways our validation nearly hid the failure}
 
-Both are errors we committed and caught. We report them because the controls that
-catch them are cheap and appear not to be standard, in the spirit of the
-randomization checks that exposed saliency methods insensitive to their own
-model~[1]. Table~\ref{tab:validation}, in Appendix~\ref{app:ceiling}, states the
-ceiling control and the noise model of Section~\ref{sec:noise} in that form:
-what was reported, what was actually tested, what the corrected check reports.
-The empty-search failure below changed a verdict rather than a measurement, so
-it has no row there.
+Both are errors we committed and caught, and we report them because the
+controls that catch them are cheap and appear not to be standard, in the spirit
+of the randomization checks that exposed saliency methods insensitive to their
+own model~[1]. Table~\ref{tab:validation} states the ceiling control and the
+noise model of Section~\ref{sec:noise} as what was reported, what was actually
+tested, and what the corrected check reports. The empty-search failure changed
+a verdict rather than a measurement, so it has no row there.
 
 \paragraph{A ceiling that was arithmetic, and a negative from an empty search.}
 To check that a refit can recover a target, one refits to a target the class
@@ -538,18 +540,19 @@ the shape of the degradation.
   $R^2$ correlates $+0.650$ with agreement: real, far from explanatory, and the
   best-fitting cell still fails.
 \item \textbf{Pairs that are harder to tell apart agree more, not less.} Across
-  cells the measurements needed to separate a tied pair are rank-correlated
-  $-0.94$ with top-3 divergence: fits closer as functions pick more similar
+  cells the \emph{unfloored} measurements needed to separate a tied pair are
+  rank-correlated $-0.94$ with top-3 divergence, the floor having collapsed nine
+  cells onto the same value: fits closer as functions pick more similar
   positions, the opposite of what the twin comparison shows
   (Appendix~\ref{gen:twin-sec}). The failure is not a by-product of the two fits
   being nearly identical.
 \item \textbf{The grid does not reach the noise ceiling.} The assay's own count
   noise caps achievable held-out $R^2$ at $1 - \overline{\sigma_i^2} = 0.740$
-  $[0.727, 0.749]$ in standardized units, against $0.637$ at our best cell. The
-  grid therefore sits below the ceiling, and this result shows the failure is
-  not confined to the worst-fitting models rather than that it survives at the
-  ceiling. Counting noise is a lower bound on total noise, so the true ceiling
-  is lower and the gap narrower, but we have not closed it.
+  $[0.727, 0.749]$, against $0.637$ at our best cell. The grid sits below the
+  ceiling, so this result shows the failure is not confined to the worst-fitting
+  models rather than that it survives at the ceiling. Counting noise is a lower
+  bound, so the true ceiling is lower and the gap narrower, but we have not
+  closed it.
 \item \textbf{Scope.} One assay, one phenotype, sequence length 9, and each fit
   draws $4000$ of the library's $30{,}483$ sequences, so we cannot say whether
   the instability persists at full-library scale. The class tested is a one-hot
@@ -566,15 +569,14 @@ the shape of the degradation.
 \begin{enumerate}
 \item \textbf{Report per-instance top-$k$ sets, not a library-averaged rank
   correlation}, which by Proposition~\ref{prop:rank} cannot distinguish perfect
-  agreement from substantial disagreement, \textbf{and report the concentration
-  of the attribution}, without which that correlation has no reference value.
-\item \textbf{Derive the noise scale from the assay where counts are available},
-  and check the count model. Ours would have overstated the result.
+  from substantial disagreement, \textbf{and report the concentration of the
+  attribution}, without which that correlation has no reference value.
+\item \textbf{Derive the noise scale from the assay where counts are available}
+  and check the count model; ours would have overstated the result.
 \item \textbf{Train more than one seed and report top-$k$ set agreement across
   them}: a constant-factor cost, and the cheapest check that catches this.
-\item \textbf{Verify that a passing control required a search}, since one
-  starting at its own target passes by arithmetic, and \textbf{refuse to report
-  a negative from an empty candidate set.}
+\item \textbf{Verify that a passing control required a search}, and
+  \textbf{refuse to report a negative from an empty candidate set.}
 \end{enumerate}
 
 \section*{References}
@@ -1023,21 +1025,8 @@ carries the git SHA and configuration hash of the run that produced it.
 \end{table}
 % <<< END tab_validation
 
-The refit loads the reference weights, then evaluates the loss and snapshots
-the best iterate \emph{before} entering the optimization loop. For the null
-target, the reference's own latent, that initial state is already the
-best iterate that will ever be seen, so no later step can displace it. The
-measured initial loss is $6.7 \times 10^{-19}$, below the $10^{-10}$
-early-stopping threshold, and the loop breaks on its first iteration.
-
-The consequence is visible in the run records without reference to any loss
-value: the warm-started control returns held-out $R^2$ of exactly $1.0$ in all
-$120$ cell--seed combinations, bit-exact rather than approximate. A control
-that cannot return anything else has not measured anything. The cold-started
-replacement, which must actually travel to the same in-class target, recovers
-it at only $0.4501$ in the worst cell and falls below the $0.999$ threshold in
-11 of 12 cells, with per-seed spread of $0.21$ to $0.87$ at width 128 depth 3.
-Both arms are plotted in Figure~\ref{gen:ceiling-fig}.
+The mechanism, the per-cell numbers and both arms of the replacement control
+are given once, in Appendix~\ref{gen:ceiling}; they are not repeated here.
 
 The general form of the error is worth stating separately from its instance. A
 control that verifies a procedure can recover a target must ensure the procedure

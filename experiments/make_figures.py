@@ -458,7 +458,7 @@ def figure_separability(run: pathlib.Path, out: pathlib.Path, kind: str) -> dict
         ax.text(
             len(rows) - 0.5,
             top * 0.985,
-            f"every cell separates with fewer than {np.ceil(hi.max()):.0f}"
+            f"every cell separates with at most {mean.max():.0f}"
             f" measurements;\nthe full library holds {library:,.0f}",
             ha="right",
             va="top",
