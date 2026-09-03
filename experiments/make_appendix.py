@@ -206,7 +206,7 @@ def section_a1(occ: pathlib.Path, sep: pathlib.Path) -> str:
         f"$\\alpha = {o['filter_alpha']}$; all pooled statistics below are taken "
         "over indistinguishable pairs only.",
         "",
-        r"\begin{table}[h]",
+        r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
         r"\begin{tabular}{llrlrrrr}",
@@ -247,7 +247,7 @@ def section_a1(occ: pathlib.Path, sep: pathlib.Path) -> str:
         f"are the same function, at $\\alpha = {s['alpha']}$ with power "
         f"{s['power']}, under the noise model of Appendix~\\ref{{gen:noise}}.",
         "",
-        r"\begin{table}[h]",
+        r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
         r"\begin{tabular}{llrllrr}",
@@ -270,7 +270,7 @@ def section_a1(occ: pathlib.Path, sep: pathlib.Path) -> str:
         r"counts sequencing noise only (Appendix~\ref{gen:noise}).}",
         r"\end{table}",
         "",
-        r"\begin{figure}[h]",
+        r"\begin{figure}[!htb]",
         r"\centering",
         r"\includegraphics[width=0.85\linewidth]{figures/figA_twin_separability.png}",
         r"\caption{Separability and top-3 divergence for \textbf{a fit against "
@@ -494,7 +494,7 @@ def section_twin(sep: pathlib.Path) -> str:
         f"\\texttt{{{sm['config_hash']}}}, {s['n_seeds']} seeds, "
         f"sequence length {s['seq_len']}.",
         "",
-        r"\begin{table}[h]",
+        r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
         r"\begin{tabular}{llllr}",
@@ -522,7 +522,7 @@ def section_twin(sep: pathlib.Path) -> str:
         r"\label{gen:twin-tab}",
         r"\end{table}",
         "",
-        r"\begin{figure}[h]",
+        r"\begin{figure}[!htb]",
         r"\centering",
         r"\includegraphics[width=0.85\linewidth]{figures/figA_twin_separability.png}",
         r"\caption{\textbf{Separability and top-3 divergence for a fit against "
@@ -585,7 +585,7 @@ def section_a4(cs: pathlib.Path, ch: pathlib.Path) -> str:
         r"optimiser can travel to it. Mean initial loss across cells confirms "
         r"the refit no longer begins at the answer.",
         "",
-        r"\begin{table}[h]",
+        r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
         r"\begin{tabular}{llll}",
@@ -611,7 +611,7 @@ def section_a4(cs: pathlib.Path, ch: pathlib.Path) -> str:
         r"$6.7 \times 10^{-19}$ for the warm-started control it replaces.}",
         r"\end{table}",
         "",
-        r"\begin{figure}[h]",
+        r"\begin{figure}[!htb]",
         r"\centering",
         r"\includegraphics[width=0.92\linewidth]{figures/figA2_vacuous_ceiling.png}",
         r"\caption{\textbf{The warm-start control cannot fail, so it measures "
@@ -703,7 +703,7 @@ def section_a5(runs: dict[str, pathlib.Path]) -> str:
         r"from one of those files by a generator script; none is transcribed by "
         r"hand.",
         "",
-        r"\begin{table}[h]",
+        r"\begin{table}[!htb]",
         r"\centering",
         r"\small",
         r"\begin{tabular}{lllll}",

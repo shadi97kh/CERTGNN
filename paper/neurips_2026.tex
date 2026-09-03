@@ -23,6 +23,13 @@ A Negative Result on Attribution Reliability in a Multiplexed Splicing Assay}
 \newtheorem{proposition}{Proposition}
 \newtheorem{remark}{Remark}
 
+% Float placement. Every main-text float carries [!tb]. The bare [t] this
+% previously used means "top of a page only"; a float that will not fit at a top
+% is deferred, deferred floats accumulate, and LaTeX flushes them all at the end
+% of the document. The ! modifier tells LaTeX to ignore the size fractions when
+% placing, which is what stops the cascade. Deliberately no p: allowing float
+% pages made LaTeX build one and left a near-empty page.
+
 \author{%
   Anonymous Author(s) \\
   Affiliation \\
@@ -64,7 +71,7 @@ is worst rather than any under which the practice is safe, since we found none,
 and a reporting checklist.
 \end{abstract}
 
-\begin{figure}[t]
+\begin{figure}[!tb]
   \centering
   \includegraphics[width=\linewidth]{figures/fig0_workflow.pdf}
   \caption{\textbf{The pipeline, and where the disagreement appears.} Every
@@ -182,7 +189,7 @@ alongside it: the minimum detectable held-out $R^2$ difference at 80\% power
 given $n_{\text{held-out}} = 1000$. Of 2280 pairs, 1610 are not separable at this
 resolution.
 
-\begin{figure}[t]
+\begin{figure}[!tb]
   \centering
   \includegraphics[width=0.86\linewidth]{figures/fig1_not_weak_models.png}
   \caption{\textbf{The failure is not an artifact of poorly-fitting models.}
@@ -254,7 +261,7 @@ takes it. The complementary case --- a fit against its own \emph{reparameterized
 twin}, needing up to $8.8 \times 10^7$ measurements yet diverging on top-3
 anyway --- is a different population, reported in Appendix~\ref{gen:twin-sec}.
 
-\begin{figure}[t]
+\begin{figure}[!tb]
   \centering
   \includegraphics[width=0.86\linewidth]{figures/fig3_occurrence_separability.png}
   \caption{\textbf{Accuracy-tied models are cheap to tell apart as functions,
@@ -320,7 +327,7 @@ the expected Spearman correlation is $0.708$. A reported $\rho$ of $0.7$ is
 therefore consistent with perfect agreement about which positions matter, and
 also with substantial disagreement. The statistic cannot distinguish the two.
 
-\begin{figure}[t]
+\begin{figure}[!tb]
   \centering
   \includegraphics[width=0.98\linewidth]{figures/fig2_concentration.png}
   \caption{\textbf{A low rank correlation has two incompatible readings, and the
@@ -618,7 +625,7 @@ $\mathbb{E}\bigl[\sum d_i^2\bigr] = m(m^2-1)/6$ over the tail block.
 Substituting yields the result.
 \end{proof}
 
-\begin{table}[h]
+\begin{table}[!htb]
   \caption{Expected Spearman correlation over $L = 9$ positions when two models
   agree \emph{exactly} on the top $k$ and order the rest at random
   (Proposition~\ref{prop:rank}). A reported $\rho$ at or below these values

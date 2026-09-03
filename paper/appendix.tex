@@ -46,7 +46,7 @@ The two sets of numbers are not interchangeable. The twin comparison finds subst
 
 Run \texttt{20260830T030657Z\_972496a\_5da8cb38}, git \texttt{972496a}, config \texttt{5da8cb38}, 10 seeds, sequence length 9.
 
-\begin{table}[h]
+\begin{table}[!htb]
 \centering
 \small
 \begin{tabular}{llllr}
@@ -71,7 +71,7 @@ width & depth & held-out $R^2$ & per-instance median $\rho$ & $Z$ to separate \\
 \label{gen:twin-tab}
 \end{table}
 
-\begin{figure}[h]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=0.85\linewidth]{figures/figA_twin_separability.png}
 \caption{\textbf{Separability and top-3 divergence for a fit against its own reparameterized twin, not for independently trained pairs.} The requirement spans nine orders of magnitude here and two cells exceed the full library, where the main-text population separates with fewer than three measurements in every cell (Figure~\ref{fig:sep}). Left axis logarithmic; the dashed line is the full library.}
@@ -89,7 +89,7 @@ A held-out $R^2$ of $1.000000$ on that target is arithmetic, not evidence. It es
 \paragraph{The control that replaced it.}
 Run \texttt{20260829T191427Z\_94dd5a2\_2267b74e}, git \texttt{94dd5a2}, config \texttt{2267b74e}, 10 seeds. The null target is refit \emph{without} warm-starting from the reference, from a cold random initialization. The target is known to be in the class, since the reference realises it, so this asks only whether the optimiser can travel to it. Mean initial loss across cells confirms the refit no longer begins at the answer.
 
-\begin{table}[h]
+\begin{table}[!htb]
 \centering
 \small
 \begin{tabular}{llll}
@@ -113,7 +113,7 @@ width & depth & cold-start null, held-out $R^2$ & warm warp refit, held-out $R^2
 \caption{The ceiling that requires search. The cold-start column is an upper bound on what this procedure can say about any target, because its target is in the class by construction. Mean cold-start initial loss ranges from $1.826$ to $2.093$, against $6.7 \times 10^{-19}$ for the warm-started control it replaces.}
 \end{table}
 
-\begin{figure}[h]
+\begin{figure}[!htb]
 \centering
 \includegraphics[width=0.92\linewidth]{figures/figA2_vacuous_ceiling.png}
 \caption{\textbf{The warm-start control cannot fail, so it measures nothing.} Held-out $R^2$ recovering the null target, a function the architecture realizes exactly, with the ten per-seed values overlaid. The warm-started control returns $1.000000$ in every cell and every seed --- all $120$ values are exactly $1.0$, not approximately --- because it is initialized at the reference and its initial loss of $6.7 \times 10^{-19}$ is already below the $10^{-10}$ stopping threshold, so the optimization loop never runs and best-iterate selection keeps the initial state. The cold-started arm must actually search for the same target and its per-seed spread shows how much the basin varies: at $128\times3$ restarts land between $0.21$ and $0.87$. Warm bars are flat by construction; that flatness is the finding, not a plotting artefact.}

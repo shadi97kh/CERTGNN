@@ -127,7 +127,7 @@ def fragment(
     header: str,
     caption: str,
     label: str,
-    placement: str = "tb",
+    placement: str = "!tb",
     small: bool = True,
 ) -> str:
     L = [
@@ -350,7 +350,7 @@ def table_full(occ: pathlib.Path) -> str:
         r"$\rho{<}0.5$ & top-3 mass & eff.\ pos & top-1 diff & exact & Jaccard",
         cap,
         "tab:full",
-        placement="h",
+        placement="!htb",
     )
 
 
@@ -403,7 +403,7 @@ def table_protocol(occ: pathlib.Path) -> str:
         r"cell & learning rate chosen (seeds) & configs & epochs & grad.\ steps",
         cap,
         "tab:protocol",
-        placement="h",
+        placement="!htb",
     )
 
 
