@@ -286,8 +286,8 @@ The top-3 set differs for 73\% and 90\% of held-out sequences at width 128,
 depths 2 and 3; restricted to sequences where the concentration diagnostic
 (Section~\ref{sec:why}) says the comparison is meaningful, 71\% and 80\%. The
 conditioned figure carries little weight at depth 3, where only $11\%$ of
-sequences at width 128 and none at width 64 have a well-defined top-3 under
-both models.
+sequences at width 128 and $0.3\%$ at width 64 have a well-defined top-3
+under both models.
 
 \paragraph{Dominant position, or the order beneath it?} A shuffle of ranks 2
 and 3 is a far weaker finding than a change of leader, and the top-$k$ Jaccard
@@ -340,7 +340,7 @@ accuracy-tied models are the same function, under a noise scale derived from the
 assay's own read counts (Proposition~\ref{prop:noise}). The requirement is a
 median of $0.3$ to $2.1$ in every cell, four orders of magnitude below the
 $30{,}483$-sequence library (Figure~\ref{fig:sep}); the median pointwise
-prediction difference runs $0.5$ to $2.5$ times the observation noise. One
+prediction difference runs $0.5$ to $2.4$ times the observation noise. One
 held-out measurement would settle which model is right, and selection never
 takes it. The complementary case --- a fit against its own \emph{reparameterized
 twin}, needing up to $8.8 \times 10^7$ measurements yet diverging on top-3
@@ -509,7 +509,7 @@ the shape of the degradation, which is measurable and consistent.
 \item \textbf{Depth is what tracks the failure; width is not, and no cell is
   safe.} Top-3 divergence rises monotonically with depth: $43$--$74\%$ at depth
   1, $73$--$88\%$ at depth 2, $90$--$94\%$ at depth 3, a rank correlation of
-  $+0.80$ with depth against $-0.06$ with width. Within depth 1 it improves with
+  $+0.92$ with depth against $-0.28$ with width. Within depth 1 it improves with
   width, from $74\%$ to $43\%$, but never falls below $43\%$ anywhere. We looked
   for a low-capacity exemption and found the opposite.
 \item \textbf{Fit quality predicts agreement but does not explain it.} The

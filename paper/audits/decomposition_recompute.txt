@@ -1,0 +1,19 @@
+== 128x1 ==
+   n_points                           203200
+   top1_differs_pct                   19.7
+   set_differs_pct                    44.2
+   set_differs_leader_same_pct        35.0
+   set_differs_leader_differs_pct     9.2
+   set_same_leader_differs_pct        10.5
+== 128x3 ==
+   n_points                           133600
+   top1_differs_pct                   68.0
+   set_differs_pct                    91.0
+   set_differs_leader_same_pct        27.2
+   set_differs_leader_differs_pct     63.9
+   set_same_leader_differs_pct        4.1
+
+PAPER ASSERTS (128x1): top1 19.7, set 44.2, decomposition 35.0 / 9.2 / 10.5
+PAPER ASSERTS (128x3): 63.9 of 91.0 points of set disagreement also differ on leader
+
+logged -> paper/figures/decomposition_data.json

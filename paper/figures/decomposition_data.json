@@ -1,0 +1,18 @@
+{
+  "128x1": {
+    "n_points": 203200,
+    "top1_differs_pct": 19.7,
+    "set_differs_pct": 44.2,
+    "set_differs_leader_same_pct": 35.0,
+    "set_differs_leader_differs_pct": 9.2,
+    "set_same_leader_differs_pct": 10.5
+  },
+  "128x3": {
+    "n_points": 133600,
+    "top1_differs_pct": 68.0,
+    "set_differs_pct": 91.0,
+    "set_differs_leader_same_pct": 27.2,
+    "set_differs_leader_differs_pct": 63.9,
+    "set_same_leader_differs_pct": 4.1
+  }
+}
